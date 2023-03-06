@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.15...3.22)
 project(buildkit VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -38,8 +38,6 @@ message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
 message(STATUS "CLIPPERCIF ${CLIPEPRCIFDEP}")
 message(STATUS "PYTHONLIB ${PYTHON_LIBRARY}")
 
-
-
 option(BUILD_SHARED_LIBS "Build as shared library" ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
@@ -51,6 +49,14 @@ include_directories(${CMAKE_SOURCE_DIR}/cpp/include/buccaneer
 
 set (BUCCANEER_HEADER_DIR ${CMAKE_SOURCE_DIR}/cpp/include/buccaneer)
 set (BUCCANEER_SRC_DIR ${CMAKE_SOURCE_DIR}/cpp/src)
+
+# get cbuccaner version
+file(STRINGS "${BUCCANEER_SRC_DIR}/cbuccaneer.cpp"
+        buccaneer_version_line REGEX "CCP4Program prog\\( \"cbuccaneer\",")
+string(FIND ${buccaneer_version_line} "\"," buccaneer_version_pos)
+string(SUBSTRING ${buccaneer_version_line} ${buccaneer_version_pos} 10 buccaneer_version)
+string(REGEX REPLACE "[,\" ]" "" buccaneer_version_str ${buccaneer_version})
+message(STATUS "cbuccaneer version ${buccaneer_version_str}")
 
 # for buccaneer library
 add_library(buccaneer_lib   ${BUCCANEER_SRC_DIR}/buccaneer-build.cpp
