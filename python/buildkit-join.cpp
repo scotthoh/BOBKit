@@ -25,9 +25,6 @@ void init_ca_join(py::module &m)
 
   pyCaJoin
       .def(py::init<double &, double &>(), py::arg("rad_merge") = 2.0, py::arg("rad_join") = 2.0)
-      .def(
-          "__call__", [](Ca_join &self, clipper::MiniMol &mol)
-          { return self(mol); }, // problem segmentation fault
-          py::arg("mol"),
-          py::return_value_policy::reference_internal);
+      .def("__call__", &Ca_join::operator(), py::arg("mol"))
+      .def_static("join", &Ca_join::join, py::arg("mol"), py::arg("rmerg"), py::arg("rjoin"), py::arg("com"));
 }

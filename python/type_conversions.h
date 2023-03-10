@@ -30,7 +30,7 @@ namespace PYBIND11_NAMESPACE
       // C++ -> Python
       static handle cast(const clipper::String &src, return_value_policy policy, handle parent)
       {
-        return PyUnicode_FromString(src.c_str());
+        return PyUnicode_FromString(src.trim().c_str());
       }
     };
   }

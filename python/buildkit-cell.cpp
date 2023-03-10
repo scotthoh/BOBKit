@@ -4,7 +4,6 @@
 #include <pybind11/operators.h>
 
 #include <clipper/core/cell.h>
-#include <clipper/core/spacegroup.h>
 
 namespace py = pybind11;
 using namespace clipper;
