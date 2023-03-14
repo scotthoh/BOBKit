@@ -306,6 +306,8 @@ void init_minimol(py::module &m)
             "model", [](MiniMol &self, MModel mol)
             { return self.model() = mol; },
             py::return_value_policy::reference_internal)
+        .def("clone", [](const MiniMol &self)
+             { return new MiniMol(self); })
         .def_property_readonly("is_null", &MiniMol::is_null);
 
     //.def_property_readonly("model", py::overload_cast<MModel>(&MiniMol::model, py::const_));
@@ -322,14 +324,37 @@ void init_minimol(py::module &m)
             throw std::invalid_argument("No path provided for input model! Aborting...");
         }
         MiniMol mmol;
-        String clipper_str_path = path;
-        BuccaneerUtil::read_model(mmol, clipper_str_path, enable_messages);
+        BuccaneerUtil::read_model(mmol, path, enable_messages);
         // MiniMol *pymmol = new MiniMol(mmol);
         return mmol; },
+        // need to see how to read in spacegroup/cell
+        // maybe should update clipper to exchange with gemmi
         // return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol; },
         py::arg("path"),
         py::arg("enable_user_messages") = true, "Reads a coordinate file into MiniMol");
-
+    m.def(
+        "read_structure", [](const std::string &path, MiniMol &mmol, bool enable_messages)
+        {
+        if (path == "undefined")
+        {
+            throw std::invalid_argument("No path provided for input model! Aborting...");
+        }
+        BuccaneerUtil::read_model(mmol, path, enable_messages);
+        // MiniMol *pymmol = new MiniMol(mmol);
+        return mmol; },
+        // need to see how to read in spacegroup/cell
+        // maybe should update clipper to exchange with gemmi
+        // return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol; },
+        py::arg("path"),
+        py::arg("minimol"),
+        py::arg("enable_user_messages") = true, "Reads a coordinate file into MiniMol");
+    m.def(
+        "write_pdb", [](const std::string &path, MiniMol &mmol)
+        {
+        clipper::MMDBfile mmdb;
+        mmdb.export_minimol(mmol);
+        mmdb.write_file(path); },
+        py::arg("path"), py::arg("minimol"));
     // py::class_<bk::PyCMiniMol>(m, "PyCMiniMol")
     //     .def(py::init<std::string &, bool>(), py::arg("filepath_to_structure") = "undefined", py::arg("enable_messages") = true) //;
     //     .def("get_mmol", &bk::PyCMiniMol::get_mmol, py::arg("filepath_to_structure") = "undefined");
