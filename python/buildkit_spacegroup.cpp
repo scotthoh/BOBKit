@@ -60,6 +60,16 @@ void declare_symop_codes(py::module &m)
 void declare_spacegroup(py::module &m)
 {
   py::class_<Spacegroup, Spgr_descr> spacegroup(m, "Spacegroup");
+
+  py::enum_<Spacegroup::TYPE>(spacegroup, "SGTYPE")
+      .value("Null", Spacegroup::TYPE ::Null)
+      .value("P1", Spacegroup::TYPE ::P1);
+
+  py::enum_<Spacegroup::AXIS>(spacegroup, "AXIS")
+      .value("A", Spacegroup::AXIS::A)
+      .value("B", Spacegroup::AXIS::B)
+      .value("C", Spacegroup::AXIS::C);
+
   spacegroup
       .def(py::init<>())
       .def(py::init<Spacegroup::TYPE>())
@@ -89,15 +99,6 @@ void declare_spacegroup(py::module &m)
       .def_static("p1", &Spacegroup::p1)
       .def_static("null", &Spacegroup::null)
       .def("__str__", &Spacegroup::symbol_hm);
-
-  py::enum_<Spacegroup::TYPE>(spacegroup, "SGTYPE")
-      .value("Null", Spacegroup::TYPE ::Null)
-      .value("P1", Spacegroup::TYPE ::P1);
-
-  py::enum_<Spacegroup::AXIS>(spacegroup, "AXIS")
-      .value("A", Spacegroup::AXIS::A)
-      .value("B", Spacegroup::AXIS::B)
-      .value("C", Spacegroup::AXIS::C);
 }
 
 void init_spacegroup(py::module &m)
