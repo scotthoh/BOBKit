@@ -86,8 +86,30 @@ class TestMiniMol:
         exp = " ".join(repr(mmol).split())
         assert exp == "<clipper.MiniMol containing model with 0 chain(s)>"
 
+    def test_minimol(self, read_structure_instance):
+        flag, mmol = read_structure_instance
+        assert flag
+        exp = " ".join(repr(mmol).split())
+        assert exp == "<clipper.MiniMol containing model with 4 chain(s)>"
+        assert len(mmol) == 4
+        assert str(mmol.spacegroup) == str(buildkit.Spacegroup.p1())
+        mmol_clone = mmol.clone()
+        assert len(mmol_clone) == len(mmol)
+        assert mmol_clone.model()[0].id == mmol.model()[0].id
+        mmol2 = buildkit.MiniMol()
+        mmol2.model(mmol.model())
+        assert mmol2.model().size() == 4
+        assert mmol2.model()[3].id == "D"
+        assert not mmol.is_empty()
+
 
 class TestModel:
+    def test_empty_model(self):
+        model1 = buildkit.MModel()
+        assert len(model1) == 0
+        exp = " ".join(repr(model1).split())
+        assert exp == "<clipper.MModel containing 0 chain(s)>"
+
     def test_model(self, model_instance):
         model1 = model_instance
         assert model1.size() == 4
@@ -105,3 +127,149 @@ class TestModel:
         assert clone_model[0].id == "A"
         clone_model[0] = clone_model[3]
         assert clone_model[0].id == "D"
+
+
+class TestChain:
+    def test_empty_chain(self):
+        chn = buildkit.MChain()
+        exp = " ".join(repr(chn).split())
+        assert chn.size() == 0
+        assert exp == "<clipper.MChain containing 0 residue(s)>"
+
+    def test_chain(self, chain_instance):
+        assert chain_instance.id == "A"
+        assert chain_instance.size() == 149
+        assert len(chain_instance) == 149
+        exp = " ".join(repr(chain_instance).split())
+        assert exp == "<clipper.MChain A containing 149 residue(s)>"
+        assert chain_instance[0].id == "1"
+        chn_clone = chain_instance.clone()
+        assert chn_clone.id == "A"
+        assert chn_clone["1"].type == "VAL"
+        chn_clone[0] = chn_clone[1]
+        assert chn_clone[0].id == chn_clone[1].id
+        assert chn_clone[0].type == chn_clone[1].type
+        res = chn_clone.find("6")
+        assert res.id == "6"
+        chn_tmp = buildkit.MChain()
+        assert chn_tmp.size() == 0
+        chn_tmp.copy_from(chain_instance, buildkit.COPY.COPY_MPC)
+        assert chn_tmp.size() == 149
+        assert chn_tmp[1].type == "LEU"
+        assert chn_tmp[1].seqnum == 2
+
+
+class TestResidue:
+    def test_empty_residue(self):
+        res = buildkit.MResidue()
+        exp = " ".join(repr(res).split())
+        assert res.size() == 0
+        assert exp == "<clipper.MResidue () containing 0 atom(s)>"
+
+    def test_residue(self, residue_instance, chain_instance):
+        assert buildkit.MResidue.id_match(
+            residue_instance.id, "1", buildkit.MODE.UNIQUE
+        )
+        assert residue_instance.type == "VAL"
+        assert residue_instance.seqnum == 1
+        assert residue_instance.size() == 7
+        assert len(residue_instance) == 7
+        exp = " ".join(repr(residue_instance).split())
+        assert exp == "<clipper.MResidue 1(VAL) containing 7 atom(s)>"
+        assert residue_instance[0].element == "N"
+        res_clone = residue_instance.clone()
+        res_clone[0] = residue_instance[-1]
+        assert res_clone[0].id == "CG2"
+        assert res_clone[0].element == "C"
+        atm_CG = res_clone.find("CG2")
+        assert atm_CG.name == "CG2"
+        res_tmp = buildkit.MResidue()
+        assert res_tmp.size() == 0
+        res_tmp.copy_from(residue_instance, buildkit.COPY.COPY_MP)
+        assert res_tmp.type == "VAL"
+        res_tmp.insert(residue_instance[0], pos=-1)
+        res_tmp.insert(residue_instance[1], pos=-1)
+        res_tmp.insert(residue_instance[2], pos=-1)
+        assert res_tmp.size() == 3
+        res_inclusive = residue_instance & res_tmp
+        assert res_inclusive.size() == 3
+        res_either = residue_instance | res_tmp
+        assert res_either.size() == 7
+        # UTILITY
+        res_tmp.build_carbonyl_oxygen()
+        assert math.isclose(res_tmp["O"].pos.x, 44.2493, rel_tol=1e-6)
+        assert math.isclose(res_tmp["O"].pos.y, 53.5123, rel_tol=1e-6)
+        assert math.isclose(res_tmp["O"].pos.z, 68.0153, rel_tol=1e-6)
+        res_tmp.build_carbonyl_oxygen(chain_instance[1])
+        assert math.isclose(res_tmp["O"].pos.x, 45.4563, rel_tol=1e-6)
+        assert math.isclose(res_tmp["O"].pos.y, 52.3961, rel_tol=1e-6)
+        assert math.isclose(res_tmp["O"].pos.z, 66.849, rel_tol=1e-6)
+        assert res_tmp.number_of_rotamers() == 3
+        assert res_tmp.number_of_rotamers(t=buildkit.TYPE.Dunbrack) == 3
+
+        assert buildkit.MResidue.protein_peptide_bond(
+            residue_instance, chain_instance[1]
+        )
+        assert not buildkit.MResidue.protein_peptide_bond(
+            residue_instance, chain_instance[2]
+        )
+        phi = buildkit.MResidue.protein_ramachandran_phi(
+            residue_instance, chain_instance[1]
+        )
+        assert math.isclose(phi, -2.898123, rel_tol=1e-6)
+        psi = buildkit.MResidue.protein_ramachandran_psi(
+            residue_instance, chain_instance[1]
+        )
+        assert math.isclose(psi, -1.266930, rel_tol=1e-6)
+
+        res_tmp2 = res_tmp.clone()
+        res_tmp.build_sidechain_numbered_rotamer(0, t=buildkit.TYPE.Dunbrack)
+        res_tmp2.build_sidechain_numbered_rotamer(0)
+
+        assert math.isclose(res_tmp["CB"].pos.x, 47.0931, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CB"].pos.y, 54.6763, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CB"].pos.z, 68.9786, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG1"].pos.x, 47.7043, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG1"].pos.y, 53.3674, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG1"].pos.z, 69.4531, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG2"].pos.x, 48.1477, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG2"].pos.y, 55.7693, rel_tol=1e-6)
+        assert math.isclose(res_tmp["CG2"].pos.z, 68.9065, rel_tol=1e-6)
+
+        assert math.isclose(res_tmp2["CB"].pos.x, 47.0931, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CB"].pos.y, 54.6763, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CB"].pos.z, 68.9786, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG1"].pos.x, 47.6851, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG1"].pos.y, 53.3616, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG1"].pos.z, 69.4642, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG2"].pos.x, 48.1634, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG2"].pos.y, 55.7541, rel_tol=1e-6)
+        assert math.isclose(res_tmp2["CG2"].pos.z, 68.9008, rel_tol=1e-6)
+
+
+class TestAtom:
+    def test_empty_atom(self):
+        atm = buildkit.MAtom()
+        assert atm.id == ""
+        assert atm.name == ""
+        assert atm.element == ""
+
+    def test_atom(self, atom_instance):
+        assert atom_instance.id == "N"
+        assert atom_instance.name == "N"
+        assert atom_instance.occupancy == 1.00
+        assert atom_instance.b_iso() == 80.64
+        atom_instance.b_iso(90.56)
+        assert atom_instance.b_iso() == 90.56
+        coord_pos1 = buildkit.Coord_orth(45.716, 55.727, 67.167)
+        assert atom_instance.pos.x == coord_pos1.x
+        assert atom_instance.pos.y == coord_pos1.y
+        assert atom_instance.pos.z == coord_pos1.z
+        exp = " ".join(repr(atom_instance).split())
+        assert exp == "<clipper.MAtom N at (45.716, 55.727, 67.167)>"
+        atm_tmp = buildkit.MAtom()
+        assert atm_tmp.id == ""
+        atm_tmp.copy_from(atom_instance, mode=buildkit.COPY.COPY_MP)
+        assert buildkit.MAtom.id_match(
+            atm_tmp.id, atom_instance.id, mode=buildkit.MODE.UNIQUE
+        )
