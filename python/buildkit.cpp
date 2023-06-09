@@ -20,6 +20,8 @@ void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
 void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
+void init_ca_prep(py::module &m);
+void init_buccaneer_prot(py::module &m);
 
 PYBIND11_MODULE(buildkit, mod)
 {
@@ -35,4 +37,6 @@ PYBIND11_MODULE(buildkit, mod)
   init_map_io(mod);
   init_ca_filter(mod);
   init_buccaneer_lib(mod);
+  init_ca_prep(mod);
+  init_buccaneer_prot(mod);
 }
