@@ -10,10 +10,22 @@
 namespace py = pybind11;
 using namespace clipper;
 
+template <typename T>
+void delitem_at_index(T &container, pybind11::ssize_t index)
+{
+  container.erase(container.begin() + index);
+}
+
 template <typename Item>
 void delitem_at_index(std::vector<Item> &items, pybind11::ssize_t index)
 {
   items.erase(items.begin() + index);
+}
+
+template <typename T>
+void delitem_range(T &container, pybind11::ssize_t start, pybind11::ssize_t end)
+{
+  container.erase(container.begin() + start, container.begin() + end);
 }
 
 template <typename Item>
@@ -112,25 +124,25 @@ void to_numpy_1d(const C &v, int n, py::array_t<T> target)
   }
 }
 
-template <class C, typename T>
-py::array_t<T> CoordList_to_numpy(C &v, size_t n, size_t m)
-{
-  size_t l = v.size();
-  py::array_t<T, py::array::c_style> ret({l, n, m});
-  // T buf = ret.request();
-  // T *ptr = (T *)ret.request().ptr;
-  auto ra = ret.mutable_unchecked();
-  for (size_t i = 0; i < l; i++)
-  {
-    for (size_t j = 0; j < n; j++)
-    {
-      ra(i, j, 0) = v[i][j].x();
-      ra(i, j, 1) = v[i][j].y();
-      ra(i, j, 2) = v[i][j].z();
-    }
-  }
-  return ret;
-}
+// template <class C, typename T>
+// py::array_t<T> CoordList_to_numpy(C &v, size_t n, size_t m)
+//{
+//   // size_t l = v.size();
+//   py::array_t<T, py::array::c_style> ret({n, m});
+//   // T buf = ret.request();
+//   // T *ptr = (T *)ret.request().ptr;
+//   auto ra = ret.mutable_unchecked();
+//   for (size_t i = 0; i < n; i++)
+//   {
+//     // for (size_t j = 0; j < n; j++)
+//     //{
+//     ra(i, 0) = v[i].x();
+//     ra(i, 1) = v[i].y();
+//     ra(i, 2) = v[i].z();
+//     //}
+//   }
+//   return ret;
+// }
 
 static std::string triple(double x, double y, double z)
 {

@@ -16,7 +16,7 @@ void declare_vec3(py::module &m, const std::string &name)
 {
   using VecClass = Vec3<T>;
   std::string PyClass = std::string("Vec3_") + name;
-  py::class_<VecClass> vec3(m, PyClass.c_str());
+  py::class_<VecClass> vec3(m, PyClass.c_str(), py::buffer_protocol());
   vec3
       .def(py::init<>([]()
                       {
@@ -35,6 +35,14 @@ void declare_vec3(py::module &m, const std::string &name)
       .def(py::init<const Vec3<ftype32> &>())
       .def(py::init<const Vec3<ftype64> &>())
       .def(py::init<const Vec3<int> &>())
+      .def_buffer([](VecClass &self) -> py::buffer_info
+                  { return py::buffer_info(
+                        &self[0],
+                        sizeof(T),
+                        py::format_descriptor<T>::format(),
+                        1,
+                        {3},
+                        {sizeof(T)}); })
       .def("equals", &VecClass::equals, py::arg("v"), py::arg("tol"))
       .def("__getitem__", [](const VecClass &self, const int i)
            { return self[normalise_index(i, 3)]; })

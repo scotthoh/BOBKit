@@ -62,6 +62,7 @@ string(SUBSTRING ${buccaneer_version_line} ${buccaneer_version_pos} 10 buccaneer
 string(REGEX REPLACE "[,\" ]" "" buccaneer_version_str ${buccaneer_version})
 message(STATUS "cbuccaneer version ${buccaneer_version_str}")
 
+message(STATUS "pybind11 version ${pybind11_VERSION}")
 # for buccaneer library
 add_library(buccaneer_lib   ${BUCCANEER_SRC_DIR}/buccaneer-build.cpp
                             ${BUCCANEER_SRC_DIR}/buccaneer-prune.cpp
