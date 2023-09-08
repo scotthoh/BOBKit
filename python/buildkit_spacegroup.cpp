@@ -62,8 +62,8 @@ void declare_spacegroup(py::module &m)
   py::class_<Spacegroup, Spgr_descr> spacegroup(m, "Spacegroup");
 
   py::enum_<Spacegroup::TYPE>(spacegroup, "SGTYPE")
-      .value("Null", Spacegroup::TYPE ::Null)
-      .value("P1", Spacegroup::TYPE ::P1);
+      .value("Null", Spacegroup::TYPE::Null)
+      .value("P1", Spacegroup::TYPE::P1);
 
   py::enum_<Spacegroup::AXIS>(spacegroup, "AXIS")
       .value("A", Spacegroup::AXIS::A)

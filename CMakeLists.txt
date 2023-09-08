@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15...3.22)
-project(buildkit VERSION 0.1.0)
+project(buildkit VERSION 0.2.0)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,6 +10,8 @@ message(STATUS "CLIBENV ${CLIBENV}")
 # copied from cmakelist clipper-progs
 #find_package(CCP4 REQUIRED mmdb2 ccp4c clipper-core clipper-ccp4 clipper-mmdb2
 #                            clipper-contrib clipper-minimol)
+
+#find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter Development)
 find_library(MMDB2DEP NAMES mmdb2
             PATHS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
 find_library(CCP4CDEP NAMES ccp4c
@@ -26,6 +28,7 @@ find_library(CLIPPERCCP4DEP NAMES clipper-ccp4
             HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
 find_package(Threads REQUIRED)
 find_package(pybind11 REQUIRED)
+
 # clipper-cif is needed only for cmakerefence, it will added explicitly
 #list(REMOVE_ITEM CCP4_LIBRARIES ${CLIPPER-CIF_LIBRARY})
 message(STATUS "MMDB2  ${MMDB2DEP}")
@@ -36,7 +39,8 @@ message(STATUS "CLIPPERMINI ${CLIPPERMINIMOLDEP}")
 message(STATUS "CLIPPERCONT ${CLIPPERCONTRIBDEP}")
 message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
 message(STATUS "CLIPPERCIF ${CLIPEPRCIFDEP}")
-message(STATUS "PYTHONLIB ${PYTHON_LIBRARY}")
+message(STATUS "Python executable ${PYTHON_EXECUTABLE}")
+message(STATUS "PYTHONLIB ${PYTHON_LIBRARIES}")
 
 option(BUILD_SHARED_LIBS "Build as shared library" ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -58,6 +62,7 @@ string(SUBSTRING ${buccaneer_version_line} ${buccaneer_version_pos} 10 buccaneer
 string(REGEX REPLACE "[,\" ]" "" buccaneer_version_str ${buccaneer_version})
 message(STATUS "cbuccaneer version ${buccaneer_version_str}")
 
+message(STATUS "pybind11 version ${pybind11_VERSION}")
 # for buccaneer library
 add_library(buccaneer_lib   ${BUCCANEER_SRC_DIR}/buccaneer-build.cpp
                             ${BUCCANEER_SRC_DIR}/buccaneer-prune.cpp
