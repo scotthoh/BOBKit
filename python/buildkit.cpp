@@ -20,6 +20,17 @@ void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
 void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
+void init_ca_prep(py::module &m);
+void init_buccaneer_prot(py::module &m);
+void init_ca_merge(py::module &m);
+void init_ca_find(py::module &m);
+void init_ca_grow(py::module &m);
+void init_ca_link(py::module &m);
+void init_ca_sequence(py::module &m);
+void init_ca_correct(py::module &m);
+void init_ca_ncsbuild(py::module &m);
+void init_ca_prune(py::module &m);
+void init_model_tidy(py::module &m);
 
 PYBIND11_MODULE(buildkit, mod)
 {
@@ -35,4 +46,15 @@ PYBIND11_MODULE(buildkit, mod)
   init_map_io(mod);
   init_ca_filter(mod);
   init_buccaneer_lib(mod);
+  init_ca_prep(mod);
+  init_buccaneer_prot(mod);
+  init_ca_merge(mod);
+  init_ca_find(mod);
+  init_ca_grow(mod);
+  init_ca_link(mod);
+  init_ca_sequence(mod);
+  init_ca_correct(mod);
+  init_ca_ncsbuild(mod);
+  init_ca_prune(mod);
+  init_model_tidy(mod);
 }
