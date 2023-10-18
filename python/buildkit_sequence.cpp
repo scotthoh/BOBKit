@@ -3,7 +3,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer-sequence.h"
+#include "buccaneer/buccaneer-sequence.h"
 #include <clipper/clipper.h>
 #include <Python.h>
 #include <pybind11/pybind11.h>

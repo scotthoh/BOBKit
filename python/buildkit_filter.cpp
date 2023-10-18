@@ -4,7 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer-filter.h"
+#include "buccaneer/buccaneer-filter.h"
 
 #include <Python.h>
 #include <pybind11/pybind11.h>
