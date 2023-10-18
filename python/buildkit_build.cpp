@@ -5,7 +5,7 @@
 // The University of York
 
 // #include "buildkit-join.h"
-#include "buccaneer-build.h"
+#include "buccaneer/buccaneer-build.h"
 
 #include <Python.h>
 #include <pybind11/pybind11.h>

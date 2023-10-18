@@ -1,0 +1,60 @@
+[build-system]
+requires = ["scikit-build-core>=0.5.0", "pybind11>=2.6.2"]
+build-backend = "scikit_build_core.build"
+
+# edit from here
+[project]
+name = "buildkit"
+authors = [
+  { name = "SOON WEN HOH" },
+  { email = "soonwen.hoh@york.ac.uk" },
+]
+description = "Python modules for atomic model buildkit"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+"Development Status :: 1 - Planning",
+"Intended Audience :: Developers",
+"Intended Audience :: Science/Research",
+"Topic :: Software Development :: Libraries :: Python Modules",
+"Topic :: Scientific/Engineering :: Bio-Informatics",
+"Topic :: Scientific/Engineering :: Chemistry",
+"Programming Language :: C++",
+"Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+
+[tool.scikit-build]
+experimental = true # for install-dir
+build-dir = "build_dev/{wheel_tag}"
+wheel.install-dir = "/data"
+wheel.packages = []
+sdist.exclude = ["*"]
+sdist.include = [
+"/README.md",
+"/LICENSE.txt",
+"/CMakeLists.txt",
+"/pyproject.toml",
+"include/buccaneer/*.h",
+"src/*.cpp",
+"python/*.cpp",
+"python/*.h",
+"python/version.hpp",
+]
+#cmake.build-type ="Release"
+#cmake.verbose = true
+
+#[tool.scikit-build.cmake.define]
+#USE_PYTHON = "ON"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "python/version.hpp"
+regex = "#define BUILDKIT_VERSION \"(?P<value>[0-9dev.-]+)\""
+
+#[tool.pytest.ini_options]
+#minversion = "6.0"
+#addopts = ["-ra", "-q"]
+#testpaths = ["tests"]
+
+

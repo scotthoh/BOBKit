@@ -4,8 +4,8 @@
 #include <pybind11/operators.h>
 
 #include <clipper/clipper.h>
-#include <type_conversions.h>
-#include <helper_functions.h>
+#include "type_conversions.h"
+#include "helper_functions.h"
 
 namespace py = pybind11;
 using namespace clipper;

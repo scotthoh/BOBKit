@@ -1,4 +1,4 @@
-#include "buccaneer-grow.h"
+#include "buccaneer/buccaneer-grow.h"
 
 #include <Python.h>
 #include <pybind11/pybind11.h>
