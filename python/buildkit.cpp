@@ -4,6 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
+#include "version.hpp" // for buildkit version
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
@@ -32,34 +33,35 @@ void init_ca_ncsbuild(py::module &m);
 void init_ca_prune(py::module &m);
 void init_model_tidy(py::module &m);
 
-PYBIND11_MODULE(buildkit, mod)
+PYBIND11_MODULE(buildkit, mbk)
 {
-  mod.doc() = "Python modules for Atomic Model BuildKit (C++) exposed via pybind11.";
-  auto m_a = mod.def_submodule("clipper");
-  auto m_b = mod.def_submodule("buccaneer");
-  init_clipper_types(m_a);
-  init_cell(m_a);
-  init_spacegroup(m_a);
-  init_coord_orth(m_a);
-  init_minimol(m_a);
-  init_maps(m_a);
-  init_nxmap(m_a);
+  mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic model buildkit.";
+  mbk.attr("__version__") = BUILDKIT_VERSION;
+  auto mc = mbk.def_submodule("clipper");
+  auto mb = mbk.def_submodule("buccaneer");
+  init_clipper_types(mc);
+  init_cell(mc);
+  init_spacegroup(mc);
+  init_coord_orth(mc);
+  init_minimol(mc);
+  init_maps(mc);
+  init_nxmap(mc);
 
-  init_map_io(m_a);
-  init_ca_join(m_b);
-  init_ca_filter(m_b);
-  init_buccaneer_lib(m_b);
-  init_ca_prep(m_b);
-  init_buccaneer_prot(m_b);
-  init_ca_merge(m_b);
-  init_ca_find(m_b);
-  init_ca_grow(m_b);
-  init_ca_link(m_b);
-  init_ca_sequence(m_b);
-  init_ca_correct(m_b);
-  init_ca_ncsbuild(m_b);
-  init_ca_prune(m_b);
-  init_model_tidy(m_b);
+  init_map_io(mc);
+  init_ca_join(mb);
+  init_ca_filter(mb);
+  init_buccaneer_lib(mb);
+  init_ca_prep(mb);
+  init_buccaneer_prot(mb);
+  init_ca_merge(mb);
+  init_ca_find(mb);
+  init_ca_grow(mb);
+  init_ca_link(mb);
+  init_ca_sequence(mb);
+  init_ca_correct(mb);
+  init_ca_ncsbuild(mb);
+  init_ca_prune(mb);
+  init_model_tidy(mb);
   // init_clipper_types(mod);
   // init_cell(mod);
   // init_spacegroup(mod);
