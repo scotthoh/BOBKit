@@ -130,10 +130,10 @@ void declare_mat33(py::module m, const std::string &name)
            { self(i, j) = val; })
       .def("format", &Mat33Class::format)
       .def("__str__", &Mat33Class::format)
-      .def("__repr__", [](const Mat33Class &self)
-           { return "<clipper.Mat33 |" + String(self(0, 0), 10, 4) + "," + String(self(0, 1), 10, 4) + "," + String(self(0, 2), 10, 4) + "|\n" +
-                    "               |" + String(self(1, 0), 10, 4) + "," + String(self(1, 1), 10, 4) + "," + String(self(1, 2), 10, 4) + "|\n" +
-                    "               |" + String(self(2, 0), 10, 4) + "," + String(self(2, 1), 10, 4) + "," + String(self(2, 2), 10, 4) + "|>"; })
+      //.def("__repr__", [](const Mat33Class &self)
+      //     { return "<clipper.Mat33 |" + String(self(0, 0), 10, 4) + "," + String(self(0, 1), 10, 4) + "," + String(self(0, 2), 10, 4) + "|\n" +
+      //              "               |" + String(self(1, 0), 10, 4) + "," + String(self(1, 1), 10, 4) + "," + String(self(1, 2), 10, 4) + "|\n" +
+      //              "               |" + String(self(2, 0), 10, 4) + "," + String(self(2, 1), 10, 4) + "," + String(self(2, 2), 10, 4) + "|>"; })
       .def_static("identity", &Mat33Class::identity)
       .def_static("null", &Mat33Class::null)
       // something weird with the null constructor that is_null is not returning true

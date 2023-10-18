@@ -3,7 +3,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer-merge.h"
+#include "buccaneer/buccaneer-merge.h"
 
 #include <Python.h>
 #include <pybind11/pybind11.h>

@@ -3,7 +3,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer-find.h"
+#include "buccaneer/buccaneer-find.h"
 
 #include <Python.h>
 #include <pybind11/pybind11.h>

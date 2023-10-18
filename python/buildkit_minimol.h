@@ -11,8 +11,8 @@
 #include <string>
 // #include <clipper/clipper-mmdb.h>
 #include <clipper/clipper-minimol.h>
-#include <helper_functions.h>
-#include "buccaneer-util.h"
+#include "helper_functions.h"
+#include "buccaneer/buccaneer-util.h"
 // #include "toString.hpp"
 
 // namespace buildkit
