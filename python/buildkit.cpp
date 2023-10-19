@@ -5,6 +5,7 @@
 // The University of York
 
 #include "version.hpp" // for buildkit version
+#include <clipper/clipper.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
@@ -37,6 +38,15 @@ PYBIND11_MODULE(buildkit, mbk)
 {
   mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic model buildkit.";
   mbk.attr("__version__") = BUILDKIT_VERSION;
+
+  py::register_exception_translator([](std::exception_ptr p)
+                                    {
+      try {
+        if (p) std::rethrow_exception(p);
+      } catch (const clipper::Message_fatal &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.text().c_str());
+      } });
+
   auto mc = mbk.def_submodule("clipper");
   auto mb = mbk.def_submodule("buccaneer");
   init_clipper_types(mc);

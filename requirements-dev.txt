@@ -1,0 +1,7 @@
+black==22.8.0  # this version should match the one in .pre-commit-config.yaml
+flake8==3.9.2  # this version should match the one in .pre-commit-config.yaml
+mypy==0.981  # this version should match the one in .pre-commit-config.yaml
+pre-commit
+pytest
+types-setuptools
+types-PyYAML
