@@ -51,7 +51,7 @@ void declare_map_reference_coord(py::module &m)
       .def_property("coord", &MRC::coord, [](MRC &self, const Coord_grid &pos) -> void
                     { self.set_coord(pos); })
       .def("coord_orth", &MRC::coord_orth)
-      .def("next_", [](MRC &self) -> void
+      .def("next", [](MRC &self) -> void
            { self.next(); })
       .def("next_u", [](MRC &self) -> void
            { self.next_u(); })
