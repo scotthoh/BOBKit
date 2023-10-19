@@ -4,8 +4,8 @@
 from setuptools import setup
 
 # ext_modules = [
-#     #Pybind11Extension("buildkit",["python/buildkit.cpp"], define_macros=[('VERSION', __version__)], ),
-#     Pybind11Extension("buildkit", sorted(glob("python/*.cpp")), define_macros=[('VERSION', __version__)], ),
+#     #Pybind11Extension("buildkit",["python/buildkit.cpp"], define_macros=[('VERSION', __version__)], ), # noqa: E501
+#     Pybind11Extension("buildkit", sorted(glob("python/*.cpp")), define_macros=[('VERSION', __version__)], ), # noqa: E501
 # ]
 
 if __name__ == "__main__":
@@ -21,4 +21,3 @@ if __name__ == "__main__":
 #    extras_require={"test": "pytest"},
 #    cmdclass={"build_ext": build_ext},
 #    python_requires=">=3.7")
-#
