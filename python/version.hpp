@@ -3,6 +3,6 @@
 #ifndef BUILDKIT_VERSION_HPP_
 #define BUILDKIT_VERSION_HPP_
 
-#define BUILDKIT_VERSION "0.3.1-dev"
+#define BUILDKIT_VERSION "0.3.2-dev"
 
 #endif
