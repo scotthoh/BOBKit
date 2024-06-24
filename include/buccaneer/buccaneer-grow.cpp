@@ -38,7 +38,7 @@ bool Ca_grow::operator() ( clipper::MiniMol& mol, const clipper::Xmap<float>& xm
   grow( ncpu );
   chains = grow.result();
 
-  // make a new mmdb
+  // make a new MiniMol
   mol = clipper::MiniMol( mold.spacegroup(), mold.cell() );
   ProteinTools::insert_ca_chains( mol, chains );
 

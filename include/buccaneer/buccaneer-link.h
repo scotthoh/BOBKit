@@ -11,9 +11,11 @@
 //! Class for merging overlapped Ca chains and grouping by symmetry
 class Ca_link {
  public:
-  Ca_link( clipper::ftype rad_link = 5.0, int torsion_sampling = 24 ) : torsion_sampling_(torsion_sampling), rlink(rad_link) {}
-  bool operator() ( clipper::MiniMol& mol, const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget );
-  int num_linked() const;
+   Ca_link(clipper::ftype rad_link = 5.0, int torsion_sampling = 24)
+       : torsion_sampling_(torsion_sampling), rlink(rad_link), num_link(0) {}
+   bool operator()(clipper::MiniMol &mol, const clipper::Xmap<float> &xmap,
+                   const LLK_map_target &llktarget);
+   int num_linked() const;
 
  private:
   int torsion_sampling_;

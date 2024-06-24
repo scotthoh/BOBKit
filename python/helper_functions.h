@@ -98,7 +98,7 @@ int normalise_index(int index, const T &container_size)
   if (index < 0)
     index += (int)container_size;
   if ((size_t)index >= container_size)
-    throw pybind11::index_error("index out of bounds");
+    throw pybind11::index_error("Index out of bounds");
   return index;
 }
 

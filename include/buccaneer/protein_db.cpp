@@ -197,12 +197,12 @@ char Residue::residue_type( const clipper::String& type )
 
 bool Chain::add_pdb( const clipper::String file )
 {
-  const int mmdbflags = ::mmdb::MMDBF_IgnoreBlankLines | ::mmdb::MMDBF_IgnoreDuplSeqNum | ::mmdb::MMDBF_IgnoreNonCoorPDBErrors | ::mmdb::MMDBF_IgnoreRemarks;
-  clipper::MMDBfile mfile;
+  gemmi::PdbReadOptions read_opts;
+  read_opts.skip_remarks = true;
+  clipper::GEMMIfile gfile;
   clipper::MiniMol mol;
-  mfile.SetFlag( mmdbflags );
-  mfile.read_file( file );
-  mfile.import_minimol( mol );
+  gfile.read_file( file, read_opts );
+  gfile.import_minimol( mol );
   if ( mol.size() == 0 ) return false;
   for ( int c = 0; c < mol.size(); c++ ) {
     clipper::MPolymer mp;

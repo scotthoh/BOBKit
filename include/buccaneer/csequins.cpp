@@ -95,8 +95,10 @@ int main( int argc, char** argv )
   using clipper::data32::F_sigF;  using clipper::data32::F_phi;
   using clipper::data32::Phi_fom; using clipper::data32::Flag;
   using clipper::data32::ABCD;
-  const int mmdbflags = ::mmdb::MMDBF_IgnoreBlankLines | ::mmdb::MMDBF_IgnoreDuplSeqNum | ::mmdb::MMDBF_IgnoreNonCoorPDBErrors | ::mmdb::MMDBF_IgnoreRemarks;
- 
+  //const int mmdbflags = ::mmdb::MMDBF_IgnoreBlankLines | ::mmdb::MMDBF_IgnoreDuplSeqNum | ::mmdb::MMDBF_IgnoreNonCoorPDBErrors | ::mmdb::MMDBF_IgnoreRemarks;
+  gemmi::PdbReadOptions read_opts;
+  read_opts.skip_remarks = true;
+
   // Get resolution for calculation
   mtzfile.open_read( ipmtz_ref );
   double res_ref = clipper::Util::max( mtzfile.resolution().limit(), res_in );
@@ -130,18 +132,18 @@ int main( int argc, char** argv )
 
   // Get reference model
   clipper::MiniMol mol_ref;
-  clipper::MMDBfile mmdb_ref;
-  mmdb_ref.SetFlag( mmdbflags );
-  mmdb_ref.read_file( ippdb_ref );
-  mmdb_ref.import_minimol( mol_ref );
+  clipper::GEMMIfile gfile_ref;
+  //mmdb_ref.SetFlag( mmdbflags );
+  gfile_ref.read_file( ippdb_ref, read_opts );
+  gfile_ref.import_minimol( mol_ref );
 
   // Get work model (optional)
   clipper::MiniMol mol_wrk, mol_tmp;
   mol_wrk.init( hkls_wrk.spacegroup(), hkls_wrk.cell() );
-  clipper::MMDBfile mmdb_wrk;
-  mmdb_wrk.SetFlag( mmdbflags );
-  mmdb_wrk.read_file( ippdb_wrk );
-  mmdb_wrk.import_minimol( mol_tmp );
+  clipper::GEMMIfile gfile_wrk;
+  //mmdb_wrk.SetFlag( mmdbflags );
+  gfile_wrk.read_file( ippdb_wrk, read_opts );
+  gfile_wrk.import_minimol( mol_tmp );
   mol_wrk.copy( mol_tmp, clipper::MM::COPY_MPC );
 
   // get map coefficients
@@ -198,9 +200,9 @@ int main( int argc, char** argv )
       mtzfile.close_append();
     }
     if ( oppdb != "NONE" ) {
-      clipper::MMDBfile mmdb;
-      mmdb.export_minimol( mol_tmp );
-      mmdb.write_file( oppdb );
+      clipper::GEMMIfile gfile;
+      gfile.export_minimol( mol_tmp );
+      gfile.write_file( oppdb );
     }
   } else {
     // get map coefficients from input HL coeffs

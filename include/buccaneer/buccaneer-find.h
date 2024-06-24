@@ -106,9 +106,8 @@ class SSfind {
 
 
 //! class for refining Ca groups
-class Target_fn_refine_llk_map_target : Target_fn_order_zero
-{
- public:
+class Target_fn_refine_llk_map_target : Target_fn_order_zero {
+public:
   Target_fn_refine_llk_map_target() {}
   Target_fn_refine_llk_map_target( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const double& rot_step, const double& trn_step );
   ~Target_fn_refine_llk_map_target() {}
