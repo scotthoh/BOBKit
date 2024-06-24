@@ -4,12 +4,12 @@ build-backend = "scikit_build_core.build"
 
 # edit from here
 [project]
-name = "buildkit"
+name = "bobkit"
 authors = [
   { name = "SOON WEN HOH" },
   { email = "soonwen.hoh@york.ac.uk" },
 ]
-description = "Python modules for atomic model buildkit"
+description = "Python modules for building atomic model: BOBKit"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -50,7 +50,7 @@ sdist.include = [
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
 input = "python/version.hpp"
-regex = "#define BUILDKIT_VERSION \"(?P<value>[0-9dev.-]+)\""
+regex = "#define BOBKIT_VERSION \"(?P<value>[0-9dev.-]+)\""
 
 #[tool.pytest.ini_options]
 #minversion = "6.0"

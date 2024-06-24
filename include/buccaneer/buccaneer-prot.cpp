@@ -433,7 +433,7 @@ bool ProteinTools::chain_number( clipper::MiniMol& mol )
   return true;
 }
 
-bool ProteinTools::chain_label( clipper::MiniMol& mol, clipper::MMDBManager::TYPE cifflag )
+bool ProteinTools::chain_label( clipper::MiniMol& mol, bool chainid_2char )
 {
   // set up default chain labels
   std::vector<clipper::String> labels;
@@ -473,7 +473,7 @@ bool ProteinTools::chain_label( clipper::MiniMol& mol, clipper::MMDBManager::TYP
         }
         else
         {
-          if ( cifflag == clipper::MMDBManager::CIF )
+          if ( chainid_2char )
           {
             if (label < 2756 )
             {

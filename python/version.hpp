@@ -1,8 +1,8 @@
 // version
 
-#ifndef BUILDKIT_VERSION_HPP_
-#define BUILDKIT_VERSION_HPP_
+#ifndef BOBKIT_VERSION_HPP_
+#define BOBKIT_VERSION_HPP_
 
-#define BUILDKIT_VERSION "0.3.1-dev"
+#define BOBKIT_VERSION "0.5.0-dev"
 
 #endif

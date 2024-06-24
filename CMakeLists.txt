@@ -15,11 +15,11 @@ message(STATUS "cbuccaneer version ${buccaneer_version_str}")
 
 # get version from python/version.hpp for python module version
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/python/version.hpp"
-      buildkit_version_line REGEX "#define BUILDKIT_VERSION \"")
+      bobkit_version_line REGEX "#define BOBKIT_VERSION \"")
 string(REGEX REPLACE ".+\"([0-9]+\.[0-9]+\.[0-9]+)(-dev)?\"" "\\1"
-      buildkit_version_str ${buildkit_version_line})
-project(buildkit LANGUAGES CXX VERSION ${buildkit_version_str})
-message(STATUS "Buildkit version ${PROJECT_VERSION}")
+      bobkit_version_str ${bobkit_version_line})
+project(BOBKIT LANGUAGES CXX VERSION ${bobkit_version_str})
+message(STATUS "BOBKIT version ${PROJECT_VERSION}")
 
 # building with scikit-build-core (pip install)
 if (DEFINED SKBUILD)
@@ -42,6 +42,7 @@ endif()
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "-DBUCCANEER_PROFILE=1")
 # Common installation directories, CMake helpers
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -63,16 +64,17 @@ else()
 endif()
 
 file(GLOB BUCCANEER_SRC "include/buccaneer/*.cpp")
+#file(GLOB BUCCANEER_HEADERS "include/buccaneer/*.h")
 # remove cbuccaneer.cpp and csequins.cpp, not compiling these
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_SOURCE_DIR}/include/buccaneer/cbuccaneer.cpp")
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_SOURCE_DIR}/include/buccaneer/csequins.cpp")
 file(GLOB PY_SRC "python/*.cpp")
 # pybind11 module
-pybind11_add_module(buc_py MODULE ${PY_SRC} ${BUCCANEER_SRC})
+pybind11_add_module(buc_py MODULE ${PY_SRC} ${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
 target_include_directories(buc_py PRIVATE "dependencies/include")
 target_include_directories(buc_py PRIVATE "include")
-find_library(MMDB2DEP NAMES mmdb2)
-find_library(CCP4DEP NAMES ccp4c)
+#find_library(MMDB2DEP NAMES mmdb2)
+#find_library(CCP4DEP NAMES ccp4c)
 find_library(CLIPPERCOREDEP NAMES clipper-core
             HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
 find_library(CLIPPERMMDBDEP NAMES clipper-mmdb
@@ -83,25 +85,25 @@ find_library(CLIPPERCONTRIBDEP NAMES clipper-contrib
             HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
 find_library(CLIPPERCCP4DEP NAMES clipper-ccp4
             HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-message(STATUS "MMDB2  ${MMDB2DEP}")
-message(STATUS "CCP4C ${CCP4CDEP}")
+#message(STATUS "MMDB2  ${MMDB2DEP}")
+#message(STATUS "CCP4C ${CCP4CDEP}")
 message(STATUS "CLIPPERCORE ${CLIPPERCOREDEP}")
-message(STATUS "CLIPPERMMDB ${CLIPPERMMDBDEP}")
+#message(STATUS "CLIPPERMMDB ${CLIPPERMMDBDEP}")
 message(STATUS "CLIPPERMINI ${CLIPPERMINIMOLDEP}")
 message(STATUS "CLIPPERCONT ${CLIPPERCONTRIBDEP}")
-message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
+#message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
 
 find_package(Threads REQUIRED)
 
-target_link_libraries(buc_py PRIVATE ${MMDB2DEP}
-                                     ${CCP4DEP}
+target_link_libraries(buc_py PRIVATE #${MMDB2DEP}
+                                     #${CCP4DEP}
                                      ${CLIPPERCOREDEP}
-                                     ${CLIPPERMMDBDEP}
+                                     #${CLIPPERMMDBDEP}
                                      ${CLIPPERMINIMOLDEP}
                                      ${CLIPPERCONTRIBDEP}
-                                     ${CLIPPERCCP4DEP}
+                                     #${CLIPPERCCP4DEP}
                                      Threads::Threads)
-set_property(TARGET buc_py PROPERTY OUTPUT_NAME buildkit)
+set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
 # install
 if (DEFINED PYTHON_INSTALL_DIR)
   message(STATUS "Install directory for Python module: ${PYTHON_INSTALL_DIR}")

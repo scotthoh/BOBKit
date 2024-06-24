@@ -4,11 +4,11 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "version.hpp" // for buildkit version
+#include "version.hpp" // for bobkit version
 #include <clipper/clipper.h>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/numpy.h>
 
 namespace py = pybind11;
 void init_clipper_types(py::module &m);
@@ -20,6 +20,8 @@ void init_spacegroup(py::module &m);
 void init_maps(py::module &m);
 void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
+
+void init_ca_build(py::module &m);
 void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
 void init_ca_prep(py::module &m);
@@ -33,11 +35,14 @@ void init_ca_correct(py::module &m);
 void init_ca_ncsbuild(py::module &m);
 void init_ca_prune(py::module &m);
 void init_model_tidy(py::module &m);
+void init_buccaneer_util(py::module &m);
+void init_simplex_lib(py::module &m);
+void init_proteindb(py::module &m);
 
-PYBIND11_MODULE(buildkit, mbk)
-{
-  mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic model buildkit.";
-  mbk.attr("__version__") = BUILDKIT_VERSION;
+PYBIND11_MODULE(bobkit, mbk) {
+  mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic "
+              "model building kit.";
+  mbk.attr("__version__") = BOBKIT_VERSION;
 
   py::register_exception_translator([](std::exception_ptr p)
                                     {
@@ -49,6 +54,8 @@ PYBIND11_MODULE(buildkit, mbk)
 
   auto mc = mbk.def_submodule("clipper");
   auto mb = mbk.def_submodule("buccaneer");
+  auto mpdb = mbk.def_submodule("protein_db");
+
   init_clipper_types(mc);
   init_cell(mc);
   init_spacegroup(mc);
@@ -57,10 +64,13 @@ PYBIND11_MODULE(buildkit, mbk)
   init_maps(mc);
   init_nxmap(mc);
 
+  init_simplex_lib(mb);
   init_map_io(mc);
+  init_ca_build(mb);
   init_ca_join(mb);
   init_ca_filter(mb);
   init_buccaneer_lib(mb);
+  init_buccaneer_util(mb);
   init_ca_prep(mb);
   init_buccaneer_prot(mb);
   init_ca_merge(mb);
@@ -72,6 +82,9 @@ PYBIND11_MODULE(buildkit, mbk)
   init_ca_ncsbuild(mb);
   init_ca_prune(mb);
   init_model_tidy(mb);
+
+  init_proteindb(mpdb);
+
   // init_clipper_types(mod);
   // init_cell(mod);
   // init_spacegroup(mod);
