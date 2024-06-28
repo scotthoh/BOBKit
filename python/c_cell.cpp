@@ -1,5 +1,6 @@
 
 // #include <Python.h>
+#include <gemmi/unitcell.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -10,6 +11,7 @@
 #include "helper_functions.h"
 #include "type_conversions.h"
 // #include <clipper/clipper.h>
+#include <clipper/clipper-gemmi.h>
 #include <clipper/core/cell.h>
 namespace py = pybind11;
 using namespace clipper;
@@ -64,7 +66,23 @@ void declare_cell(py::module &m) {
   py::class_<Cell, Cell_descr> cell(m, "Cell");
   cell.def(py::init<>())
       .def(py::init<const Cell_descr &>(), py::arg("Cell_description"))
-      .def("init", &Cell::init, py::arg("Cell_description"))
+      //.def("init", 8&Cell::init, py::arg("Cell_description"))
+      .def(
+          "init", [](Cell &self, const Cell_descr &cd) { self.init(cd); },
+          py::arg("Cell_description"))
+      .def(
+          "init",
+          [](Cell &self, const gemmi::UnitCell &c) {
+            self.init(GEMMI::cell(c).descr());
+          },
+          py::arg("cell"))
+      .def(
+          "init", [](Cell &self, const Cell &c) { self.init(c.descr()); },
+          py::arg("cell"))
+
+      .def_static("to_gemmi_cell", [](const Cell &c) { return GEMMI::cell(c); })
+      .def_static("from_gemmi_cell",
+                  [](const gemmi::UnitCell &c) { return GEMMI::cell(c); })
       .def_property_readonly("a_star", &Cell::a_star)
       .def_property_readonly("b_star", &Cell::b_star)
       .def_property_readonly("c_star", &Cell::c_star)

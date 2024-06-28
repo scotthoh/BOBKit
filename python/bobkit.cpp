@@ -9,7 +9,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
+#define PYBIND11_DETAILED_ERROR MESSAGES true
 namespace py = pybind11;
 void init_clipper_types(py::module &m);
 void init_minimol(py::module &m);
@@ -17,9 +17,14 @@ void init_ca_join(py::module &m);
 void init_cell(py::module &m);
 void init_coord_orth(py::module &m);
 void init_spacegroup(py::module &m);
+void init_hklinfo(py::module &m);
+void init_hkl_data(py::module &m);
+void init_containers(py::module &m);
 void init_maps(py::module &m);
 void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
+void init_symop(py::module &m);
+void init_gemmi_structure(py::module &m);
 
 void init_ca_build(py::module &m);
 void init_ca_filter(py::module &m);
@@ -43,6 +48,9 @@ PYBIND11_MODULE(bobkit, mbk) {
   mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic "
               "model building kit.";
   mbk.attr("__version__") = BOBKIT_VERSION;
+  // auto package = pybind11::module::import("gemmi");
+  // auto module = package.attr("Structure");
+  // mbk.add_object("Structure", module);
 
   py::register_exception_translator([](std::exception_ptr p)
                                     {
@@ -58,11 +66,17 @@ PYBIND11_MODULE(bobkit, mbk) {
 
   init_clipper_types(mc);
   init_cell(mc);
-  init_spacegroup(mc);
   init_coord_orth(mc);
+  init_symop(mc);
+  init_spacegroup(mc);
+  init_hklinfo(mc);
+  init_containers(mc);
+  init_hkl_data(mc);
+
   init_minimol(mc);
   init_maps(mc);
   init_nxmap(mc);
+  init_gemmi_structure(mc);
 
   init_simplex_lib(mb);
   init_map_io(mc);

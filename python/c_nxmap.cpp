@@ -45,8 +45,7 @@ void declare_map_base(py::module &m) {
       .def("last", &MRB::last);
 
   using MRI = NXmap_base::Map_reference_index;
-  py::class_<MRI, NXmap_base::Map_reference_base>(nxmapbase,
-                                                  "NXmap_reference_index")
+  py::class_<MRI, MRB>(nxmapbase, "NXmap_reference_index")
       .def_property(
           "coord", &MRI::coord,
           [](MRI &self, const Coord_grid &pos) -> void { self.set_coord(pos); })
@@ -54,10 +53,9 @@ void declare_map_base(py::module &m) {
       .def("next", [](MRI &self) -> void { self.next(); })
       .def("index_offset", &MRI::index_offset, py::arg("du"), py::arg("dv"),
            py::arg("dw"));
-  using MRC = NXmap_base::Map_reference_coord;
 
-  py::class_<MRC, NXmap_base::Map_reference_base>(nxmapbase,
-                                                  "NXmap_reference_coordinate")
+  using MRC = NXmap_base::Map_reference_coord;
+  py::class_<MRC, MRB>(nxmapbase, "NXmap_reference_coordinate")
       .def_property(
           "coord", &MRC::coord,
           [](MRC &self, const Coord_grid &pos) -> void { self.set_coord(pos); })

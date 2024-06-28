@@ -1,4 +1,6 @@
+#include <clipper/clipper-gemmi.h>
 #include <clipper/core/coords.h>
+#include <gemmi/math.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -98,7 +100,7 @@ void declare_coord_orth(py::module &m) {
       .def("__str__",
            [](const Resolution &self) { return String(self.limit(), 6, 4); })
       .def("__repr__", [](const Resolution &self) {
-        return "<clipper.Resolution " + String(self.limit(), 6, 4) + "Å>";
+        return "<clipper.Resolution " + String(self.limit(), 6, 4) + " Å.>";
       });
 
   py::class_<HKL_class>(m, "HKL_class")
@@ -142,6 +144,11 @@ void declare_coord_orth(py::module &m) {
                  new RTop_orth(*rotation, *translation));
            }),
            py::arg("rot"), py::arg("trn"))
+      .def_static(
+          "from_gemmi_transform",
+          [](const gemmi::Transform &rtop) { return GEMMI::transform(rtop); })
+      .def_static("to_gemmi_transform",
+                  [](const RTop_orth &rtop) { return GEMMI::transform(rtop); })
       .def("rtop_frac", &RTop_orth::rtop_frac, py::arg("cell"))
       .def("inverse", &RTop_orth::inverse)
       .def("axis_coordinate_near", &RTop_orth::axis_coordinate_near,
@@ -160,6 +167,16 @@ void declare_coord_orth(py::module &m) {
         check_array_shape(hkl, {3}, true);
         return std::unique_ptr<HKL>(new HKL(hkl.at(0), hkl.at(1), hkl.at(2)));
       }))
+      .def("init",
+           [](HKL &self, const gemmi::Miller &hkl) {
+             self.h() = hkl.at(0);
+             self.k() = hkl.at(1);
+             self.l() = hkl.at(2);
+           })
+      .def_static("from_gemmi_Miller",
+                  [](const gemmi::Miller &hkl) { return GEMMI::Hkl(hkl); })
+      .def_static("to_gemmi_Miller",
+                  [](const HKL &hkl) { return GEMMI::Hkl(hkl); })
       .def_property(
           "h", [](const HKL &self) -> const int & { return self.h(); },
           [](HKL &self, const int &val) { self.h() = val; })

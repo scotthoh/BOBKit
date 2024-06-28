@@ -5,8 +5,8 @@ import pathlib
 
 import pytest
 import math
-import buildkit.clipper as clipper
-import buildkit.buccaneer as buccaneer
+import bobkit.clipper as clipper
+import bobkit.buccaneer as buccaneer
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def get_grow_cif_instance(request, cell_instance):
     return flag, mmol
 
 # find, grow, join, merge, link, sequence, correct, filter, ncs, prune, rebuild
-#class _TestCaGrow:
+# class _TestCaGrow:
 #    def _test_check_find_points(self, get_find_cif_instance):
 #        flag, mmol = get_find_cif_instance
 #        atmlist = mmol.model().atom_list()
@@ -52,5 +52,3 @@ class TestCaJoin:
         assert len(mmol.model()) == 99
         cajoin(mmol)
         assert len(mmol.model()) == 20
-
-

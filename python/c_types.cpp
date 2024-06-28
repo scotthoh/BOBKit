@@ -446,7 +446,4 @@ void init_clipper_types(py::module &m) {
   declare_rtop<ftype32>(m, "float32");
   declare_array2d<ftype32>(m, "float32");
   declare_matrix<ftype32>(m, "float32");
-
-  // declare_rtop<ftype32>(m, "float")
-  //  declare_vec3<
 }

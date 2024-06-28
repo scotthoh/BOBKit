@@ -1,4 +1,6 @@
-#include <clipper/core/symop.h>
+#include <clipper/clipper-gemmi.h>
+#include <clipper/core/spacegroup.h>
+#include <gemmi/symmetry.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -6,7 +8,6 @@
 
 #include "helper_functions.h"
 #include "type_conversions.h"
-#include <clipper/core/spacegroup.h>
 
 namespace py = pybind11;
 using namespace clipper;
@@ -37,7 +38,7 @@ void declare_spgr_descr(py::module &m) {
       .def_property_readonly("generator_ops", &Spgr_descr::generator_ops)
       .def("hash", &Spgr_descr::hash)
       .def("__hash__", &Spgr_descr::hash)
-      .def("__repr__", [](const Spacegroup &self) {
+      .def("__repr__", [](const Spgr_descr &self) {
         return "<clipper.Spgr_descr " + self.symbol_hm() + " >";
       });
 
@@ -66,6 +67,8 @@ void declare_spgr_descr(py::module &m) {
            })
       // need getitem
       //  iterators
+      .def("__getitem__",
+           [](const SymopC &self, const int &i) { return self[i]; })
       .def(
           "__iter__",
           [](SymopC &self) {
@@ -126,7 +129,19 @@ void declare_spacegroup(py::module &m) {
   spacegroup.def(py::init<>())
       .def(py::init<Spacegroup::TYPE>())
       .def(py::init<const Spgr_descr &>())
-      .def("init", &Spacegroup::init)
+      .def(
+          "init", [](Spacegroup &self, const Spgr_descr &sd) { self.init(sd); },
+          py::arg("spgr_descr"))
+      .def(
+          "init",
+          [](Spacegroup &self, const gemmi::SpaceGroup &sg) {
+            self.init(GEMMI::spacegroup(sg).descr());
+          },
+          py::arg("spacegroup"))
+      .def(
+          "init",
+          [](Spacegroup &self, const Spacegroup &sg) { self.init(sg.descr()); },
+          py::arg("spacegroup"))
       .def("is_null", &Spacegroup::is_null)
       .def("descr", &Spacegroup::descr)
       .def("num_symops", &Spacegroup::num_symops)
@@ -153,6 +168,12 @@ void declare_spacegroup(py::module &m) {
       .def_property_readonly("symbol_laue", &Spacegroup::symbol_laue)
       .def_static("p1", &Spacegroup::p1)
       .def_static("null", &Spacegroup::null)
+      // from clipper-gemmi
+      .def_static(
+          "from_gemmi_spacegroup",
+          [](const gemmi::SpaceGroup &sg) { return GEMMI::spacegroup(sg); })
+      .def_static("to_gemmi_spacegroup",
+                  [](const Spacegroup &sg) { return GEMMI::spacegroup(sg); })
       .def("__repr__",
            [](const Spacegroup &self) {
              return "<clipper.Spacegroup " + self.symbol_hm() + " >";
@@ -162,6 +183,5 @@ void declare_spacegroup(py::module &m) {
 
 void init_spacegroup(py::module &m) {
   declare_spgr_descr(m);
-  // declare_symop_codes(m);
   declare_spacegroup(m);
 }
