@@ -86,11 +86,15 @@ find_library(CLIPPERCONTRIBDEP NAMES clipper-contrib
 find_library(CLIPPERCCP4DEP NAMES clipper-ccp4
             HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
 #message(STATUS "MMDB2  ${MMDB2DEP}")
+find_library(CLIPPERGEMMI NAMES clipper-gemmi
+            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
+
 #message(STATUS "CCP4C ${CCP4CDEP}")
 message(STATUS "CLIPPERCORE ${CLIPPERCOREDEP}")
 #message(STATUS "CLIPPERMMDB ${CLIPPERMMDBDEP}")
 message(STATUS "CLIPPERMINI ${CLIPPERMINIMOLDEP}")
 message(STATUS "CLIPPERCONT ${CLIPPERCONTRIBDEP}")
+message(STATUS "CLIPPERGEMMI ${CLIPPERGEMMI}")
 #message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
 
 find_package(Threads REQUIRED)
@@ -101,6 +105,7 @@ target_link_libraries(buc_py PRIVATE #${MMDB2DEP}
                                      #${CLIPPERMMDBDEP}
                                      ${CLIPPERMINIMOLDEP}
                                      ${CLIPPERCONTRIBDEP}
+                                     ${CLIPPERGEMMI}
                                      #${CLIPPERCCP4DEP}
                                      Threads::Threads)
 set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)

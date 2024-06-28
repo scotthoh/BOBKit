@@ -1,10 +1,14 @@
 // #include "c_minimol.h"
 #include "buccaneer/buccaneer-util.h"
+#include "gemmi/model.hpp"
 #include "helper_functions.h"
 #include "type_conversions.h"
 #include <clipper/minimol/minimol.h>
+#include <clipper/minimol/minimol_io_gemmi.h>
+#include <pybind11/cast.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 namespace py = pybind11;
 using namespace clipper;
@@ -21,6 +25,7 @@ using namespace clipper;
 //{
 //  items.erase(items.begin() + index);
 //}
+// auto GStruc = py::module::import("gemmi").attr("Structure");
 
 void init_minimol(py::module &m) {
   // "Forward declaration" of python classes to avoid
@@ -388,9 +393,10 @@ void init_minimol(py::module &m) {
           gfile.write_file(filename + "pdb");
       },
       py::arg("filepath"), py::arg("minimol"), py::arg("cif_format") = true);
-  // py::class_<bk::PyCMiniMol>(m, "PyCMiniMol")
-  //     .def(py::init<std::string &, bool>(), py::arg("filepath_to_structure")
-  //     = "undefined", py::arg("enable_messages") = true) //; .def("get_mmol",
-  //     &bk::PyCMiniMol::get_mmol, py::arg("filepath_to_structure") =
-  //     "undefined");
+
+  //  py::class_<bk::PyCMiniMol>(m, "PyCMiniMol")
+  //      .def(py::init<std::string &, bool>(), py::arg("filepath_to_structure")
+  //      = "undefined", py::arg("enable_messages") = true) //; .def("get_mmol",
+  //      &bk::PyCMiniMol::get_mmol, py::arg("filepath_to_structure") =
+  //      "undefined");
 }

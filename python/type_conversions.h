@@ -1,8 +1,11 @@
 #pragma once
-#include <pybind11/pybind11.h>
 #include <clipper/clipper.h>
+// #include <gemmi/model.hpp>
+#include <pybind11/pybind11.h>
 
-// refer to https://pybind11.readthedocs.io/en/stable/advanced/cast/custom.html#custom-type-casters
+// refer to
+// https://pybind11.readthedocs.io/en/stable/advanced/cast/custom.html#custom-type-casters
+// auto gstruc = pybind11::module_::import("gemmi").attr("Structure");
 namespace PYBIND11_NAMESPACE
 {
   namespace detail
@@ -33,5 +36,51 @@ namespace PYBIND11_NAMESPACE
         return PyUnicode_FromString(src.trim().c_str());
       }
     };
+
+    // for gemmi::Structure C++<-->Python
+    // template <> struct type_caster<gemmi::Structure> {
+    // public:
+    //  /**
+    //   * This macro establishes the name 'gemmi::Structure' in
+    //   * function signatures and declares a local variable
+    //   * 'value' of type gemmi::Structure
+    //   */
+    //  PYBIND11_TYPE_CASTER(gemmi::Structure, _("Structure"));
+    //
+    //  /**
+    //   * Conversion part 1 (Python->C++): convert a PyObject into a
+    //   *gemmi::Structure. The second argument indicates whether implicit
+    //   *conversions should be applied.
+    //   */
+    //  bool load(handle src, bool) {
+    //    // PyObject *py_object = src.ptr();
+    //    gemmi::Structure s = src.cast<gemmi::Structure>();
+    //    if (s)
+    //    // PyObject *tmp = src.cast<gemmi::Structure *>();
+    //    //  std::cout << "python to c++ conversion" << std::endl; // debug
+    //    code
+    //    //
+    //    //  gemmi::Structure gstructure;
+    //    //  value = gstructure;
+    //    value = s;
+    //    return true;
+    //  }
+    //
+    //  /**
+    //   * Conversion part 2 (C++ -> Python): convert an gemmi::Structure
+    //   instance
+    //   * into a Python object. The second and third arguments are used to
+    //   * indicate the return value policy and parent object (for
+    //   * ``return_value_policy::reference_internal``) and are generally
+    //   * ignored by implicit casters.
+    //   */
+    //  static handle cast(gemmi::Structure src, return_value_policy /* policy
+    //  */,
+    //                     handle /* parent */) {
+    //
+    //    std::cout << "C++ to python conversion" << std::endl; // debug mode
+    //    return pybind11::bool_(true).release();
+    //  }
+    //};
   }
 }

@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 import math
-import buildkit.clipper as clipper
+import bobkit.clipper as clipper
 
 @pytest.fixture
 def cell_descr_instance():
