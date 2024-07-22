@@ -14,9 +14,19 @@ namespace py = pybind11;
 
 void declare_ca_sequence(py::module &m) {
   py::class_<Ca_sequence> casequence(m, "Ca_sequence");
-  casequence.def(py::init<double>(), py::arg("reliability") = 0.5)
-      .def("__call__", &Ca_sequence::operator(), py::arg("mol"),
-           py::arg("xmap"), py::arg("llktarget"), py::arg("seq"))
+  casequence
+      .def(py::init<double>(), py::arg("reliability") = 0.5)
+      //.def("__call__", &Ca_sequence::operator(), py::arg("mol"),
+      //     py::arg("xmap"), py::arg("llktargets"), py::arg("seq"))
+      .def("__call__",
+           [](Ca_sequence &self, clipper::MiniMol &mol,
+              const clipper::Xmap<float> &xmap,
+              const std::vector<LLK_map_target> &llktarget,
+              const clipper::MMoleculeSequence &seq) {
+             self(mol, xmap, llktarget, seq);
+             std::cout << "num seqd : " << clipper::String(self.num_sequenced())
+                       << std::endl;
+           })
       .def("num_sequenced", &Ca_sequence::num_sequenced)
       .def("format", &Ca_sequence::format)
       // need to test these

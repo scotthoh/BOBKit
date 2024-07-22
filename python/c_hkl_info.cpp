@@ -4,8 +4,10 @@
 #include <clipper/core/hkl_info.h>
 #include <gemmi/symmetry.hpp>
 #include <gemmi/unitcell.hpp>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
 namespace py = pybind11;
 using namespace clipper;
@@ -63,6 +65,7 @@ void init_hklinfo(py::module &m) {
       //     py::arg("hkls"))
       .def("add_hkl_list",
            [](HKL_info &self, const py::array_t<int> &hkl) {
+             std::cout << "add" << std::endl;
              std::vector<HKL> hkl_list;
              auto hbuf = hkl.request();
              if (hbuf.shape[1] != 3)
@@ -75,12 +78,11 @@ void init_hklinfo(py::module &m) {
                hptr += 3;
              }
              // check hkl_list size and array size are the same
-             if (hkl_list.size() != l)
-              throw std::logic_error(
-                  "Error in adding HKL list, length is not the same as
-                  input.");
-            else
-              self.add_hkl_list(hkl_list);
+             if (hkl_list.size() != l) {
+               throw std::logic_error("Error in adding HKL list, length is "
+                                      "not the same as input.");
+             } else
+               self.add_hkl_list(hkl_list);
            })
       .def("num_reflections", &HKL_info::num_reflections)
       .def("hkl_of", &HKL_info::hkl_of, py::arg("index"))

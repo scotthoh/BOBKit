@@ -63,14 +63,19 @@ void declare_atom(py::module &m) {
            })
       .def("__len__", [](const Atom_list &self) { return self.size(); })
       .def("size", [](const Atom_list &self) { return self.size(); })
-      .def("__getitem__",
-           [](const Atom_list &self, const int &i) -> Atom {
-             return self.at(normalise_index(i, self.size()));
-           })
-      .def("__setitem__",
-           [](Atom_list &self, const int &i, const Atom &atom) {
-             self.at(normalise_index(i, self.size())) = atom;
-           })
+      .def(
+          "__getitem__",
+          [](const Atom_list &self, const int &i) -> Atom {
+            return self.at(i);
+            // return self.at(normalise_index(i, self.size()));
+          },
+          "Returns a copy of Atom at given index.")
+      .def(
+          "__setitem__",
+          [](Atom_list &self, const int &i, const Atom &atom) {
+            self.at(normalise_index(i, self.size())) = atom;
+          },
+          "Replaces Atom at given index.")
       .def(
           "delete_atom",
           [](Atom_list &self, const int &pos) { delitem_at_index(self, pos); },
@@ -96,6 +101,10 @@ void declare_coord_orth(py::module &m) {
       .def("init", &Resolution::init, py::arg("resolution"))
       .def("limit", &Resolution::limit)
       .def("invresolsq_limit", &Resolution::invresolsq_limit)
+      .def_static("test_precision64",
+                  []() { return ftype64(1.8501448145505965); })
+      .def_static("test_precision32",
+                  []() { return ftype32(1.8501448145505965); })
       .def("is_null", &Resolution::is_null)
       .def("__str__",
            [](const Resolution &self) { return String(self.limit(), 6, 4); })

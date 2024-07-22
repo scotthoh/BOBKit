@@ -6,7 +6,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-void declare_map_simulate(py::module &m) {
+void init_map_simulate(py::module &m) {
   py::class_<MapSimulate>(m, "MapSimulate")
       .def(py::init<int, int>(), py::arg("nresbins") = 100,
            py::arg("binmin") = 20)

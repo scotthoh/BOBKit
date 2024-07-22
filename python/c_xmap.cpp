@@ -1,8 +1,8 @@
 // bind maps stuff
 #include "helper_functions.h"
 #include "type_conversions.h"
+#include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
-#include <clipper/core/xmap.h>
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -82,6 +82,15 @@ void declare_xmap_base(py::module &m) {
 //
 // void declare_xmap_reference_coord(py::module &m) {}
 
+template <class Derived, class T, class H>
+void apply_xmap_fft_methods(py::class_<Derived, Xmap_base> &pyclass) {
+  pyclass
+      .def("fft_from",
+           [](Derived &self, const H &phidata) { self.fft_from(phidata); })
+      .def("fft_to",
+           [](const Derived &self, H &phidata) { self.fft_to(phidata); });
+}
+
 template <class T> void declare_xmap(py::module &m, const std::string &name) {
   using MRI = Xmap_base::Map_reference_index;
   using MRC = Xmap_base::Map_reference_coord;
@@ -118,7 +127,17 @@ template <class T> void declare_xmap(py::module &m, const std::string &name) {
                           const T &val) { self.set_data(pos, val); })
       .def("fill_map_with", [](XMClass &self, const T &val) { self = val; })
       .def(py::self += py::self)
-      .def(py::self -= py::self);
+      .def(py::self -= py::self)
+      .def("import_from_gemmi",
+           [](XMClass &self, const gemmi::Ccp4<T> &mapobj) {
+             GEMMI::import_xmap(self, mapobj);
+           })
+      .def("export_to_gemmi", [](const XMClass &self, gemmi::Ccp4<T> &mapobj) {
+        GEMMI::export_xmap(self, mapobj);
+      });
+  // ffts
+  apply_xmap_fft_methods<XMClass, T, HKL_data<clipper::data32::F_phi>>(xmap);
+  apply_xmap_fft_methods<XMClass, T, HKL_data<clipper::data64::F_phi>>(xmap);
 }
 
 void init_maps(py::module &m) {

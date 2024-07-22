@@ -250,10 +250,18 @@ py::class_<HKL_data<C>> declare_HKL_data(py::module &m,
       .def(py::self ^ py::self)
       .def(!py::self)
       // from clipper-gemmi
-      .def("import_from_gemmi", [](Class &self, const gemmi::Mtz &mtzobj,
-                                   const std::string mtzpath) {
-        GEMMI::import_hkl_data(self, mtzobj, mtzpath);
-      });
+      .def(
+          "import_from_gemmi",
+          [](Class &self, const gemmi::Mtz &mtzobj, const std::string mtzpath,
+             const bool &legacy) {
+            clipper::String colpath(mtzpath);
+            if (legacy)
+              if (colpath.find("/") == clipper::String::npos &&
+                  colpath.find("[") == clipper::String::npos)
+                colpath = "/*/*/[" + colpath + "]";
+            GEMMI::import_hkl_data(self, mtzobj, colpath);
+          },
+          py::arg("mtz"), py::arg("mtzpath"), py::arg("legacy") = false);
   return std::move(theclass);
 } // declare_HKL_data
 
