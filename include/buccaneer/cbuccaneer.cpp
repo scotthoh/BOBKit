@@ -1,24 +1,26 @@
 // Clipper buccaneer
 /* Copyright 2002-2008 Kevin Cowtan & University of York all rights reserved */
 
-#include <clipper/clipper-ccp4.h>
-#include <clipper/clipper-contrib.h>
-#include "simulate-lib.h"
-#include "buccaneer-prep.h"
+#include "buccaneer-build.h"
+#include "buccaneer-correct.h"
+#include "buccaneer-filter.h"
 #include "buccaneer-find.h"
 #include "buccaneer-grow.h"
 #include "buccaneer-join.h"
-#include "buccaneer-link.h"
-#include "buccaneer-sequence.h"
-#include "buccaneer-correct.h"
-#include "buccaneer-filter.h"
-#include "buccaneer-ncsbuild.h"
-#include "buccaneer-prune.h"
-#include "buccaneer-build.h"
-#include "buccaneer-merge.h"
 #include "buccaneer-known.h"
+#include "buccaneer-link.h"
+#include "buccaneer-merge.h"
+#include "buccaneer-ncsbuild.h"
+#include "buccaneer-prep.h"
+#include "buccaneer-prune.h"
+#include "buccaneer-sequence.h"
 #include "buccaneer-tidy.h"
 #include "buccaneer-util.h"
+#include "simulate-lib.h"
+#include <clipper/clipper-ccp4.h>
+#include <clipper/clipper-contrib.h>
+#include <clipper/clipper-gemmi.h>
+#include <math.h>
 
 extern "C" {
   #include <stdlib.h>
@@ -288,8 +290,9 @@ int main( int argc, char** argv )
   using clipper::data32::ABCD;
   using clipper::data32::Flag;
   clipper::Resolution resol;
-  clipper::CCP4MTZfile mtzfile;
-  mtzfile.set_column_label_mode( clipper::CCP4MTZfile::Legacy );
+  // clipper::CCP4MTZfile mtzfile;
+  gemmi::Mtz gmtz, gmtz_wrk;
+  // mtzfile.set_column_label_mode( clipper::CCP4MTZfile::Legacy );
   std::string msg;
   gemmi::PdbReadOptions read_opts;
   read_opts.skip_remarks = true;
@@ -312,43 +315,67 @@ int main( int argc, char** argv )
   std::cout << std::endl << ((correl)?std::string("Correlation mode selected"):std::string("Correlation mode not selected")) << std::endl << std::endl;
 
   // Get resolution for calculation
-  mtzfile.open_read( ipmtz_ref );
-  double res_ref = std::max( mtzfile.resolution().limit(), res_in );
-  mtzfile.close_read();
-  mtzfile.open_read( ipmtz_wrk );
-  double res_wrk = std::max( mtzfile.resolution().limit(), res_in );
-  mtzfile.close_read();
+  gmtz.read_file(ipmtz_ref);
+  // mtzfile.open_read( ipmtz_ref );
+  // double res_ref = std::max( mtzfile.resolution().limit(), res_in );
+  double res_ref = std::max(0.9999 / std::sqrt(gmtz.max_1_d2), res_in);
+  // mtzfile.close_read();
+  // mtzfile.open_read( ipmtz_wrk );
+  gmtz_wrk.read_file(ipmtz_wrk);
+  // double res_wrk = std::max( mtzfile.resolution().limit(), res_in );
+  double res_wrk = std::max(0.9999 / std::sqrt(gmtz_wrk.max_1_d2), res_in);
+  // mtzfile.close_read();
   resol = clipper::Resolution( std::max( res_ref, res_wrk ) );
   if ( res_ref > res_wrk ) std::cout << std::endl << "WARNING: resolution of work structure truncated to reference:\n Ref: " << res_ref << " Wrk: " << res_wrk << std::endl;
 
   // Get reference reflection data
   clipper::HKL_info hkls_ref;
-  mtzfile.open_read( ipmtz_ref );
-  hkls_ref.init( mtzfile.spacegroup(), mtzfile.cell(), resol, true );
+  hkls_ref.init(clipper::GEMMI::spacegroup(*gmtz.spacegroup),
+                clipper::GEMMI::cell(gmtz.cell), resol, true);
+  // mtzfile.open_read( ipmtz_ref );
+  // hkls_ref.init( mtzfile.spacegroup(), mtzfile.cell(), resol, true );
   clipper::HKL_data<F_sigF> ref_f( hkls_ref );
   clipper::HKL_data<ABCD>   ref_hl( hkls_ref );
-  mtzfile.import_hkl_data( ref_f,  ipcol_ref_fo );
-  mtzfile.import_hkl_data( ref_hl, ipcol_ref_hl );
-  mtzfile.close_read();
+  clipper::GEMMI::import_hkl_data(ref_f, gmtz, "/*/*/[" + ipcol_ref_fo + "]");
+  clipper::GEMMI::import_hkl_data(ref_hl, gmtz, "/*/*/[" + ipcol_ref_hl + "]");
+  // mtzfile.import_hkl_data(ref_f, ipcol_ref_fo);
+  // mtzfile.import_hkl_data(ref_hl, ipcol_ref_hl);
+  // mtzfile.close_read();
 
   // Get work reflection data
-  clipper::MTZcrystal cxtl;
+  // clipper::MTZcrystal cxtl;
   clipper::HKL_info hkls_wrk;
-  mtzfile.set_verbose( (verbose>0) ? 3 : 2 );
-  mtzfile.open_read( ipmtz_wrk );
-  hkls_wrk.init( mtzfile.spacegroup(), mtzfile.cell(), resol, true );
-  mtzfile.import_crystal( cxtl, ipcol_wrk_fo+".F_sigF.F" );
-  clipper::HKL_data<F_sigF>  wrk_f ( hkls_wrk, cxtl );
-  clipper::HKL_data<ABCD>    wrk_hl( hkls_wrk, cxtl );
-  clipper::HKL_data<Phi_fom> wrk_pw( hkls_wrk, cxtl );
-  clipper::HKL_data<F_phi>   wrk_fp( hkls_wrk, cxtl );
-  clipper::HKL_data<Flag>    flag( hkls_wrk, cxtl );
-  mtzfile.import_hkl_data( wrk_f , ipcol_wrk_fo );
-  if ( ipcol_wrk_hl != "NONE" ) mtzfile.import_hkl_data( wrk_hl,ipcol_wrk_hl );
-  if ( ipcol_wrk_pw != "NONE" ) mtzfile.import_hkl_data( wrk_pw,ipcol_wrk_pw );
-  if ( ipcol_wrk_fc != "NONE" ) mtzfile.import_hkl_data( wrk_fp,ipcol_wrk_fc );
-  if ( ipcol_wrk_fr != "NONE" ) mtzfile.import_hkl_data( flag,  ipcol_wrk_fr );
-  mtzfile.close_read();
+  hkls_wrk.init(clipper::GEMMI::spacegroup(*gmtz_wrk.spacegroup),
+                clipper::GEMMI::cell(gmtz_wrk.cell), resol, true);
+  // mtzfile.set_verbose( (verbose>0) ? 3 : 2 );
+  // mtzfile.open_read( ipmtz_wrk );
+  // hkls_wrk.init( mtzfile.spacegroup(), mtzfile.cell(), resol, true );
+  // mtzfile.import_crystal( cxtl, ipcol_wrk_fo+".F_sigF.F" );
+  clipper::HKL_data<F_sigF> wrk_f(hkls_wrk, hkls_wrk.cell());   // cxtl );
+  clipper::HKL_data<ABCD> wrk_hl(hkls_wrk, hkls_wrk.cell());    // cxtl );
+  clipper::HKL_data<Phi_fom> wrk_pw(hkls_wrk, hkls_wrk.cell()); // cxtl );
+  clipper::HKL_data<F_phi> wrk_fp(hkls_wrk, hkls_wrk.cell());   // cxtl );
+  clipper::HKL_data<Flag> flag(hkls_wrk, hkls_wrk.cell());      // );
+  clipper::GEMMI::import_hkl_data(wrk_f, gmtz_wrk,
+                                  "/*/*/[" + ipcol_wrk_fo + "]");
+  // mtzfile.import_hkl_data( wrk_f , ipcol_wrk_fo );
+  // if ( ipcol_wrk_hl != "NONE" ) mtzfile.import_hkl_data( wrk_hl,ipcol_wrk_hl
+  // ); if ( ipcol_wrk_pw != "NONE" ) mtzfile.import_hkl_data(
+  // wrk_pw,ipcol_wrk_pw ); if ( ipcol_wrk_fc != "NONE" )
+  // mtzfile.import_hkl_data( wrk_fp,ipcol_wrk_fc ); if ( ipcol_wrk_fr != "NONE"
+  // ) mtzfile.import_hkl_data( flag,  ipcol_wrk_fr ); mtzfile.close_read();
+  if (ipcol_wrk_hl != "NONE")
+    clipper::GEMMI::import_hkl_data(wrk_hl, gmtz_wrk,
+                                    "/*/*[" + ipcol_wrk_hl + "]");
+  if (ipcol_wrk_pw != "NONE")
+    clipper::GEMMI::import_hkl_data(wrk_pw, gmtz_wrk,
+                                    "/*/*[" + ipcol_wrk_pw + "]");
+  if (ipcol_wrk_fc != "NONE")
+    clipper::GEMMI::import_hkl_data(wrk_fp, gmtz_wrk,
+                                    "/*/*[" + ipcol_wrk_fc + "]");
+  if (ipcol_wrk_fr != "NONE")
+    clipper::GEMMI::import_hkl_data(flag, gmtz_wrk,
+                                    "/*/*[" + ipcol_wrk_fr + "]");
 
   // do anisotropy correction
   clipper::U_aniso_orth uaniso( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );
@@ -376,8 +403,11 @@ int main( int argc, char** argv )
 
   // Get reference model
   clipper::Spacegroup cspg = hkls_wrk.spacegroup();
+  clipper::Cell cell_wrk = hkls_wrk.cell();
   clipper::MiniMol mol_ref, mol_wrk_in, mol_tmp;
-  clipper::MiniMol mol_wrk(cspg,cxtl), mol_mr(cspg,cxtl), mol_seq(cspg,cxtl);
+  // clipper::MiniMol mol_wrk(cspg,cxtl), mol_mr(cspg,cxtl), mol_seq(cspg,cxtl);
+  clipper::MiniMol mol_wrk(cspg, cell_wrk), mol_mr(cspg, cell_wrk),
+      mol_seq(cspg, cell_wrk);
   clipper::GEMMIfile gfile_ref;
   // mmdb_ref.SetFlag( mmdbflags );
   gfile_ref.read_file(ippdb_ref, read_opts);
@@ -433,10 +463,25 @@ int main( int argc, char** argv )
     xref.fft_from( ref_fp );
 
     // prepare llk targets
+    std::cout << "before Ca prep: \n";
+    // std::cout << "llktgt sample " << clipper::String(llktgt.num_samples())
+    //           << std::endl;
+    // std::cout << "llktgt format: \n" << llktgt.format() << std::endl;
     Ca_prep caprep( main_tgt_rad, side_tgt_rad, rama_flt, correl, seqnc,
                     verbose>3 );
     caprep( llktgt, llkcls, mol_ref, xref );
+    std::cout << "after Ca prep: \n";
+    // std::cout << "llktgt sample " << clipper::String(llktgt.num_samples())
+    //           << std::endl;
+    // std::cout << "llktgt format: \n" << llktgt.format() << std::endl;
 
+    for (int h = 0; h < llkcls.size(); h++) {
+      for (int j = 0; j < llkcls[h].sampled().size(); j++) {
+        std::cout << llkcls[h].sampled().coord_orth(j).format() << ", ";
+        std::cout << llkcls[h].sampled().target(j) << ", ";
+        std::cout << llkcls[h].sampled().weight(j) << std::endl;
+      }
+    }
     log.log( "PREP" );
   }
 
@@ -448,8 +493,11 @@ int main( int argc, char** argv )
     wrk_pw.compute( wrk_hl, Compute_phifom_from_abcd() );
     if ( ipcol_wrk_fc == "NONE" )
       wrk_fp.compute( wrk_fwrk, wrk_pw, Compute_fphi_from_fsigf_phifom() );
-    clipper::Grid_sampling grid( cspg, cxtl, hkls_wrk.resolution() );
-    clipper::Xmap<float>   xwrk( cspg, cxtl, grid );
+    clipper::Grid_sampling grid(cspg, cell_wrk, hkls_wrk.resolution());
+    clipper::Xmap<float> xwrk(cspg, cell_wrk, grid);
+
+    // clipper::Grid_sampling grid( cspg, cxtl, hkls_wrk.resolution() );
+    // clipper::Xmap<float>   xwrk( cspg, cxtl, grid );
     xwrk.fft_from( wrk_fp );
 
     // optionlly write work map
@@ -467,6 +515,8 @@ int main( int argc, char** argv )
 
     // offset the map density
     clipper::Map_stats stats( xwrk );
+    std::cout << stats.min() << ", " << stats.max() << ", " << stats.mean()
+              << ", " << stats.std_dev() << std::endl;
     clipper::Xmap_base::Map_reference_index ix;
     for ( ix = xwrk.first(); !ix.last(); ix.next() )
       xwrk[ix] += moffset * stats.std_dev();
@@ -616,7 +666,7 @@ int main( int argc, char** argv )
         gfile.write_file(oppdb.substr(0, oppdb.rfind(".") + 1) + c +
                          oppdb.substr(oppdb.rfind(".")));
         if (!nocif)
-          gfile.write_file(oppdb.substr(0, oppdb.rfind(".") + 1) + c + "cif",
+          gfile.write_file(oppdb.substr(0, oppdb.rfind(".") + 1) + c + ".cif",
                            clipper::GEMMIfile::CIF);
       }
     } // next cycle
@@ -639,6 +689,7 @@ int main( int argc, char** argv )
 
     // Assign default B-factors to missing values
     float default_u_iso = ProteinTools::main_chain_u_mean( mol_wrk_in );
+    std::cout << "default U ISO  : " << default_u_iso << std::endl;
     for ( int c = 0; c < mol_wrk.size(); c++ )
       for ( int r = 0; r < mol_wrk[c].size(); r++ )
         for ( int a = 0; a < mol_wrk[c][r].size(); a++ )

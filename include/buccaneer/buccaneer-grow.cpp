@@ -23,10 +23,14 @@ bool Ca_grow::operator() ( clipper::MiniMol& mol, const clipper::Xmap<float>& xm
 
   // Find starting chains to expand
   std::vector<Ca_chain> chains = ProteinTools::ca_chains( mold );
-
+  std::cout << chains.size() << std::endl;
+  for (int i = 0; i < chains.size(); i++) {
+    std::cout << chains[i].size() << ", ";
+  }
+  std::cout << "\n";
   // establish map statistics to determine stopping value for building
   double cutoff = llktarget.llk_distribution( 0.01 );
-
+  std::cout << "grow cutoff  :  " << cutoff << std::endl;
   // grow the chains
   /*
   clipper::Ramachandran rama1( clipper::Ramachandran::All );

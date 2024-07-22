@@ -78,6 +78,7 @@ void init_minimol(py::module &m) {
   pyResidue.def(py::init<>())
       .def_property("id", &MResidue::id, &MResidue::set_id)
       .def_property("type", &MResidue::type, &MResidue::set_type)
+      .def("set_type", &MResidue::set_type)
       .def_property(
           "seqnum", &MResidue::seqnum,
           &MResidue::set_seqnum) // py::arg("s"), py::arg("inscode") = "")
@@ -117,13 +118,15 @@ void init_minimol(py::module &m) {
           [](MResidue &self, const int i, const MAtom atm) {
             self[normalise_index(i, self.size())] = atm;
           },
-          py::arg("i"), py::arg("atom"))
+          py::arg("i"), py::arg("atom"),
+          py::return_value_policy::reference_internal)
       .def(
           "__setitem__",
           [](MResidue &self, const std::string &n, const MAtom atm) {
             self.find(n) = atm;
           },
-          py::arg("id"), py::arg("atom"))
+          py::arg("id"), py::arg("atom"),
+          py::return_value_policy::reference_internal)
       // atom_list()
       //  transform(const RTop_orth rt)
       .def("insert", &MResidue::insert, py::arg("add"), py::arg("pos"))
@@ -213,13 +216,15 @@ void init_minimol(py::module &m) {
           [](MChain &self, const int i, const MResidue res) {
             self[normalise_index(i, self.size())] = res;
           },
-          py::arg("i"), py::arg("res"))
+          py::arg("i"), py::arg("res"),
+          py::return_value_policy::reference_internal)
       .def(
           "__setitem__",
           [](MChain &self, const std::string &n, const MResidue res) {
             self.find(n) = res;
           },
-          py::arg("id"), py::arg("res"))
+          py::arg("id"), py::arg("res"),
+          py::return_value_policy::reference_internal)
       // atom_list()
       // transform()
       .def(
@@ -277,23 +282,37 @@ void init_minimol(py::module &m) {
           [](MModel &self, const std::string &n, const MChain &chn,
              const MM::MODE mode) { self.find(n, mode) = chn; },
           py::arg("n"), py::arg("chain"), py::arg("mode") = MM::MODE::UNIQUE)
-      .def("__setitem__",
-           [](MModel &self, const int i, const MChain chn) {
-             self[normalise_index(i, self.size())] = chn;
-           })
-      .def("__setitem__", [](MModel &self, const std::string &n,
-                             const MChain chn) { self.find(n) = chn; })
+      .def(
+          "__setitem__",
+          [](MModel &self, const int i, const MChain chn) {
+            self[normalise_index(i, self.size())] = chn;
+          },
+          py::return_value_policy::reference_internal)
+      .def(
+          "__setitem__",
+          [](MModel &self, const std::string &n, const MChain chn) {
+            self.find(n) = chn;
+          },
+          py::return_value_policy::reference_internal)
       .def(
           "__iter__",
           [](MModel &self) {
             return py::make_iterator(&self[0], &self[self.size()]);
           },
           py::keep_alive<0, 1>())
-      .def("insert", &MModel::insert, py::arg("add"), py::arg("pos"))
+      .def("select", &MModel::select, py::arg("selection"),
+           py::arg("mode") = MM::MODE::UNIQUE)
+      .def("select_index", &MModel::select_index, py::arg("selection"),
+           py::arg("mode") = MM::MODE::UNIQUE)
+      .def("lookup", &MModel::lookup, py::arg("id"), py::arg("mode"))
+      .def("insert", &MModel::insert, py::arg("add"), py::arg("pos") = -1)
       .def(py::self & py::self)
       .def(py::self | py::self)
       .def("copy_from", &MModel::copy, py::arg("other"),
            py::arg("mode") = MM::COPY::COPY_C);
+
+  // 9 july need to bind
+  // select, select index, lookip,  atom,
   //.def("clone", [](const MModel &self) { return new MModel(self); });
 
   py::class_<MiniMol, MModel> minimol(m, "MiniMol");

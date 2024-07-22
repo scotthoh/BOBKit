@@ -10,6 +10,13 @@ const Ca_prep::Rama_flt Ca_prep::rama_flt_strand   = { -2.0,  2.5,  1.5 };
 const Ca_prep::Rama_flt Ca_prep::rama_flt_nonhelix = { -1.5, -1.0, -1.5 };
 int Ca_prep::ncpu = 0;
 
+void Ca_prep::check_params() {
+  std::cout << ncpu << ", ";
+  std::cout << rama_flt_.phi << ", " << rama_flt_.psi << ", " << rama_flt_.rad
+            << "\n";
+  std::cout << main_tgt_rad_ << ", " << side_tgt_rad_ << "\n";
+  std::cout << correl_ << ", " << seqnc_ << ", " << debug_ << "\n";
+}
 
 bool Ca_prep::operator() ( LLK_map_target& llktgt, std::vector<LLK_map_target>& llkcls, const clipper::MiniMol& mol, const clipper::Xmap<float>& xmap ) const
 {
@@ -81,7 +88,7 @@ bool Ca_prep::operator() ( LLK_map_target& llktgt, std::vector<LLK_map_target>& 
   for ( int t = 0; t < nside; t++ ) {
     if ( seqnc_ ) llkcls[t] = targets[t+nmain];
   }
-
+  std::cout << debug_ << std::endl;
   if ( debug_ )
     std::cout << "Target:" << std::endl << llktgt.format() << std::endl;
 

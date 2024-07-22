@@ -10,6 +10,9 @@
 #include <clipper/core/coords.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
+
+// PYBIND11_MAKE_OPAQUE(std::vector<LLK_map_target>)
 
 template <class T>
 void declare_score_list(py::module &m, const std::string name) {
@@ -101,6 +104,7 @@ void declare_LLK_map_target(py::module &m) {
           static_cast<clipper::NXmap<float> &(LLK_map_target::*)()>(
               &LLK_map_target::llk_weight))
       .def_property_readonly("num_samples", &LLK_map_target::num_samples);
+  // py::bind_vector<std::vector<LLK_map_target>>(m, "LLK_map_target_List");
 }
 
 void declare_sampled(py::module &m) {

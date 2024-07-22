@@ -19,12 +19,18 @@ void init_coord_orth(py::module &m);
 void init_spacegroup(py::module &m);
 void init_hklinfo(py::module &m);
 void init_hkl_data(py::module &m);
+void init_hkl_datatypes(py::module &m);
+void init_sfscale(py::module &m);
 void init_containers(py::module &m);
 void init_maps(py::module &m);
 void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
 void init_symop(py::module &m);
 void init_gemmi_structure(py::module &m);
+void init_minimol_seq(py::module &m);
+void init_clipper_stats(py::module &m);
+void init_map_utils(py::module &m);
+void init_clipper_util(py::module &m);
 
 void init_ca_build(py::module &m);
 void init_ca_filter(py::module &m);
@@ -39,9 +45,11 @@ void init_ca_sequence(py::module &m);
 void init_ca_correct(py::module &m);
 void init_ca_ncsbuild(py::module &m);
 void init_ca_prune(py::module &m);
+void init_knownstructure(py::module &m);
 void init_model_tidy(py::module &m);
 void init_buccaneer_util(py::module &m);
 void init_simplex_lib(py::module &m);
+void init_map_simulate(py::module &m);
 void init_proteindb(py::module &m);
 
 PYBIND11_MODULE(bobkit, mbk) {
@@ -60,6 +68,14 @@ PYBIND11_MODULE(bobkit, mbk) {
         PyErr_SetString(PyExc_RuntimeError, e.text().c_str());
       } });
 
+  mbk.def("long running_func", []() {
+    for (;;) {
+      if (PyErr_CheckSignals() != 0)
+        throw py::error_already_set();
+      // Long running iteration
+    }
+  });
+
   auto mc = mbk.def_submodule("clipper");
   auto mb = mbk.def_submodule("buccaneer");
   auto mpdb = mbk.def_submodule("protein_db");
@@ -72,14 +88,21 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_hklinfo(mc);
   init_containers(mc);
   init_hkl_data(mc);
+  init_hkl_datatypes(mc);
+  init_sfscale(mc);
 
   init_minimol(mc);
   init_maps(mc);
   init_nxmap(mc);
   init_gemmi_structure(mc);
+  init_minimol_seq(mc);
+  init_map_io(mc);
+  init_clipper_stats(mc);
+  init_map_utils(mc);
+  init_clipper_util(mc);
 
   init_simplex_lib(mb);
-  init_map_io(mc);
+  init_map_simulate(mb);
   init_ca_build(mb);
   init_ca_join(mb);
   init_ca_filter(mb);
@@ -95,6 +118,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_ca_correct(mb);
   init_ca_ncsbuild(mb);
   init_ca_prune(mb);
+  init_knownstructure(mb);
   init_model_tidy(mb);
 
   init_proteindb(mpdb);
