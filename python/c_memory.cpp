@@ -10,10 +10,10 @@ template <class T>
 void declare_property(py::module &m, const std::string &name) {
   using Class = Property<T>;
   std::string PyClass = std::string("Property_") + name;
-  py::class_<Class, Property_base>(m, PyClass.c_str())
-      .def(py::init<const T &>())
+  py::class_<Class, Property_base> property(m, PyClass.c_str());
+  property.def(py::init<const T &>())
       .def("clone", &Class::clone)
-      .def_property("value", &Class::value);
+      .def_property_readonly("value", &Class::value);
 }
 
 void declare_property_manager(py::module &m) {
