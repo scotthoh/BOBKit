@@ -12,6 +12,7 @@
 #define PYBIND11_DETAILED_ERROR MESSAGES true
 namespace py = pybind11;
 void init_clipper_types(py::module &m);
+void init_clipper_memory(py::module &m);
 void init_minimol(py::module &m);
 void init_ca_join(py::module &m);
 void init_cell(py::module &m);
@@ -31,7 +32,7 @@ void init_minimol_seq(py::module &m);
 void init_clipper_stats(py::module &m);
 void init_map_utils(py::module &m);
 void init_clipper_util(py::module &m);
-
+void init_ccp4_mtz_io(py::module &m);
 void init_ca_build(py::module &m);
 void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
@@ -81,6 +82,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   auto mpdb = mbk.def_submodule("protein_db");
 
   init_clipper_types(mc);
+  init_clipper_memory(mc);
   init_cell(mc);
   init_coord_orth(mc);
   init_symop(mc);
@@ -100,6 +102,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_clipper_stats(mc);
   init_map_utils(mc);
   init_clipper_util(mc);
+  init_ccp4_mtz_io(mc);
 
   init_simplex_lib(mb);
   init_map_simulate(mb);
