@@ -3,6 +3,7 @@
 #include "gemmi/model.hpp"
 #include "helper_functions.h"
 #include "type_conversions.h"
+#include <clipper/core/clipper_memory.h>
 #include <clipper/minimol/minimol.h>
 #include <clipper/minimol/minimol_io_gemmi.h>
 #include <pybind11/cast.h>
@@ -30,10 +31,10 @@ using namespace clipper;
 void init_minimol(py::module &m) {
   // "Forward declaration" of python classes to avoid
   // C++ signatures in docstrings ?
-  py::class_<MAtom, Atom> pyAtom(m, "MAtom");
-  py::class_<MResidue> pyResidue(m, "MResidue");
-  py::class_<MChain> pyChain(m, "MChain");
-  py::class_<MModel> pyModel(m, "MModel");
+  py::class_<MAtom, Atom, PropertyManager> pyAtom(m, "MAtom");
+  py::class_<MResidue, PropertyManager> pyResidue(m, "MResidue");
+  py::class_<MChain, PropertyManager> pyChain(m, "MChain");
+  py::class_<MModel, PropertyManager> pyModel(m, "MModel");
 
   py::enum_<MM::MODE>(m, "MODE")
       .value("UNIQUE", MM::MODE::UNIQUE)
@@ -353,9 +354,16 @@ void init_minimol(py::module &m) {
       .def(
           "model", [](MiniMol &self, MModel mol) { self.model() = mol; },
           py::return_value_policy::reference_internal)
-      //.def("clone", [](const MiniMol &self) { return new MiniMol(self); })
+      .def("clone", [](const MiniMol &self) { return new MiniMol(self); })
       .def("is_null", &MiniMol::is_null)
-      .def("is_empty", [](const MiniMol &self) { return (self.size() == 0); });
+      .def("is_empty", [](const MiniMol &self) { return (self.size() == 0); })
+      .def("copy_from",
+           [](MiniMol &self, const MiniMol &other) { self = other; })
+      .def("__copy__", [](const MiniMol &self) { return MiniMol(self); })
+      .def(
+          "__deepcopy__",
+          [](const MiniMol &self, py::dict memo) { return MiniMol(self); },
+          py::arg("memo"));
   // need to bind MAtomIndexSymmetry from minimol_util.h
 
   //.def_property_readonly("model", py::overload_cast<MModel>(&MiniMol::model,
