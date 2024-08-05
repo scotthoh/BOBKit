@@ -9,18 +9,8 @@ using namespace clipper;
 
 void init_knownstructure(py::module &m) {
   py::class_<KnownStructure>(m, "KnownStructure")
-      //.def(py::init<const MiniMol &,
-      //              const std::vector<std::pair<String, double>> &, double>())
-      .def(py::init([](const MiniMol &mol, const py::list &l, double nprad) {
-        std::vector<std::pair<String, double>> ids;
-        for (auto it = l.begin(); it != l.end(); it += 2) {
-          ids.emplace_back(std::pair<String, double>(it->cast<String>(),
-                                                     (++it)->cast<double>()));
-        }
-
-        return std::unique_ptr<KnownStructure>(
-            new KnownStructure(mol, ids, nprad));
-      }))
+      .def(py::init<const MiniMol &,
+                    const std::vector<std::pair<String, double>> &, double>())
       .def("copy_to", &KnownStructure::copy_to, py::arg("mol"),
            py::arg("includeAll") = true)
       .def("clash", &KnownStructure::clash, py::arg("coord"))

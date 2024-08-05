@@ -4,13 +4,16 @@
 // York Structural Biology Laboratory
 // The University of York
 
+#define PYBIND11_DETAILED_ERROR_MESSAGES
 #include "version.hpp" // for bobkit version
 #include <clipper/clipper.h>
+#include <pybind11/cast.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#define PYBIND11_DETAILED_ERROR MESSAGES true
+
 namespace py = pybind11;
+
 void init_clipper_types(py::module &m);
 void init_clipper_memory(py::module &m);
 void init_minimol(py::module &m);
@@ -125,27 +128,4 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_model_tidy(mb);
 
   init_proteindb(mpdb);
-
-  // init_clipper_types(mod);
-  // init_cell(mod);
-  // init_spacegroup(mod);
-  // init_coord_orth(mod);
-  // init_minimol(mod);
-  // init_maps(mod);
-  // init_nxmap(mod);
-  // init_ca_join(mod);
-  // init_map_io(mod);
-  // init_ca_filter(mod);
-  // init_buccaneer_lib(mod);
-  // init_ca_prep(mod);
-  // init_buccaneer_prot(mod);
-  // init_ca_merge(mod);
-  // init_ca_find(mod);
-  // init_ca_grow(mod);
-  // init_ca_link(mod);
-  // init_ca_sequence(mod);
-  // init_ca_correct(mod);
-  // init_ca_ncsbuild(mod);
-  // init_ca_prune(mod);
-  // init_model_tidy(mod);
 }

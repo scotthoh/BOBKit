@@ -12,8 +12,6 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-// PYBIND11_MAKE_OPAQUE(std::vector<LLK_map_target>)
-
 template <class T>
 void declare_score_list(py::module &m, const std::string name) {
   using SLClass = Score_list<T>;
@@ -104,12 +102,9 @@ void declare_LLK_map_target(py::module &m) {
           static_cast<clipper::NXmap<float> &(LLK_map_target::*)()>(
               &LLK_map_target::llk_weight))
       .def_property_readonly("num_samples", &LLK_map_target::num_samples);
-  // py::bind_vector<std::vector<LLK_map_target>>(m, "LLK_map_target_List");
-}
 
-void declare_sampled(py::module &m) {
   using SampledClass = LLK_map_target::Sampled;
-  py::class_<SampledClass>(m, "Sampled")
+  py::class_<SampledClass>(llkmaptgt, "Sampled")
       .def(py::init<>())
       .def("insert", &SampledClass::insert, py::arg("coord"), py::arg("tgt"),
            py::arg("wgt"))
@@ -139,5 +134,4 @@ void init_buccaneer_lib(py::module &m) {
   declare_score_list<clipper::RTop_orth>(m, "RTop_orth");
   declare_score_list<py::array_t<ftype>>(m, "float_array");
   declare_LLK_map_target(m);
-  declare_sampled(m);
 }
