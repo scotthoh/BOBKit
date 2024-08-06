@@ -463,25 +463,10 @@ int main( int argc, char** argv )
     xref.fft_from( ref_fp );
 
     // prepare llk targets
-    std::cout << "before Ca prep: \n";
-    // std::cout << "llktgt sample " << clipper::String(llktgt.num_samples())
-    //           << std::endl;
-    // std::cout << "llktgt format: \n" << llktgt.format() << std::endl;
     Ca_prep caprep( main_tgt_rad, side_tgt_rad, rama_flt, correl, seqnc,
                     verbose>3 );
-    caprep( llktgt, llkcls, mol_ref, xref );
-    std::cout << "after Ca prep: \n";
-    // std::cout << "llktgt sample " << clipper::String(llktgt.num_samples())
-    //           << std::endl;
-    // std::cout << "llktgt format: \n" << llktgt.format() << std::endl;
+    caprep(llktgt, llkcls, mol_ref, xref);
 
-    for (int h = 0; h < llkcls.size(); h++) {
-      for (int j = 0; j < llkcls[h].sampled().size(); j++) {
-        std::cout << llkcls[h].sampled().coord_orth(j).format() << ", ";
-        std::cout << llkcls[h].sampled().target(j) << ", ";
-        std::cout << llkcls[h].sampled().weight(j) << std::endl;
-      }
-    }
     log.log( "PREP" );
   }
 
@@ -514,9 +499,7 @@ int main( int argc, char** argv )
     nfrag = std::min( nfrag, (nfragr*nres)/100 );
 
     // offset the map density
-    clipper::Map_stats stats( xwrk );
-    std::cout << stats.min() << ", " << stats.max() << ", " << stats.mean()
-              << ", " << stats.std_dev() << std::endl;
+    clipper::Map_stats stats(xwrk);
     clipper::Xmap_base::Map_reference_index ix;
     for ( ix = xwrk.first(); !ix.last(); ix.next() )
       xwrk[ix] += moffset * stats.std_dev();

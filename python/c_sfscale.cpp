@@ -1,3 +1,5 @@
+// Taken from Tristan Croll's github project
+// chimerax-clipper/src/bindings/contrib/wrap_sfcalc.cpp
 #include <pybind11/pybind11.h>
 
 #include "type_conversions.h"

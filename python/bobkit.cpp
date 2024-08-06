@@ -105,7 +105,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_clipper_stats(mc);
   init_map_utils(mc);
   init_clipper_util(mc);
-  init_ccp4_mtz_io(mc);
+  // init_ccp4_mtz_io(mc);
 
   init_simplex_lib(mb);
   init_map_simulate(mb);
