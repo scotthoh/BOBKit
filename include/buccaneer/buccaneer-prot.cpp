@@ -904,7 +904,7 @@ bool ProteinTools::split_chains_at_gap( clipper::MiniMol& mol )
   clipper::MiniMol target( mol.spacegroup(), mol.cell() );
   // now separate unlinked fragments into separate chains
   clipper::MPolymer mp, mpnull;
-  std::cout << "debug frag size\n";
+
   for ( int chn = 0; chn < mol.size(); chn++ ) {
     mp = mpnull;
     for ( int res = 0; res < mol[chn].size(); res++ ) {
@@ -916,11 +916,9 @@ bool ProteinTools::split_chains_at_gap( clipper::MiniMol& mol )
         }
     }
     if (mp.size() > 0) {
-      std::cout << mp.size() << ", "; // debug
       target.insert(mp);
     }
   }
-  std::cout << "\n"; // debug
 
   // sort the chains by size
   std::vector<std::pair<int,int> > chnsiz( target.size() );

@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.15...3.22)
 # check if called from python skbuild
 if (NOT DEFINED SKBUILD)
   message(WARNING
-          "You should call this through Python so that all variables are set; pip install -v .")
+          "You should call this through Python as this CMake file is meant to be executed
+          using 'scikit-build'. If you are installing through the source yourself, run 
+          the script 'get_dependencies' included in this package before running the
+          command 'pip install .'.")
 endif()
 
 # get version from cbuccaneer
