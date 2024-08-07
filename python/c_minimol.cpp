@@ -1,8 +1,8 @@
 // #include "c_minimol.h"
-#include "buccaneer/buccaneer-util.h"
 #include "gemmi/model.hpp"
 #include "helper_functions.h"
 #include "type_conversions.h"
+#include <buccaneer/buccaneer-util.h>
 #include <clipper/core/clipper_memory.h>
 #include <clipper/minimol/minimol.h>
 #include <clipper/minimol/minimol_io_gemmi.h>

@@ -3,7 +3,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer/buccaneer-lib.h"
+#include <buccaneer/buccaneer-lib.h>
 
 #include "helper_functions.h"
 #include "type_conversions.h"

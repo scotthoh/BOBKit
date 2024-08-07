@@ -1,6 +1,6 @@
-#include "buccaneer/buccaneer-find.h"
-#include "buccaneer/buccaneer-grow.h"
-#include "buccaneer/simplex-lib.h"
+#include <buccaneer/buccaneer-find.h>
+#include <buccaneer/buccaneer-grow.h>
+#include <buccaneer/simplex-lib.h>
 
 #include "helper_functions.h"
 #include "type_conversions.h"

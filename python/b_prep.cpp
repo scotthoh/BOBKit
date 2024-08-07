@@ -3,8 +3,8 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer/buccaneer-lib.h"
-#include "buccaneer/buccaneer-prep.h"
+#include <buccaneer/buccaneer-lib.h>
+#include <buccaneer/buccaneer-prep.h>
 
 #include "helper_functions.h"
 #include <pybind11/numpy.h>
