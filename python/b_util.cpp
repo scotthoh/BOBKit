@@ -3,9 +3,9 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer/buccaneer-util.h"
 #include "helper_functions.h"
 #include "type_conversions.h"
+#include <buccaneer/buccaneer-util.h>
 #include <clipper/minimol/minimol_seq.h>
 #include <pybind11/pybind11.h>
 

@@ -3,7 +3,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer/buccaneer-find.h"
+#include <buccaneer/buccaneer-find.h>
 
 #include "type_conversions.h"
 #include <pybind11/attr.h>

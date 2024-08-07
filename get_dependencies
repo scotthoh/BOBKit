@@ -1,0 +1,50 @@
+#!/bin/sh
+
+mkdir -p checkouts
+cd checkouts
+
+if [ -d "clipper" ]; then
+    echo "Found clipper"
+else
+    echo "Checking out clipper"
+    git clone https://github.com/scotthoh/clipper-gemmi.git clipper
+    cd clipper
+    git checkout v3.0-dev
+    cd ..
+    echo
+fi 
+
+if [ -d "gemmi" ]; then
+  echo "Found gemmi"
+else
+    echo "Checking out gemmi"
+    git clone https://github.com/project-gemmi/gemmi.git gemmi
+    cd gemmi
+    git checkout v0.6.4
+    cd ..
+    echo
+fi
+
+
+if [ -d "libccp4" ]; then
+    echo "Found libccp4"
+else
+    echo "Checking out libccp4"
+    git clone https://ccp4forge.rc-harwell.ac.uk/ccp4/libccp4.git libccp4
+    echo
+fi
+
+
+if [ -d "fftw3" ]; then
+    echo "Found fftw3"
+else
+
+echo "Downloading fftw3"
+curl -L https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz -o fftw-3.3.4.tar.gz
+echo
+echo "Unpacking fftw-3.3.4"
+tar xf fftw-3.3.4.tar.gz
+echo
+fi
+
+cd ..

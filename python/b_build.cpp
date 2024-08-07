@@ -5,7 +5,7 @@
 // The University of York
 
 // #include "buildkit-join.h"
-#include "buccaneer/buccaneer-build.h"
+#include <buccaneer/buccaneer-build.h>
 
 #include "type_conversions.h"
 #include <pybind11/operators.h>

@@ -57,8 +57,9 @@ void init_map_simulate(py::module &m);
 void init_proteindb(py::module &m);
 
 PYBIND11_MODULE(bobkit, mbk) {
-  mbk.doc() = "Python bindings to Buccaneer and Clipper library for atomic "
-              "model building kit.";
+  mbk.doc() =
+      "Python bindings to Buccaneer and Clipper library for biomacromolecular "
+      "model building kit (BOBKIT).";
   mbk.attr("__version__") = BOBKIT_VERSION;
   // auto package = pybind11::module::import("gemmi");
   // auto module = package.attr("Structure");
