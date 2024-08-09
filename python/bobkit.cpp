@@ -35,7 +35,9 @@ void init_minimol_seq(py::module &m);
 void init_clipper_stats(py::module &m);
 void init_map_utils(py::module &m);
 void init_clipper_util(py::module &m);
-void init_ccp4_mtz_io(py::module &m);
+// void init_ccp4_mtz_io(py::module &m);
+void init_clipper_tests(py::module &m);
+
 void init_ca_build(py::module &m);
 void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
@@ -107,6 +109,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_map_utils(mc);
   init_clipper_util(mc);
   // init_ccp4_mtz_io(mc);
+  init_clipper_tests(mc);
 
   init_simplex_lib(mb);
   init_map_simulate(mb);
