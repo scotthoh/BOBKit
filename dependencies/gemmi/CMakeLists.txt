@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.15...3.22)
-set(gemmi_src ${WRK_DIR}/checkouts/gemmi)
 # get version string from version.hpp
-file(STRINGS "${gemmi_src}/include/gemmi/version.hpp"
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/version.hpp"
      gemmi_version_line REGEX "#define GEMMI_VERSION \"")
 string(REGEX REPLACE ".+\"([0-9]+\.[0-9]+\.[0-9]+)(-dev)?\"" "\\1"
        gemmi_version_str ${gemmi_version_line})
@@ -175,18 +174,18 @@ endif()
 #  add_library(fgemmi STATIC fortran/gemmi.f90)
 #  target_link_libraries(fgemmi PRIVATE cgemmi)
 #endif()
-#include_directories("${gemmi_src}/include"
-#        "${gemmi_src}/third_party")
+#include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 
-file(GLOB gemmi_CPPSRC "${gemmi_src}/src/*.cpp")
-file(GLOB gemmi_HEADERS "${gemmi_src}/include/gemmi/*.hpp")
-file(GLOB gemmi_third_party-headers_HEADERS "${gemmi_src}/include/gemmi/third_party/*.h")
-file(GLOB gemmi_py_SRC "${gemmi_src}/python/*.cpp")
+file(GLOB gemmi_CPPSRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB gemmi_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/*.hpp")
+file(GLOB gemmi_third_party-headers_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/third_party/*.h")
+file(GLOB gemmi_py_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 
 add_library(gemmi_headers INTERFACE)
 add_library(gemmi::headers ALIAS gemmi_headers)
 target_include_directories(gemmi_headers INTERFACE
-    "$<BUILD_INTERFACE:${gemmi_src}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_compile_features(gemmi_headers INTERFACE cxx_std_11)
 set_target_properties(gemmi_headers PROPERTIES EXPORT_NAME headers)
@@ -196,7 +195,7 @@ add_library(gemmi::gemmi_cpp ALIAS gemmi_cpp)
 set_property(TARGET gemmi_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
 #set_property(TARGET gemmi_cpp PROPERTY CXX_VISIBILITY_PRESET hidden)
 target_compile_definitions(gemmi_cpp PRIVATE GEMMI_BUILD)
-target_include_directories(gemmi_cpp PRIVATE "${gemmi_src}/third_party")
+target_include_directories(gemmi_cpp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 
 if (BUILD_SHARED_LIBS)
   target_compile_definitions(gemmi_cpp PUBLIC GEMMI_SHARED)
@@ -236,11 +235,11 @@ endif()
 
 # avoid GCC warning: the ABI of passing structure with 'complex float' member
 # has changed in GCC 4.4
-set_property(SOURCE ${gemmi_src}/python/recgrid.cpp ${gemmi_src}/python/hkl.cpp ${gemmi_src}/python/mtz.cpp ${gemmi_src}/prog/mtz.cpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/python/recgrid.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/hkl.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/mtz.cpp ${CMAKE_CURRENT_SOURCE_DIR}/prog/mtz.cpp
              PROPERTY COMPILE_FLAGS $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi>)
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(${gemmi_src}/tools/gemmi-config.cmake.in gemmi-config.cmake
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tools/gemmi-config.cmake.in gemmi-config.cmake
                               INSTALL_DESTINATION "${GEMMI_INSTALL_CMAKEDIR}")
 write_basic_package_version_file(gemmi-config-version.cmake
                                  VERSION ${PROJECT_VERSION}
@@ -248,7 +247,7 @@ write_basic_package_version_file(gemmi-config-version.cmake
 
 if (INSTALL_DEV_FILES)
   # In CMake 3.23 we'll be able to use FILE_SET to install the headers
-  install(DIRECTORY ${gemmi_src}/include/gemmi DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
   install(TARGETS gemmi_headers gemmi_cpp EXPORT GemmiTargets)
   install(EXPORT GemmiTargets FILE gemmi-targets.cmake NAMESPACE gemmi::
           DESTINATION "${GEMMI_INSTALL_CMAKEDIR}")
