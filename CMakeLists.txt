@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.22)
+cmake_minimum_required(VERSION 3.20...3.22)
 
 # check if called from python skbuild
 if (NOT DEFINED SKBUILD)
@@ -58,6 +58,19 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+set(SKIP_INSTALL_FFTW3 OFF)
+# check if fftw3, current project built gemmi, and clipper exist.
+find_library(FFTW3_LIBRARY NAMES fftw3f
+             HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib
+             NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+if(${FFTW3_LIBRARY} MATCHES "fftw3f")
+  find_path(FFTW3_INCLUDE_DIRS fftw3.h
+            HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib)
+  message(STATUS "Found FFTW3 - ${FFTW3_LIBRARY}")
+  message(STATUS "FFTW3 include dir - ${FFTW3_INCLUDE_DIRS}")
+  set(SKIP_INSTALL_FFTW3 ON)
+endif()
+
 # find python
 # We don't need to set policy CMP0069 for this file, because the minimum
 # version is 3.15 and for versions >= 3.9 it's automatically set to NEW.
@@ -91,7 +104,7 @@ set(WRK_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 message(STATUS "CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}")
 # install fftw3 first
 include(ExternalProject)
-message(STATUS "Trying to install fftw3 ... ")
+#message(STATUS "Trying to install fftw3 ... ")
 #if (VENV_INSTALL_DIR)
 #  set(FFTW_INSTALL_PATH ${VENV_INSTALL_DIR})
 #else()
@@ -106,6 +119,7 @@ else()
   set(lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
   set(fftwconf_args "")
 endif()
+if(NOT SKIP_INSTALL_FFTW3)
 # install fftw3
 set(fftw_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw")
 set(fftw_src_path "${fftw_dep_path}/src/fftw")
@@ -135,6 +149,16 @@ set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_D
 add_dependencies(fftw project_fftw)
 set(FFTW3_INCDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/include")
 set(FFTW3_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib")
+else()
+set(FFTW3_INCDIR "${FFTW3_INCLUDE_DIRS}")
+cmake_path(GET FFTW3_LIBRARY PARENT_PATH FFTW3_LIBDIR)
+  if (BUILD_SHARED_LIBS)
+   add_library(fftw SHARED IMPORTED)
+  else()
+   add_library(fftw STATIC IMPORTED)
+  endif()
+  set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${FFTW3_LIBRARY})
+endif()
 include_directories(${FFTW3_INCDIR})
 link_directories(${FFTW3_LIBDIR})
 #if (EXISTS ${FFTW3_LIBDIR}/${lib_fftw_name})
@@ -175,9 +199,8 @@ set_target_properties(gemmi_cpp PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}
 add_dependencies(gemmi_cpp project_gemmi)
 set(GEMMI_INCDIR "${gemmi_src_path}/include")
 set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
-include_directories(${GEMMI_INCDIR})
-link_directories(${GEMMI_LIBDIR})
-
+#include_directories(${GEMMI_INCDIR})
+#link_directories(${GEMMI_LIBDIR})
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
@@ -195,18 +218,21 @@ ExternalProject_add(project_clipper
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
                     GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    GIT_TAG v3.0-dev
+                    GIT_TAG v3.0.2-dev
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
                     "${clipper_src_path}/CMakeLists.txt"
+                    #COMMAND ${CMAKE_COMMAND} -E copy "/home/swh514/Projects/clipper/git_tmp/clipper/gemmi/clipper_gemmi.h" "${clipper_src_path}/clipper/gemmi/clipper_gemmi.h"
+                    #COMMAND ${CMAKE_COMMAND} -E copy "/home/swh514/Projects/clipper/git_tmp/clipper/gemmi/clipper_gemmi.cpp" "${clipper_src_path}/clipper/gemmi/clipper_gemmi.cpp"
+
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${clipper_bin_path}
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${clipper_bin_path} --prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_clippercore}
                     <INSTALL_DIR>/lib/${lib_clippercif} <INSTALL_DIR>/lib/${lib_clipperminimol}
                     <INSTALL_DIR>/lib/${lib_clippercontrib} <INSTALL_DIR>/lib/${lib_clippergemmi}
-                    CMAKE_ARGS -DFFTW_LIBPATH=${FFTW3_LIBDIR}/${lib_fftw_name} -DFFTW_INCPATH=${FFTW3_INCPATH} 
+                    CMAKE_ARGS -DFFTW_LIBPATH=${FFTW3_LIBDIR}/${lib_fftw_name} -DFFTW_INCPATH=${FFTW3_INCDIR} 
                     -DGEMMI_INCPATH=${GEMMI_INCDIR} -DGEMMI_LIBPATH=${GEMMI_LIBDIR}/${lib_gemmi_name} 
                     -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 if(BUILD_SHARED_LIBS)
@@ -222,11 +248,11 @@ add_library(clipper-gemmi STATIC IMPORTED)
 add_library(clipper-minimol STATIC IMPORTED)
 add_library(clipper-cif STATIC IMPORTED)
 endif()
-add_dependencies(project_clipper project_fftw project_gemmi)
+add_dependencies(project_clipper project_gemmi) # project_fftw )
 set_target_properties(clipper-core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
-add_dependencies(clipper-core project_clipper project_fftw)
+add_dependencies(clipper-core project_clipper) # project_fftw)
 set_target_properties(clipper-contrib PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
-add_dependencies(clipper-contrib project_clipper project_fftw)
+add_dependencies(clipper-contrib project_clipper) # project_fftw)
 set_target_properties(clipper-gemmi PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
 add_dependencies(clipper-gemmi project_clipper project_gemmi)
 set_target_properties(clipper-minimol PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
@@ -234,7 +260,7 @@ add_dependencies(clipper-minimol project_clipper project_gemmi)
 set_target_properties(clipper-cif PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif})
 add_dependencies(clipper-cif project_clipper project_gemmi)
 
-set(CLIPPER_INCDIR "${clipper_src_path}/clipper")
+set(CLIPPER_INCDIR "${clipper_src_path}")
 
 #find_library(FFTW3_DEP NAMES fftw3f
 #            HINTS ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib)
@@ -296,7 +322,7 @@ add_library(buccaneer_lib SHARED ${BUCCANEER_SRC})
 else()
 add_library(buccaneer_lib STATIC ${BUCCANEER_SRC})
 endif()
-#add_dependencies(buccaneer_lib project_fftw)
+add_dependencies(buccaneer_lib project_gemmi project_clipper)
 #set(LINK_LIBS "gemmi_cpp buccaneer_lib fftw3f clipper-cif clipper-core clipper-contrib clipper-minimol clipper-gemmi")
 find_package(Threads REQUIRED)
 target_link_directories(buccaneer_lib PUBLIC
@@ -307,7 +333,7 @@ target_link_directories(buccaneer_lib PUBLIC
                       #${VENV_INSTALL_DIR}/lib/clipper/contrib
                       #${VENV_INSTALL_DIR}/lib/clipper/minimol
                       #${VENV_INSTALL_DIR}/lib/clipper/gemmi
-                      ${FFTW3_INCDIR})
+                      ${FFTW3_LIBDIR})
                       #${CMAKE_BINARY_DIR}/dependencies/fftw3
                       #${CMAKE_BINARY_DIR}/dependencies/gemmi)
 
@@ -326,7 +352,7 @@ target_link_libraries(buccaneer_lib PUBLIC
 file(GLOB PY_SRC "python/*.cpp")
 # pybind11 module
 pybind11_add_module(buc_py MODULE ${PY_SRC} ${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
-#add_dependencies(buc_py project_fftw)
+add_dependencies(buc_py project_gemmi project_clipper)
 target_include_directories(buc_py PUBLIC
                            ${CLIPPER_INCDIR}
                            ${GEMMI_INCDIR}
@@ -359,7 +385,7 @@ target_link_libraries(buc_py PRIVATE buccaneer_lib
                       clipper-minimol
                       clipper-gemmi
                       clipper-core
-                      #fftw
+                      fftw
                       #${FFTW3_LIBDIR}
                       gemmi_cpp
                       Threads::Threads)

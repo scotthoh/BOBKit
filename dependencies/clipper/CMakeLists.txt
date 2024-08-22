@@ -28,8 +28,8 @@ target_include_directories(clipper-core PRIVATE
                           ${CMAKE_CURRENT_SOURCE_DIR}
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/core
                           #${FFTW3_INCDIR}
-                          ${FFTW_INCPATH}
-                          ${CMAKE_BINARY_DIR})
+                          ${FFTW_INCPATH})
+                          #${CMAKE_BINARY_DIR})
 target_compile_options(clipper-core PUBLIC "-DFFTW_ENABLE_FLOAT")
 set_target_properties(clipper-core PROPERTIES PUBLIC_HEADER
                      "${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper.h")
@@ -62,9 +62,9 @@ target_include_directories(clipper-contrib PRIVATE
                           ${CMAKE_CURRENT_SOURCE_DIR} #/clipper
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/core #/clipper/clipper/core
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/contrib #/clipper/clipper/contrib
-                          ${FFTW_INCPATH}
+                          ${FFTW_INCPATH})
                           #${FFTW3_INCDIR}
-                          ${CMAKE_BINARY_DIR} )
+                          #${CMAKE_BINARY_DIR} )
 target_compile_options(clipper-contrib PUBLIC "-DFFTW_ENABLE_FLOAT")
 set_target_properties(clipper-contrib PROPERTIES PUBLIC_HEADER
                      "${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper-contrib.h")
@@ -92,7 +92,7 @@ target_include_directories(clipper-gemmi PRIVATE
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/core      #/clipper/core
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/gemmi  #/clipper/gemmi
                           ${GEMMI_INCPATH}
-                          ${CMAKE_BINARY_DIR}
+                          #${CMAKE_BINARY_DIR}
 )
 target_compile_options(clipper-gemmi PUBLIC "-DFFTW_ENABLE_FLOAT")
 set_target_properties(clipper-gemmi PROPERTIES PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper-gemmi.h") #clipper/clipper-gemmi.h")
@@ -126,7 +126,7 @@ target_include_directories(clipper-minimol PRIVATE
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/gemmi             #clipper/gemmi
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/minimol           #clipper/minimol
                           ${GEMMI_INCPATH}
-                          ${CMAKE_BINARY_DIR}
+                          #${CMAKE_BINARY_DIR}
 )
 target_compile_options(clipper-minimol PUBLIC "-DFFTW_ENABLE_FLOAT")
 set_target_properties(clipper-minimol PROPERTIES PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper-minimol.h") #clipper/clipper-minimol.h")
@@ -163,7 +163,7 @@ target_include_directories(clipper-cif PRIVATE
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/core              #clipper/core
                           ${CMAKE_CURRENT_SOURCE_DIR}/clipper/cif               #clipper/cif
                           ${GEMMI_INCPATH}
-                          ${CMAKE_BINARY_DIR}
+                          #${CMAKE_BINARY_DIR}
 )
 target_compile_options(clipper-cif PUBLIC "-DFFTW_ENABLE_FLOAT")
 set_target_properties(clipper-cif PROPERTIES PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper-cif.h")#clipper/clipper-cif.h")

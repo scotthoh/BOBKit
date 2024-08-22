@@ -125,7 +125,7 @@ class ProteinLoop {
   clipper::Coord_orth Coord_O( const clipper::Coord_orth ca0, const clipper::Coord_orth c0, const clipper::Coord_orth n1 ) const;
   //! return Cb from N, Ca, C,
   clipper::Coord_orth Coord_Cb( const clipper::Coord_orth n0, const clipper::Coord_orth ca0, const clipper::Coord_orth c0 ) const;
-  //! re-build 6 torsions worth of atoms
+  //! re-build 5 torsions worth of atoms
   std::vector<CoordList<5> > rebuild5atoms( const clipper::Coord_orth c0, const clipper::Coord_orth n1, const clipper::Coord_orth ca1, const clipper::Coord_orth ca3, const clipper::Coord_orth c3, const clipper::Coord_orth n4 ) const;
   //! re-build 8 torsions worth of atoms
   std::vector<CoordList<8> > rebuild8atoms( const clipper::Coord_orth c0, const clipper::Coord_orth n1, const clipper::Coord_orth ca1, const clipper::Coord_orth ca4, const clipper::Coord_orth c4, const clipper::Coord_orth n5 ) const;
