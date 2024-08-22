@@ -35,8 +35,8 @@ message(STATUS "BOBKit version ${PROJECT_VERSION}")
 # Use -fPIC even if statically compiled
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-option(BUILD_SHARED_LIBS "Build as shared library" OFF)
-option(SHOW_COMPILE_TIME "Show compile time" ON)
+option(BUILD_SHARED_LIBS "Build shared library" ON)
+option(SHOW_COMPILE_TIME "Show compile time" OFF)
 if(SHOW_COMPILE_TIME)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 endif()
@@ -97,14 +97,22 @@ message(STATUS "Trying to install fftw3 ... ")
 #else()
 #  set(FFTW_INSTALL_PATH "${CMAKE_CURRENT_BINARY_DIR}/fftw/install")
 #endif()
-
+if(BUILD_SHARED_LIBS)
+  set(lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
+  set(lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(fftwconf_args "--enable-shared")
+else()
+  set(lib_prefix ${CMAKE_STATIC_LIBRARY_PREFIX})
+  set(lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set(fftwconf_args "")
+endif()
 # install fftw3
 set(fftw_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw")
 set(fftw_src_path "${fftw_dep_path}/src/fftw")
 set(fftw_bin_path "${fftw_dep_path}/src/fftw_ex-build/")
-set(lib_fftw_name
-    ${CMAKE_STATIC_LIBRARY_PREFIX}fftw3f${CMAKE_STATIC_LIBRARY_SUFFIX})
-set(fftw_src_dir ${WRK_DIR}/checkouts/fftw-3.3.4)
+set(lib_fftw_name ${lib_prefix}fftw3f${lib_suffix})
+
+
 ExternalProject_add(project_fftw
                     PREFIX ${fftw_dep_path}
                     SOURCE_DIR ${fftw_src_path}
@@ -114,27 +122,34 @@ ExternalProject_add(project_fftw
                     URL https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz
                     #PREFIX ${CMAKE_CURRENT_BINARY_DIR}/fftw
                     #BUILD_IN_SOURCE false
-                    CONFIGURE_COMMAND ${fftw_src_dir}/configure
-                    --prefix=${CMAKE_CURRENT_BINARY_DIR}/fftw/install --enable-float --disable-fortran 
-                    "CFLAGS=-fPIC"
+                    CONFIGURE_COMMAND <SOURCE_DIR>/configure 
+                    --prefix=${CMAKE_CURRENT_BINARY_DIR}/fftw/install --enable-float 
+                    --disable-fortran ${fftwconf_args} "CFLAGS=-fPIC"
                     )
-
+if (BUILD_SHARED_LIBS)
+add_library(fftw SHARED IMPORTED)
+else()
 add_library(fftw STATIC IMPORTED)
+endif()
 set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
 add_dependencies(fftw project_fftw)
 set(FFTW3_INCDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/include")
 set(FFTW3_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib")
 include_directories(${FFTW3_INCDIR})
 link_directories(${FFTW3_LIBDIR})
-message(STATUS "FFTW3 lib = ${FFTW3_LIBDIR}")
+#if (EXISTS ${FFTW3_LIBDIR}/${lib_fftw_name})
+#message(STATUS "FFTW3 lib = ${FFTW3_LIBDIR}/${lib_fftw_name}")
+#else()
+#message(FATAL_ERROR "FFTW3 lib not found!")
+#endif()
 
 # install gemmi
 set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
 set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
 set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
 
-set(lib_gemmi_name
-    ${CMAKE_STATIC_LIBRARY_PREFIX}gemmi_cpp${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
+
 ExternalProject_add(project_gemmi
                     PREFIX ${gemmi_dep_path}
                     SOURCE_DIR ${gemmi_src_path}
@@ -148,16 +163,20 @@ ExternalProject_add(project_gemmi
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} --prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
-                    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name})
+                    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
+                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 
+if(BUILD_SHARED_LIBS)
+add_library(gemmi_cpp SHARED IMPORTED)
+else()
 add_library(gemmi_cpp STATIC IMPORTED)
+endif()
 set_target_properties(gemmi_cpp PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_gemmi_name})
 add_dependencies(gemmi_cpp project_gemmi)
 set(GEMMI_INCDIR "${gemmi_src_path}/include")
-set(GEMMI_LIBDIR "${VENV_INSTALL_PATH}/lib")
+set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
 include_directories(${GEMMI_INCDIR})
 link_directories(${GEMMI_LIBDIR})
-message(STATUS "DEPENDENCY lib path = ${DEP_LIBDIR}")
 
 
 # install parts of clipper
@@ -165,16 +184,11 @@ set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
 set(clipper_src_path "${clipper_dep_path}/src/clipper")
 set(clipper_bin_path "${clipper_dep_path}/src/clipper_ex-build/")
 
-set(lib_clippercore
-    ${CMAKE_STATIC_LIBRARY_PREFIX}clipper-core${CMAKE_STATIC_LIBRARY_SUFFIX})
-set(lib_clippercontrib
-    ${CMAKE_STATIC_LIBRARY_PREFIX}clipper-contrib${CMAKE_STATIC_LIBRARY_SUFFIX})
-set(lib_clipperminimol
-    ${CMAKE_STATIC_LIBRARY_PREFIX}clipper-minimol${CMAKE_STATIC_LIBRARY_SUFFIX})
-set(lib_clippercif
-    ${CMAKE_STATIC_LIBRARY_PREFIX}clipper-cif${CMAKE_STATIC_LIBRARY_SUFFIX})
-set(lib_clippergemmi
-    ${CMAKE_STATIC_LIBRARY_PREFIX}clipper-gemmi${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(lib_clippercore ${lib_prefix}clipper-core${lib_suffix})
+set(lib_clippercontrib ${lib_prefix}clipper-contrib${lib_suffix})
+set(lib_clipperminimol ${lib_prefix}clipper-minimol${lib_suffix})
+set(lib_clippercif ${lib_prefix}clipper-cif${lib_suffix})
+set(lib_clippergemmi ${lib_prefix}clipper-gemmi${lib_suffix})
     
 ExternalProject_add(project_clipper
                     PREFIX ${clipper_dep_path}
@@ -193,23 +207,32 @@ ExternalProject_add(project_clipper
                     <INSTALL_DIR>/lib/${lib_clippercif} <INSTALL_DIR>/lib/${lib_clipperminimol}
                     <INSTALL_DIR>/lib/${lib_clippercontrib} <INSTALL_DIR>/lib/${lib_clippergemmi}
                     CMAKE_ARGS -DFFTW_LIBPATH=${FFTW3_LIBDIR}/${lib_fftw_name} -DFFTW_INCPATH=${FFTW3_INCPATH} 
-                    -DGEMMI_INCPATH=${GEMMI_INCDIR} -DGEMMI_LIBPATH=${GEMMI_LIBDIR}/${lib_gemmi_name})
-
+                    -DGEMMI_INCPATH=${GEMMI_INCDIR} -DGEMMI_LIBPATH=${GEMMI_LIBDIR}/${lib_gemmi_name} 
+                    -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
+if(BUILD_SHARED_LIBS)
+add_library(clipper-core SHARED IMPORTED)
+add_library(clipper-contrib SHARED IMPORTED)
+add_library(clipper-gemmi SHARED IMPORTED)
+add_library(clipper-minimol SHARED IMPORTED)
+add_library(clipper-cif SHARED IMPORTED)
+else()
 add_library(clipper-core STATIC IMPORTED)
-set_target_properties(clipper-core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
-add_dependencies(clipper-core project_clipper)
 add_library(clipper-contrib STATIC IMPORTED)
-set_target_properties(clipper-contrib PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
-add_dependencies(clipper-contrib project_clipper)
 add_library(clipper-gemmi STATIC IMPORTED)
-set_target_properties(clipper-gemmi PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
-add_dependencies(clipper-gemmi project_clipper)
 add_library(clipper-minimol STATIC IMPORTED)
-set_target_properties(clipper-minimol PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
-add_dependencies(clipper-minimol project_clipper)
 add_library(clipper-cif STATIC IMPORTED)
+endif()
+add_dependencies(project_clipper project_fftw project_gemmi)
+set_target_properties(clipper-core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
+add_dependencies(clipper-core project_clipper project_fftw)
+set_target_properties(clipper-contrib PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
+add_dependencies(clipper-contrib project_clipper project_fftw)
+set_target_properties(clipper-gemmi PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
+add_dependencies(clipper-gemmi project_clipper project_gemmi)
+set_target_properties(clipper-minimol PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
+add_dependencies(clipper-minimol project_clipper project_gemmi)
 set_target_properties(clipper-cif PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif})
-add_dependencies(clipper-cif project_clipper)
+add_dependencies(clipper-cif project_clipper project_gemmi)
 
 set(CLIPPER_INCDIR "${clipper_src_path}/clipper")
 
@@ -268,7 +291,11 @@ file(GLOB BUCCANEER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.h")
 # remove cbuccaneer.cpp and csequins.cpp, not compiling these
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cbuccaneer.cpp")
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/csequins.cpp")
+if(BUILD_SHARED_LIBS)
+add_library(buccaneer_lib SHARED ${BUCCANEER_SRC})
+else()
 add_library(buccaneer_lib STATIC ${BUCCANEER_SRC})
+endif()
 #add_dependencies(buccaneer_lib project_fftw)
 #set(LINK_LIBS "gemmi_cpp buccaneer_lib fftw3f clipper-cif clipper-core clipper-contrib clipper-minimol clipper-gemmi")
 find_package(Threads REQUIRED)
@@ -347,6 +374,7 @@ if (DEFINED PYTHON_INSTALL_DIR)
 endif()
 file(TO_CMAKE_PATH "${Python_SITEARCH}" Python_SITEARCH)
 #install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
+install(TARGETS buccaneer_lib LIBRARY DESTINATION lib )
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}")
 
 #this is for convenience to delete fftw

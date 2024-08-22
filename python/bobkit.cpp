@@ -16,10 +16,12 @@ namespace py = pybind11;
 
 void init_clipper_types(py::module &m);
 void init_clipper_memory(py::module &m);
+void init_matomindex(py::module &m);
 void init_minimol(py::module &m);
 void init_ca_join(py::module &m);
 void init_cell(py::module &m);
 void init_coord_orth(py::module &m);
+void init_atomlist(py::module &m);
 void init_spacegroup(py::module &m);
 void init_hklinfo(py::module &m);
 void init_hkl_data(py::module &m);
@@ -43,6 +45,7 @@ void init_ca_filter(py::module &m);
 void init_buccaneer_lib(py::module &m);
 void init_ca_prep(py::module &m);
 void init_buccaneer_prot(py::module &m);
+void init_protein_loop(py::module &m);
 void init_ca_merge(py::module &m);
 void init_ca_find(py::module &m);
 void init_ca_grow(py::module &m);
@@ -91,6 +94,8 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_clipper_memory(mc);
   init_cell(mc);
   init_coord_orth(mc);
+  init_matomindex(mc);
+  init_atomlist(mc);
   init_symop(mc);
   init_spacegroup(mc);
   init_hklinfo(mc);
@@ -120,6 +125,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_buccaneer_util(mb);
   init_ca_prep(mb);
   init_buccaneer_prot(mb);
+  init_protein_loop(mb);
   init_ca_merge(mb);
   init_ca_find(mb);
   init_ca_grow(mb);

@@ -1,23 +1,6 @@
-// PyBind11 Python bindings for Clipper
+// PyBind11 Python bindings for Clipper hkl data
 // Copyright (C) 2016-2019 Tristan Croll, University of Cambridge
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with this program; if not, write to the Free Software Foundation,
-// Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-//
-// Note that this software makes use of modified versions of the Clipper,
-// LibCCP4 and MMDB libraries, as well as portions of the Intel Math Kernel
-// Library. Each of these is redistributed under its own license terms.
+// Additions: S.W.Hoh 2023, University of York
 
 #include "helper_functions.h"
 #include "type_conversions.h"
@@ -60,23 +43,46 @@ void catch_mismatched_lengths(const C1 &c1, const C2 &c2, const C3 &c3) {
 void declare_hkl_data_base(py::module &m) {
   py::class_<HKL_data_base, std::unique_ptr<HKL_data_base, py::nodelete>>(
       m, "_HKL_data_base")
-      .def_property_readonly("is_null", &HKL_data_base::is_null)
-      .def_property_readonly("base_hkl_info", &HKL_data_base::base_hkl_info)
-      .def_property_readonly("base_cell", &HKL_data_base::base_cell)
-      .def_property_readonly("spacegroup", &HKL_data_base::spacegroup)
-      .def_property_readonly("cell", &HKL_data_base::cell)
-      .def_property_readonly("resolution", &HKL_data_base::resolution)
-      .def_property_readonly("hkl_sampling", &HKL_data_base::hkl_sampling)
-      .def_property_readonly("hkl_info", &HKL_data_base::hkl_info)
-      .def("invresolsq", &HKL_data_base::invresolsq)
-      .def("invresolsq_range", &HKL_data_base::invresolsq_range)
-      .def_property_readonly("num_obs", &HKL_data_base::num_obs)
-      .def_property_readonly("first", &HKL_data_base::first)
-      .def_property_readonly("first_data", &HKL_data_base::first_data)
-      .def("next_data",
-           [](const HKL_data_base &self, HKL_info::HKL_reference_index &ih) {
-             self.next_data(ih);
-           });
+      .def_property_readonly("is_null", &HKL_data_base::is_null,
+                             "Test if object has been initialised.")
+      .def_property_readonly("base_hkl_info", &HKL_data_base::base_hkl_info,
+                             "Get the parent HKL_info object.")
+      .def_property_readonly("base_cell", &HKL_data_base::base_cell,
+                             "Get the parent cell.")
+      .def_property_readonly("spacegroup", &HKL_data_base::spacegroup,
+                             "Get spacegroup.")
+      .def_property_readonly("cell", &HKL_data_base::cell, "Get cell.")
+      .def_property_readonly("resolution", &HKL_data_base::resolution,
+                             "Get resolution.")
+      .def_property_readonly("hkl_sampling", &HKL_data_base::hkl_sampling,
+                             "Get HKL_sampling")
+      .def_property_readonly("hkl_info", &HKL_data_base::hkl_info,
+                             "Get HKL_info object.")
+      .def("invresolsq", &HKL_data_base::invresolsq,
+           "Get resolution by reflection index (based on true cell).")
+      .def("invresolsq_range", &HKL_data_base::invresolsq_range,
+           "Get resolution limits of the list (based on true cell and missing "
+           "data).")
+      .def_property_readonly(
+          "num_obs", &HKL_data_base::num_obs,
+          "Get number of observations in this list (based on missing data).")
+      .def_property_readonly(
+          "first", &HKL_data_base::first,
+          "Return HKL_reference_index pointing to first reflection.")
+      .def_property_readonly(
+          "first_data", &HKL_data_base::first_data,
+          "Return HKL_reference_index pointing to first non-missing data")
+      .def(
+          "next_data",
+          [](const HKL_data_base &self, HKL_info::HKL_reference_index &ih) {
+            self.next_data(ih);
+          },
+          "increment HKL_reference_index to next non-missing data.")
+      .def("debug", &HKL_data_base::debug, "Output debugging details.")
+      .doc() = "HKL_data_base.\n"
+               "This is the virtual base for the typed hkl_data objects. "
+               "It exists to guarantee and interface by which data can "
+               "be managed without knowledge of the specific data type.";
 }
 
 // Common to all HKL datatypes
@@ -85,36 +91,60 @@ py::class_<HKL_data<C>> declare_HKL_data(py::module &m,
                                          const std::string &class_str,
                                          const std::string &docstring = "") {
   using Class = HKL_data<C>;
+  std::string pyclass_doc = docstring;
+  pyclass_doc.append("An actual hkl_data object, containing actual data of "
+                     "type T. This implements the generic interface, and "
+                     "in addition provides type-specific access functions.");
   std::string pyclass_name = std::string("HKL_data_") + class_str;
   py::class_<Class, /*std::unique_ptr<Class, Deleter<Class>>,*/ HKL_data_base>
-      theclass(m, pyclass_name.c_str(), docstring.c_str());
+      theclass(m, pyclass_name.c_str(), pyclass_doc.c_str());
   theclass.def(py::init<>())
-      .def(py::init<const HKL_info &>())
-      .def(py::init<const HKL_info &, const Cell &>())
-      .def(py::init<const Spacegroup &, const Cell &, const HKL_sampling &>())
-      .def(py::init<const HKL_data_base &>())
+      .def(py::init<const HKL_info &>(), py::arg("hklinfo"),
+           "Constructor from parent HKL_info.")
+      .def(py::init<const HKL_info &, const Cell &>(), py::arg("hklinfo"),
+           py::arg("cell"), "Constructor from parent HKL_info and cell.")
+      .def(py::init<const Spacegroup &, const Cell &, const HKL_sampling &>(),
+           py::arg("spacegroup"), py::arg("cell"), py::arg("hkl_sampling"),
+           "Constructor from spacegroup, cell and HKL_sampling.")
+      .def(py::init<const HKL_data_base &>(), py::arg("hkldata"),
+           "Constructor from another HKL_data object.")
       .def("init",
-           (void(Class::*)(const HKL_info &, const Cell &)) & Class::init)
-      .def("init", (void(Class::*)(const Spacegroup &, const Cell &,
-                                   const HKL_sampling &)) &
-                       Class::init)
-      .def("init", (void(Class::*)(const HKL_data_base &)) & Class::init)
-      .def("update", &Class::update)
-      .def("type", &Class::type)
-      .def("missing", &Class::missing)
-      .def("set_null", &Class::set_null)
-      .def("data_size", &Class::data_size)
-      .def("data_names", &Class::data_names)
-      .def("data_export", &Class::data_export)
-      .def("data_import", &Class::data_import)
-      .def("mask", &Class::mask)
+           (void(Class::*)(const HKL_info &, const Cell &)) & Class::init,
+           py::arg("hklinfo"), py::arg("cell"),
+           "Initialiser from parent hkl_info and cell.")
+      .def("init",
+           (void(Class::*)(const Spacegroup &, const Cell &,
+                           const HKL_sampling &)) &
+               Class::init,
+           py::arg("spacegroup"), py::arg("cell"), py::arg("hkl_sampling"),
+           "Initialiser from spacegroup, cell, and hkl_sampling.")
+      .def("init", (void(Class::*)(const HKL_data_base &)) & Class::init,
+           py::arg("hkldata"), "Initialiaser from another HKL_data object.")
+      .def("update", &Class::update,
+           "Update: synchronise info with parent HKL_info.")
+      .def("type", &Class::type,
+           "Get data type (a list of names corresponding to the im/export "
+           "values).")
+      .def("missing", &Class::missing,
+           "Check if a data entry in the list is marked as \'missing\'.")
+      .def("set_null", &Class::set_null,
+           "Set data entry in the list to its null value.")
+      .def("data_size", &Class::data_size,
+           "Return number of data elements in this type.")
+      .def("data_names", &Class::data_names,
+           "Return names of data elements in this type")
+      .def("data_export", &Class::data_export, "Conversion to array (for I/O).")
+      .def("data_import", &Class::data_import,
+           "Conversion from array (for I/O).")
+      .def("mask", &Class::mask,
+           "Mask the data by marking any data missing in \'mask\' as missing.")
       .def(
           "__getitem__",
           [](const Class &self, const HKL_info::HKL_reference_index &i) {
             catch_null(self);
             return self[i];
           },
-          py::is_operator())
+          py::is_operator(), "Data accessor by HKL_reference_index.")
       .def(
           "__getitem__",
           [](const Class &self, const HKL_info::HKL_reference_coord &ih) {
@@ -124,21 +154,23 @@ py::class_<HKL_data<C>> declare_HKL_data(py::module &m,
               return data;
             throw std::out_of_range("No data equivalent to that HKL!");
           },
-          py::is_operator())
-      .def("__setitem__",
-           [](Class &self, const HKL_info::HKL_reference_coord &ih,
-              const C &data) {
-             if (!self.set_data(ih, data))
-               throw std::out_of_range(
-                   "No equivalent HKL has been indexed for this dataset!");
-           })
+          py::is_operator(), "Data accessor by HKL_reference_coord.")
+      .def(
+          "__setitem__",
+          [](Class &self, const HKL_info::HKL_reference_coord &ih,
+             const C &data) {
+            if (!self.set_data(ih, data))
+              throw std::out_of_range(
+                  "No equivalent HKL has been indexed for this dataset!");
+          },
+          "Data writer by HKL_reference_coord.")
       .def(
           "__getitem__",
           [](const Class &self, const int &index) {
             catch_null(self);
             return self[index];
           },
-          py::is_operator())
+          py::is_operator(), "Data accessor by index.")
       .def(
           "__getitem__",
           [](const Class &self, const HKL &hkl) {
@@ -148,16 +180,22 @@ py::class_<HKL_data<C>> declare_HKL_data(py::module &m,
               return data;
             throw std::out_of_range("No data equivalent to that HKL!");
           },
-          py::is_operator())
-      .def("__setitem__",
-           [](Class &self, const HKL &hkl, const C &data) {
-             if (!self.set_data(hkl, data))
-               throw std::out_of_range(
-                   "No equivalent HKL has been indexed for this dataset!");
-           })
-      .def("copy_from", [](Class &self, const Class &other) { self = other; })
-      .def("set_all_values_to",
-           [](Class &self, const C &value) { self = value; })
+          py::is_operator(), "Data accessor by hkl.")
+      .def(
+          "__setitem__",
+          [](Class &self, const HKL &hkl, const C &data) {
+            if (!self.set_data(hkl, data))
+              throw std::out_of_range(
+                  "No equivalent HKL has been indexed for this dataset!");
+          },
+          "Data writer by hkl.")
+      .def(
+          "copy_from", [](Class &self, const Class &other) { self = other; },
+          "Copy from another hkl_data object.")
+      .def(
+          "set_all_values_to",
+          [](Class &self, const C &value) { self = value; },
+          "Set all values to given value.")
       // To/from numpy
       .def_property_readonly(
           "data",
@@ -261,7 +299,8 @@ py::class_<HKL_data<C>> declare_HKL_data(py::module &m,
                 colpath = "/*/*/[" + colpath + "]";
             GEMMI::import_hkl_data(self, mtzobj, colpath);
           },
-          py::arg("mtz"), py::arg("mtzpath"), py::arg("legacy") = false);
+          py::arg("mtz"), py::arg("mtzpath"), py::arg("legacy") = false,
+          "Import hkl_data of specified columns from gemmi.Mtz object.");
   return std::move(theclass);
 } // declare_HKL_data
 
@@ -270,29 +309,37 @@ void declare_hkl_data_i_sigi(py::module &m, const char *dtype) {
   auto class_str = std::string("I_sigI_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<I_sigI<T>>;
-  auto pyclass = declare_HKL_data<I_sigI<T>>(m, class_str);
+  std::string docstring = "HKL_data<I_sigI<>>.\n";
+  auto pyclass = declare_HKL_data<I_sigI<T>>(m, class_str, docstring);
   pyclass
       // compute methods from hkl_compute.h
-      .def("compute_scale_u_iso_isigi",
-           [](Class &self, const T &scale, const T &u_value,
-              const Class &isigi) {
-             catch_null(self);
-             self.compute(isigi,
-                          Compute_scale_u_iso<I_sigI<T>>(scale, u_value));
-           })
-      .def("compute_scale_u_aniso_isigi", [](Class &self, const T &scale,
-                                             const U_aniso_orth &u_value,
-                                             const Class &isigi) {
-        catch_null(self);
-        self.compute(isigi, Compute_scale_u_aniso<I_sigI<T>>(scale, u_value));
-      });
+      .def(
+          "compute_scale_u_iso_isigi",
+          [](Class &self, const T &scale, const T &u_value,
+             const Class &isigi) {
+            catch_null(self);
+            self.compute(isigi, Compute_scale_u_iso<I_sigI<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and isotropic U to any scalable datatype.")
+      .def(
+          "compute_scale_u_aniso_isigi",
+          [](Class &self, const T &scale, const U_aniso_orth &u_value,
+             const Class &isigi) {
+            catch_null(self);
+            self.compute(isigi,
+                         Compute_scale_u_aniso<I_sigI<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and anisotropic U to any scalable datatype.");
 } // declare_hkl_data_isigi
 
 template <class T>
 void declare_hkl_data_i_sigi_ano(py::module &m, const char *dtype) {
   auto class_str = std::string("I_sigI_ano_") + dtype;
   using namespace clipper::datatypes;
-  auto pyclass = declare_HKL_data<I_sigI_ano<T>>(m, class_str);
+  std::string docstring = "HKL_data<I_sigI_ano<>>.\n";
+  auto pyclass = declare_HKL_data<I_sigI_ano<T>>(m, class_str, docstring);
 }
 
 template <class T>
@@ -300,32 +347,45 @@ void declare_hkl_data_f_sigf(py::module &m, const char *dtype) {
   auto class_str = std::string("F_sigF_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<F_sigF<T>>;
-  auto pyclass = declare_HKL_data<F_sigF<T>>(m, class_str);
+  std::string docstring = "HKL_data<F_sigF<>>.\n";
+  auto pyclass = declare_HKL_data<F_sigF<T>>(m, class_str, docstring);
   pyclass
       // compute methods from hkl_compute.h
-      .def("compute_mean_from_fano",
-           [](Class &self, const HKL_data<F_sigF_ano<T>> &fano) {
-             catch_null(self);
-             self.compute(fano, Compute_mean_fsigf_from_fsigfano<T>());
-           })
-      .def("compute_diff_from_fano",
-           [](Class &self, const HKL_data<F_sigF_ano<T>> &fano) {
-             catch_null(self);
-             self.compute(fano, Compute_diff_fsigf_from_fsigfano<T>());
-           })
-      .def("compute_scale_u_iso_fsigf",
-           [](Class &self, const T &scale, const T &u_value,
-              const Class &fsigf) {
-             catch_null(self);
-             self.compute(fsigf,
-                          Compute_scale_u_iso<F_sigF<T>>(scale, u_value));
-           })
-      .def("compute_scale_u_aniso_fsigf", [](Class &self, const T &scale,
-                                             const U_aniso_orth &u_value,
-                                             const Class &fsigf) {
-        catch_null(self);
-        self.compute(fsigf, Compute_scale_u_aniso<F_sigF<T>>(scale, u_value));
-      });
+      .def(
+          "compute_mean_from_fano",
+          [](Class &self, const HKL_data<F_sigF_ano<T>> &fano) {
+            catch_null(self);
+            self.compute(fano, Compute_mean_fsigf_from_fsigfano<T>());
+          },
+          py::arg("fanom"),
+          "Compute from F_sigF_anom to F_sigF (mean structure factor).")
+      .def(
+          "compute_diff_from_fano",
+          [](Class &self, const HKL_data<F_sigF_ano<T>> &fano) {
+            catch_null(self);
+            self.compute(fano, Compute_diff_fsigf_from_fsigfano<T>());
+          },
+          py::arg("fanom"),
+          "Compute from F_sigF_anom to F_sigF (difference structure factor).")
+      .def(
+          "compute_scale_u_iso_fsigf",
+          [](Class &self, const T &scale, const T &u_value,
+             const Class &fsigf) {
+            catch_null(self);
+            self.compute(fsigf, Compute_scale_u_iso<F_sigF<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and isotropic U to any scalable datatype.")
+      .def(
+          "compute_scale_u_aniso_fsigf",
+          [](Class &self, const T &scale, const U_aniso_orth &u_value,
+             const Class &fsigf) {
+            catch_null(self);
+            self.compute(fsigf,
+                         Compute_scale_u_aniso<F_sigF<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and anisotropic U to any scalable datatype.");
 } // declare_hkl_data_fsigf
 
 template <class T>
@@ -333,23 +393,30 @@ void declare_hkl_data_f_sigf_ano(py::module &m, const char *dtype) {
   auto class_str = std::string("F_sigF_ano_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<F_sigF_ano<T>>;
-  auto pyclass = declare_HKL_data<F_sigF_ano<T>>(m, class_str);
+  std::string docstring = "HKL_data<F_sigF_ano<>>.\n";
+  auto pyclass = declare_HKL_data<F_sigF_ano<T>>(m, class_str, docstring);
   pyclass
       // compute methods from hkl_compute.h
-      .def("compute_scale_u_iso_fsigfano",
-           [](Class &self, const T &scale, const T &u_value,
-              const Class &fsigfano) {
-             catch_null(self);
-             self.compute(fsigfano,
-                          Compute_scale_u_iso<F_sigF_ano<T>>(scale, u_value));
-           })
-      .def("compute_scale_u_aniso_fsigfano",
-           [](Class &self, const T &scale, const U_aniso_orth &u_value,
-              const Class &fsigfano) {
-             catch_null(self);
-             self.compute(fsigfano,
-                          Compute_scale_u_aniso<F_sigF_ano<T>>(scale, u_value));
-           });
+      .def(
+          "compute_scale_u_iso_fsigfano",
+          [](Class &self, const T &scale, const T &u_value,
+             const Class &fsigfano) {
+            catch_null(self);
+            self.compute(fsigfano,
+                         Compute_scale_u_iso<F_sigF_ano<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and isotropic U to any scalable datatype.")
+      .def(
+          "compute_scale_u_aniso_fsigfano",
+          [](Class &self, const T &scale, const U_aniso_orth &u_value,
+             const Class &fsigfano) {
+            catch_null(self);
+            self.compute(fsigfano,
+                         Compute_scale_u_aniso<F_sigF_ano<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and anisotropic U to any scalable datatype.");
 } // declare_hkl_data_fsigf_ano
 
 template <class T>
@@ -357,30 +424,38 @@ void declare_hkl_data_e_sige(py::module &m, const char *dtype) {
   auto class_str = std::string("E_sigE_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<E_sigE<T>>;
-  auto pyclass = declare_HKL_data<E_sigE<T>>(m, class_str);
+  std::string docstring = "HKL_data<E_sigE<>>.\n";
+  auto pyclass = declare_HKL_data<E_sigE<T>>(m, class_str, docstring);
   pyclass
       // compute methods from hkl_compute.h
-      .def("compute_from_fsigf",
-           [](Class &self, const HKL_data<F_sigF<T>> &fsigf) {
-             catch_null(self);
-             self.compute(fsigf, Compute_EsigE_from_FsigF<T>());
-           })
+      .def(
+          "compute_from_fsigf",
+          [](Class &self, const HKL_data<F_sigF<T>> &fsigf) {
+            catch_null(self);
+            self.compute(fsigf, Compute_EsigE_from_FsigF<T>());
+          },
+          py::arg("data"), "Compute from F_sigF to E_sigE")
       // extra useful methods carried over from SWIG wrappings
-      .def("scale_by_sqrt_resolution",
-           [](Class &self, const ResolutionFn &escale) {
-             catch_null(self);
-             for (clipper::HKL_data_base::HKL_reference_index ih = self.first();
-                  !ih.last(); ih.next())
-               if (!self[ih].missing())
-                 self[ih].scale(sqrt(escale.f(ih)));
-           })
-      .def("scale_by_resolution", [](Class &self, const ResolutionFn &escale) {
-        catch_null(self);
-        for (clipper::HKL_data_base::HKL_reference_index ih = self.first();
-             !ih.last(); ih.next())
-          if (!self[ih].missing())
-            self[ih].scale(escale.f(ih));
-      });
+      .def(
+          "scale_by_sqrt_resolution",
+          [](Class &self, const ResolutionFn &escale) {
+            catch_null(self);
+            for (clipper::HKL_data_base::HKL_reference_index ih = self.first();
+                 !ih.last(); ih.next())
+              if (!self[ih].missing())
+                self[ih].scale(sqrt(escale.f(ih)));
+          },
+          py::arg("resfn"), "Apply scale (sqrt resolution).")
+      .def(
+          "scale_by_resolution",
+          [](Class &self, const ResolutionFn &escale) {
+            catch_null(self);
+            for (clipper::HKL_data_base::HKL_reference_index ih = self.first();
+                 !ih.last(); ih.next())
+              if (!self[ih].missing())
+                self[ih].scale(escale.f(ih));
+          },
+          py::arg("resfn"), "Apply scale (resolution).");
 } // declare_hkl_data_e_sige
 
 template <class T>
@@ -388,43 +463,58 @@ void declare_hkl_data_f_phi(py::module &m, const char *dtype) {
   auto class_str = std::string("F_phi_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<F_phi<T>>;
-  auto pyclass = declare_HKL_data<F_phi<T>>(m, class_str);
+  std::string docstring = "HKL_data<F_phi<>>.\n";
+  auto pyclass = declare_HKL_data<F_phi<T>>(m, class_str, docstring);
   pyclass
-      .def("compute_neg",
-           [](Class &self, const Class &other) {
-             // catch_mismatched_lengths(self, other);
-             catch_null(self);
-             self.compute(other, Compute_neg_fphi<T>());
-           })
-      .def("compute_add_fphi",
-           [](Class &self, const Class &fphi1, const Class &fphi2) {
-             catch_null(self);
-             self.compute(fphi1, fphi2, Compute_add_fphi<T>());
-           })
-      .def("compute_sub_fphi",
-           [](Class &self, const Class &fphi1, const Class &fphi2) {
-             catch_null(self);
-             self.compute(fphi1, fphi2, Compute_sub_fphi<T>());
-           })
-      .def("compute_from_fsigf_phifom",
-           [](Class &self, const HKL_data<F_sigF<T>> &fsigf,
-              const HKL_data<Phi_fom<T>> &phifom) {
-             catch_null(self);
-             self.compute(fsigf, phifom, Compute_fphi_from_fsigf_phifom<T>());
-           })
-      .def("compute_scale_u_iso_fphi",
-           [](Class &self, const T &scale, const T &u_value,
-              const HKL_data<F_phi<T>> &fphi) {
-             catch_null(self);
-             self.compute(fphi, Compute_scale_u_iso<F_phi<T>>(scale, u_value));
-           })
-      .def("compute_scale_u_aniso_fphi",
-           [](Class &self, const T &scale, const U_aniso_orth &u_value,
-              const HKL_data<F_phi<T>> &fphi) {
-             catch_null(self);
-             self.compute(fphi,
-                          Compute_scale_u_aniso<F_phi<T>>(scale, u_value));
-           })
+      .def(
+          "compute_neg",
+          [](Class &self, const Class &other) {
+            // catch_mismatched_lengths(self, other);
+            catch_null(self);
+            self.compute(other, Compute_neg_fphi<T>());
+          },
+          py::arg("fphi"), "Negate F_phi (i.e. advance phase by pi).")
+      .def(
+          "compute_add_fphi",
+          [](Class &self, const Class &fphi1, const Class &fphi2) {
+            catch_null(self);
+            self.compute(fphi1, fphi2, Compute_add_fphi<T>());
+          },
+          py::arg("fphi1"), py::arg("fphi2"), "Add two F_phi datalists.")
+      .def(
+          "compute_sub_fphi",
+          [](Class &self, const Class &fphi1, const Class &fphi2) {
+            catch_null(self);
+            self.compute(fphi1, fphi2, Compute_sub_fphi<T>());
+          },
+          py::arg("fphi1"), py::arg("fphi2"), "Subtract two F_phi datalists.")
+      .def(
+          "compute_from_fsigf_phifom",
+          [](Class &self, const HKL_data<F_sigF<T>> &fsigf,
+             const HKL_data<Phi_fom<T>> &phifom) {
+            catch_null(self);
+            self.compute(fsigf, phifom, Compute_fphi_from_fsigf_phifom<T>());
+          },
+          py::arg("fsigf"), py::arg("phifom"),
+          "Compute from F_sigF+Phi_fom to F_phi.")
+      .def(
+          "compute_scale_u_iso_fphi",
+          [](Class &self, const T &scale, const T &u_value,
+             const HKL_data<F_phi<T>> &fphi) {
+            catch_null(self);
+            self.compute(fphi, Compute_scale_u_iso<F_phi<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and isotropic U to any scalable datatype.")
+      .def(
+          "compute_scale_u_aniso_fphi",
+          [](Class &self, const T &scale, const U_aniso_orth &u_value,
+             const HKL_data<F_phi<T>> &fphi) {
+            catch_null(self);
+            self.compute(fphi, Compute_scale_u_aniso<F_phi<T>>(scale, u_value));
+          },
+          py::arg("scale"), py::arg("u"), py::arg("data"),
+          "Apply scale and anisotropic U to any scalable datatype.")
       // from hkl_operators.h
       .def(py::self + py::self)
       .def(py::self - py::self)
@@ -438,13 +528,19 @@ void declare_hkl_data_phi_fom(py::module &m, const char *dtype) {
   auto class_str = std::string("Phi_fom_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<Phi_fom<T>>;
-  auto pyclass = declare_HKL_data<Phi_fom<T>>(m, class_str);
+  std::string docstring = "HKL_data<Phi_fom<>>.\n";
+  auto pyclass = declare_HKL_data<Phi_fom<T>>(m, class_str, docstring);
   pyclass
       // compute methods from hkl_compute.h
-      .def("compute_from_abcd", [](Class &self, const HKL_data<ABCD<T>> &abcd) {
-        catch_null(self);
-        self.compute(abcd, Compute_phifom_from_abcd<T>());
-      });
+      .def(
+          "compute_from_abcd",
+          [](Class &self, const HKL_data<ABCD<T>> &abcd) {
+            catch_null(self);
+            self.compute(abcd, Compute_phifom_from_abcd<T>());
+          },
+          py::arg("abcd"),
+          "Compute from ABCD to Phi_fom by phase integration (loses "
+          "bimodality).");
 } // declare_hkl_data_phi_fom
 
 template <class T>
@@ -452,19 +548,24 @@ void declare_hkl_data_abcd(py::module &m, const char *dtype) {
   auto class_str = std::string("ABCD_") + dtype;
   using namespace clipper::datatypes;
   using Class = HKL_data<ABCD<T>>;
-  auto pyclass = declare_HKL_data<ABCD<T>>(m, class_str);
+  std::string docstring = "HKL_data<ABCD<>>.\n";
+  auto pyclass = declare_HKL_data<ABCD<T>>(m, class_str, docstring);
   pyclass
       // compute method from hkl_compute.h
-      .def("compute_from_phi_fom",
-           [](Class &self, const HKL_data<Phi_fom<T>> &phiw) {
-             catch_null(self);
-             self.compute(phiw, Compute_abcd_from_phifom<T>());
-           })
-      .def("compute_add_abcd",
-           [](Class &self, const Class &abcd1, const Class &abcd2) {
-             catch_null(self);
-             self.compute(abcd1, abcd2, Compute_add_abcd<T>());
-           })
+      .def(
+          "compute_from_phi_fom",
+          [](Class &self, const HKL_data<Phi_fom<T>> &phiw) {
+            catch_null(self);
+            self.compute(phiw, Compute_abcd_from_phifom<T>());
+          },
+          py::arg("phifom"), "Compute from Phi_fom to ABCD ( C = D = 0 ).")
+      .def(
+          "compute_add_abcd",
+          [](Class &self, const Class &abcd1, const Class &abcd2) {
+            catch_null(self);
+            self.compute(abcd1, abcd2, Compute_add_abcd<T>());
+          },
+          py::arg("abcd1"), py::arg("abcd2"), "Add two ABCD datalists.")
       // from hkl_operators.h
       .def(py::self + py::self);
   ;
@@ -480,7 +581,7 @@ void declare_hkl_data_d_sigd(py::module &m, const char *dtype) {
 
 void declare_hkl_data_flag(py::module &m) {
   using namespace clipper::datatypes;
-  auto pyclass = declare_HKL_data<Flag>(m, "Flag");
+  auto pyclass = declare_HKL_data<Flag>(m, "Flag", "HKL_data<Flag>.\n");
   pyclass
       // from hkl_operators.h
       .def(py::self == int())
@@ -493,7 +594,8 @@ void declare_hkl_data_flag(py::module &m) {
 
 void declare_hkl_data_flag_bool(py::module &m) {
   using namespace clipper::datatypes;
-  auto pyclass = declare_HKL_data<Flag_bool>(m, "Flag_bool");
+  auto pyclass =
+      declare_HKL_data<Flag_bool>(m, "Flag_bool", "HKL_data<Flag_bool>.\n");
 }
 
 template <class T>
@@ -505,20 +607,29 @@ void declare_CHKL_data(py::module &m, const char *class_name,
              HKL_data<T>>(m, pyclass_name.c_str())
       .def(py::init<>())
       .def(py::init<Container &, const String>(), py::arg("parent"),
-           py::arg("path") = "")
+           py::arg("path") = "", "Constructor: inherit datalist and cell.")
       .def("init",
            (void(Class::*)(const HKL_info &, const Cell &)) & Class::init,
-           py::arg("hklinfo"), py::arg("cell"))
+           py::arg("hklinfo"), py::arg("cell"),
+           "Initialiser: supply or inherit HKL_info and cell.")
       .def("init",
            (void(Class::*)(const Spacegroup &, const Cell &,
                            const HKL_sampling &)) &
                Class::init,
-           py::arg("spacegroup"), py::arg("cell"), py::arg("hkl_sampling"))
-      .def("update", &Class::update)
-      .def("copy_from",
-           [](Class &self, const HKL_data<T> &other) { self = other; })
-      .def("set_all_values_to",
-           [](Class &self, const T &value) { self = value; });
+           py::arg("spacegroup"), py::arg("cell"), py::arg("hkl_sampling"),
+           "Initialiser form spacegroup, cell and HKL_sampling.")
+      .def("update", &Class::update, "Hierachical update.")
+      .def(
+          "copy_from",
+          [](Class &self, const HKL_data<T> &other) { self = other; },
+          "Copy data from given object.")
+      .def(
+          "set_all_values_to",
+          [](Class &self, const T &value) { self = value; },
+          "Set all values to a specified value.")
+      .doc() = "Reflection data list container.\n "
+               "CHKL_data: This is the list object containing the actual data. "
+               "It must be indexed by a parent HKL list.";
 }
 
 void init_hkl_data(py::module &m) { // py::module &m32, py::module &m64) {

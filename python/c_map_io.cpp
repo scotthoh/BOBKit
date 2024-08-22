@@ -1,3 +1,9 @@
+// Wrapper for clipper map i/o
+// Author: S.W.Hoh
+// 2023 -
+// York Structural Biology Laboratory
+// The University of York
+
 #include "c_map_io.h"
 
 #define DBG std:: << "[" << __FUNCTION__ << "] - "

@@ -1,7 +1,13 @@
+// Wrapper for clipper hkl info
+// Author: S.W.Hoh
+// 2023 -
+// York Structural Biology Laboratory
+// The University of York
+
 #include "type_conversions.h"
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
-#include <clipper/core/hkl_info.h>
+#include <clipper/core/coords.h>
 #include <gemmi/symmetry.hpp>
 #include <gemmi/unitcell.hpp>
 #include <pybind11/numpy.h>
@@ -17,6 +23,13 @@ void init_hklinfo(py::module &m) {
   hklinfo.def(py::init<>())
       .def(py::init<const Spacegroup &, const Cell &, const Resolution &,
                     const bool &>(),
+           py::arg("spacegroup"), py::arg("cell"), py::arg("resolution"),
+           py::arg("generate") = false)
+      .def(py::init([](const Spacegroup &sg, const Cell &c, const double &res,
+                       const bool &gen) {
+             clipper::Resolution reso(res);
+             return std::unique_ptr<HKL_info>(new HKL_info(sg, c, reso, gen));
+           }),
            py::arg("spacegroup"), py::arg("cell"), py::arg("resolution"),
            py::arg("generate") = false)
       .def("init",
