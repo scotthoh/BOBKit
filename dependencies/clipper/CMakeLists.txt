@@ -11,8 +11,10 @@ find_package(Threads)
 if(FFTW_LIBPATH)
   message(STATUS "fftw libpath = " ${FFTW_LIBPATH})
 endif()
-#option(BUILD_SHARED_LIBS "build shared libs (true)" TRUE)
-
+option(BUILD_SHARED_LIBS "Build shared library" ON)
+if(GEMMI_LIBPATH)
+message(STATUS "gemmi libpath = " ${GEMMI_LIBPATH})
+endif()
 # clipper-core
 add_library(clipper-core ${clipper-core_sources} ${clipper-core_headers})
 add_library(clipper::core ALIAS clipper-core)

@@ -1,5 +1,12 @@
+// Wrapper for clipper NXmap
+// Author: S.W.Hoh
+// 2023 -
+// York Structural Biology Laboratory
+// The University of York
+
 #include "helper_functions.h"
 #include "type_conversions.h"
+#include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
@@ -21,38 +28,66 @@ template <class T> std::string display_repr(const NXmap<T> nxmap) {
 
 void declare_map_base(py::module &m) {
   py::class_<NXmap_base> nxmapbase(m, "NXmap_base");
-  nxmapbase.def("is_null", &NXmap_base::is_null)
-      .def_property_readonly("grid", &NXmap_base::grid)
-      .def_property_readonly("operator_orth_grid",
-                             &NXmap_base::operator_orth_grid)
-      .def_property_readonly("operator_grid_orth",
-                             &NXmap_base::operator_grid_orth)
-      .def("coord_orth", &NXmap_base::coord_orth, py::arg("coord_map"))
-      .def("coord_map", &NXmap_base::coord_map, py::arg("coord_orth"))
+  nxmapbase
+      .def("is_null", &NXmap_base::is_null,
+           "Test if object has been initialised.")
+      .def_property_readonly("grid", &NXmap_base::grid,
+                             "Return the grid dimensions for this map.")
+      .def_property_readonly(
+          "operator_orth_grid", &NXmap_base::operator_orth_grid,
+          "Return the orthogonal-to-grid coordinate operator.")
+      .def_property_readonly(
+          "operator_grid_orth", &NXmap_base::operator_grid_orth,
+          "Return the grid-to-orthogonal coordinate operator.")
+      .def("coord_orth", &NXmap_base::coord_orth, py::arg("coord_map"),
+           "Convert map coordinate to orthogonal.")
+      .def("coord_map", &NXmap_base::coord_map, py::arg("coord_orth"),
+           "Convert orthogonal coordinate to map.")
       .def("in_map",
            (bool(NXmap_base::*)(const clipper::Coord_grid &) const) &
                NXmap_base::in_map,
-           py::arg("pos"))
+           py::arg("pos"), "Is the given coord available in the map?")
       .def("multiplicity", &NXmap_base::multiplicity,
-           py::arg("coord_grid") = nullptr)
-      .def("first", &NXmap_base::first)
-      .def("first_coord", &NXmap_base::first_coord);
+           py::arg("coord_grid") = nullptr,
+           "Get multiplicity of a map grid point (always 1 for NXmap).")
+      .def("first", &NXmap_base::first,
+           "Return a basic Map_reference_index for this map.")
+      .def("first_coord", &NXmap_base::first_coord,
+           "Return a coord Map_reference_index for this map")
+      .doc() = "NXmap_base: base for non-crystallographic map class.\n"
+               "The non-crystallographic map class stores a map of arbitrary "
+               "data type. Unlike an Xmap it is finite in extent and has no "
+               "symmetry. An RT operator provides mapping onto an arbitrary "
+               "orthogonal coordinate frame. Iterators provide efficient "
+               "access to data. This base contains everything except the data, "
+               "which is templated in the derived type clipper::NXmap<T>.";
 
   using MRB = NXmap_base::Map_reference_base;
   py::class_<MRB>(nxmapbase, "NXmap_reference_base")
-      .def_property_readonly("base_nxmap", &MRB::base_nxmap)
-      .def_property_readonly("index", &MRB::index)
-      .def("last", &MRB::last);
+      .def_property_readonly("base_nxmap", &MRB::base_nxmap,
+                             "Return the parent NXmap.")
+      .def_property_readonly("index", &MRB::index,
+                             "Get the index into the map data array.")
+      .def("last", &MRB::last, "Check for end of map.")
+      .doc() = "Map reference base class.\n"
+               "This is a reference to an Map. It forms a base class for "
+               "index-like and coordinate-like Map references.";
 
   using MRI = NXmap_base::Map_reference_index;
   py::class_<MRI, MRB>(nxmapbase, "NXmap_reference_index")
       .def_property(
           "coord", &MRI::coord,
-          [](MRI &self, const Coord_grid &pos) -> void { self.set_coord(pos); })
+          [](MRI &self, const Coord_grid &pos) -> void { self.set_coord(pos); },
+          "Get/set current grid coordinate.")
       .def("coord_orth", &MRI::coord_orth)
       .def("next", [](MRI &self) -> void { self.next(); })
       .def("index_offset", &MRI::index_offset, py::arg("du"), py::arg("dv"),
-           py::arg("dw"));
+           py::arg("dw"))
+      .doc() = "Map reference with index-like behaviour.\n This is a reference "
+               "to a map coordinate. It behaves like a simple index into the "
+               "map, but can be easily converted into a coordinate as and when "
+               "required. It also implements methods for iterating through the "
+               "map. It is very compact, but coord() involves some overhead.";
 
   using MRC = NXmap_base::Map_reference_coord;
   py::class_<MRC, MRB>(nxmapbase, "NXmap_reference_coordinate")
@@ -120,7 +155,21 @@ template <class T> void declare_nxmap(py::module &m, const std::string &name) {
                           const T &val) { self.set_data(pos, val); })
       .def("fill_map_with", [](NXMClass &self, const T &val) { self = val; })
       .def(py::self += py::self)
-      .def(py::self -= py::self);
+      .def(py::self -= py::self)
+      .def(
+          "import_from_gemmi",
+          [](NXMClass &self, const gemmi::Ccp4<float> &mapobj) {
+            GEMMI::import_nxmap(self, mapobj);
+          },
+          py::arg("target"), "Import NXmap from gemmi.Ccp4Map.")
+      .def(
+          "export_to_gemmi",
+          [](const NXMClass &self, gemmi::Ccp4<float> &mapobj,
+             const Cell &unitcell) {
+            GEMMI::export_nxmap(self, mapobj, unitcell);
+          },
+          py::arg("target"), py::arg("cell"),
+          "Export NXmap from gemmi.Ccp4Map.");
 }
 
 void init_nxmap(py::module &m) {

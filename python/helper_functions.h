@@ -242,17 +242,27 @@ void hkl_data_import_numpy(HKLdtype &self, const int &size, py::array_t<dtype> v
 } // hkl_data_import_numpy
 
 template <typename T>
-std::unique_ptr<Vec3<T>> new_vec3_from_numpy(py::array_t<T> vals)
-{
+std::unique_ptr<Vec3<T>> numpy_to_vec3(py::array_t<T> vals) {
   check_array_shape(vals, {3}, true);
   return std::unique_ptr<Vec3<T>>(new Vec3<T>(vals.at(0), vals.at(1), vals.at(2)));
 }
 
 template <typename T>
-std::unique_ptr<Mat33<T>> new_mat33_from_numpy(py::array_t<T> vals)
-{
+std::unique_ptr<Mat33<T>> numpy_to_mat33(py::array_t<T> vals) {
   check_array_shape(vals, {3, 3}, true);
   auto r = vals.template unchecked<2>();
   return std::unique_ptr<Mat33<T>>(new Mat33<T>(
       r(0, 0), r(0, 1), r(0, 2), r(1, 0), r(1, 1), r(1, 2), r(2, 0), r(2, 1), r(2, 2)));
+}
+
+template <typename T, class D>
+void numpy_to_array2d(py::array_t<T> vals, D &target) {
+  int r = target.rows();
+  int c = target.cols();
+  check_array_shape(vals, {r, c}, true);
+  auto buf = vals.request();
+  T *ptr = (T *)buf.ptr;
+  for (int i = 0; i < r; ++i)
+    for (int j = 0; j < c; ++j)
+      target(i, j) = *ptr++;
 }

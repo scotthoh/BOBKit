@@ -1,3 +1,10 @@
+// Wrapper for clipper tests for core and contrib
+// Author: S.W.Hoh
+// 2023 -
+// York Structural Biology Laboratory
+// The University of York
+
+#include "type_conversions.h"
 #include <clipper/clipper-contrib.h>
 #include <clipper/clipper.h>
 #include <clipper/contrib/test_contrib.h>
@@ -10,7 +17,7 @@ using namespace clipper;
 // Self test for clipper_core and clipper_contrib,
 // useful to check if fftw3 compiled correctly
 void init_clipper_tests(py::module &m) {
-  py::class_<Test_core>(m, "Test_core")
+  py::class_<Test_core>(m, "Test_core", "Class test clipper core methods.")
       .def(py::init<>())
       .def("__call__", &Test_core::operator())
       // if needed, have to find a way for the type conversion std::ostream
@@ -18,7 +25,8 @@ void init_clipper_tests(py::module &m) {
       .def("__repr__",
            [](const Test_core &self) { return "<clipper.Test_core class.>"; });
 
-  py::class_<Test_contrib>(m, "Test_contrib")
+  py::class_<Test_contrib>(m, "Test_contrib",
+                           "Class test clipper contrib methods.")
       .def(py::init<>())
       .def("__call__", &Test_contrib::operator())
       // if needed, have to find a way for the type conversion std::ostream

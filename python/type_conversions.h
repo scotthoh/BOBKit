@@ -1,11 +1,9 @@
 #pragma once
 #include <clipper/clipper.h>
-// #include <gemmi/model.hpp>
 #include <pybind11/pybind11.h>
 
 // refer to
 // https://pybind11.readthedocs.io/en/stable/advanced/cast/custom.html#custom-type-casters
-// auto gstruc = pybind11::module_::import("gemmi").attr("Structure");
 namespace PYBIND11_NAMESPACE
 {
   namespace detail
