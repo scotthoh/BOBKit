@@ -4,7 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include <buccaneer/buccaneer-known.h>
+#include "buccaneer/buccaneer-known.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <tuple>

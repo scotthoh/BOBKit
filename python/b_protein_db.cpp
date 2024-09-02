@@ -4,7 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include <buccaneer/protein_db.h>
+#include "buccaneer/protein_db.h"
 #include <clipper/minimol/minimol.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

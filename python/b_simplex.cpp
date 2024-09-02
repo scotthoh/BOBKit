@@ -4,9 +4,9 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include <buccaneer/buccaneer-find.h>
-#include <buccaneer/buccaneer-grow.h>
-#include <buccaneer/simplex-lib.h>
+#include "buccaneer/buccaneer-find.h"
+#include "buccaneer/buccaneer-grow.h"
+#include "buccaneer/simplex-lib.h"
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
