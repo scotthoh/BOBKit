@@ -51,11 +51,13 @@ sdist.include = [
 "python/*.h",
 "python/version.hpp",
 ]
-#cmake.build-type ="Release"
-#cmake.verbose = true
+cmake.build-type ="Release"
+cmake.verbose = true
 
-#[tool.scikit-build.cmake.define]
-#USE_PYTHON = "ON"
+[tool.scikit-build.cmake.define]
+USE_PYTHON = "ON"
+BUCCANEER_PROFILE = "ON"
+BUILD_OWN_FFTW3 = "ON"
 
 # Get version from python/version.hpp file
 [tool.scikit-build.metadata.version]

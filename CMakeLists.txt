@@ -13,7 +13,9 @@ if(DEFINED ENV{VIRTUAL_ENV})
   message(STATUS "VIRTUAL ENV PATH = $ENV{VIRTUAL_ENV}")
   set(VENV_INSTALL_DIR $ENV{VIRTUAL_ENV})
 endif()
-
+#if(NOT APPLE)
+# set(CMAKE_INSTALL_RPATH $ORIGIN)
+#endif()
 # get version from cbuccaneer
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cbuccaneer.cpp"
     buccaneer_version_line REGEX "CCP4Program prog\\( \"cbuccaneer\",")
@@ -37,6 +39,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 option(SHOW_COMPILE_TIME "Show compile time" OFF)
+option(USE_PYTHON "Build Python bindings" ON)
+option(EXTRA_WARNINGS "Set extra warning flags" OFF)
+option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" ON)
+option(BUCCANEER_PROFILE "Set Buccaneer profiling on/off" ON)
 if(SHOW_COMPILE_TIME)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 endif()
@@ -45,10 +51,22 @@ endif()
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS "-DBUCCANEER_PROFILE=1") # for profiling in BUCCANEER
+if(BUCCANEER_PROFILE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBUCCANEER_PROFILE=1") # for profiling in BUCCANEER
+endif()
 # Common installation directories, CMake helpers
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+find_package(PkgConfig REQUIRED)
+set(SKIP_INSTALL_FFTW3 OFF)
+if(NOT BUILD_OWN_FFTW3)
+pkg_search_module(FFTW 3.3.4...<3.3.10 REQUIRED fftw3f IMPORTED_TARGET)
+if(FFTW_FOUND)
+  message(STATUS "Found FFTW3 - ${FFTW_LINK_LIBRARIES}")
+  message(STATUS "FFTW3 include dir - ${FFTW_INCLUDE_DIRS}")
+  set(SKIP_INSTALL_FFTW3 ON)
+endif()
+endif()
 
 # Set default build mode (based on CMake FAQ)
 if (NOT CMAKE_BUILD_TYPE)
@@ -58,18 +76,19 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-set(SKIP_INSTALL_FFTW3 OFF)
-# check if fftw3, current project built gemmi, and clipper exist.
-find_library(FFTW3_LIBRARY NAMES fftw3f
-             HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib
-             NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-if(${FFTW3_LIBRARY} MATCHES "fftw3f")
-  find_path(FFTW3_INCLUDE_DIRS fftw3.h
-            HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib)
-  message(STATUS "Found FFTW3 - ${FFTW3_LIBRARY}")
-  message(STATUS "FFTW3 include dir - ${FFTW3_INCLUDE_DIRS}")
-  set(SKIP_INSTALL_FFTW3 ON)
-endif()
+
+## check if fftw3, current project built gemmi, and clipper exist.
+#
+#find_library(FFTW3_LIBRARY NAMES fftw3f
+#             HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib
+#             NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+#if(${FFTW3_LIBRARY} MATCHES "fftw3f")
+#  find_path(FFTW3_INCLUDE_DIRS fftw3.h
+#            HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib)
+#  message(STATUS "Found FFTW3 - ${FFTW3_LIBRARY}")
+#  message(STATUS "FFTW3 include dir - ${FFTW3_INCLUDE_DIRS}")
+#  set(SKIP_INSTALL_FFTW3 ON)
+#endif()
 
 # find python
 # We don't need to set policy CMP0069 for this file, because the minimum
@@ -78,26 +97,36 @@ endif()
 # so we need to set CMP0069 because of that.
 cmake_policy(SET CMP0069 NEW)
 cmake_policy(SET CMP0135 NEW)
-
+if(USE_PYTHON)
 find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
 if (EXISTS "${CMAKE_HOME_DIRECTORY}/pybind11")
   message(STATUS "Using ${CMAKE_HOME_DIRECTORY}/pybind11 (internal copy).")
   add_subdirectory(pybind11)
 else()
+  # use pybind11-config (if available) to determine pybind11_DIR
+  execute_process(COMMAND pybind11-config --cmakedir OUTPUT_VARIABLE pybind11_DIR)
+  string(STRIP "${pybind11_DIR}" pybind11_DIR)
   find_package(pybind11 2.6 CONFIG)
-  if(NOT pybind11_FOUND)
-    #try once more, using pybind11-config
-    execute_process(COMMAND pybind11-config --cmakedir OUTPUT_VARIABLE pybind11_DIR)
-    string(STRIP "${pybind11_DIR}" pybind11_DIR)
-    find_package(pybind11 2.6 CONFIG REQUIRED)
-  endif()
+  #if(NOT pybind11_FOUND)
+  #  #try once more, using pybind11-config
+  #  execute_process(COMMAND pybind11-config --cmakedir OUTPUT_VARIABLE pybind11_DIR)
+  #  string(STRIP "${pybind11_DIR}" pybind11_DIR)
+  #  find_package(pybind11 2.6 CONFIG REQUIRED)
+  #endif()
   message(STATUS "Found pybind11 ${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
 endif()
 # building with scikit-build-core (pip install)
+
 if (DEFINED SKBUILD)
   # wheel.install-dir="/data" is set in pyproject.toml
   # set paths to /platlib and /scripts here
   set(PYTHON_INSTALL_DIR "${SKBUILD_PLATLIB_DIR}")
+  if (DEFINED PYTHON_INSTALL_DIR)
+    message(STATUS "Install directory for Python module: ${PYTHON_INSTALL_DIR}")
+    set(Python_SITEARCH "${PYTHON_INSTALL_DIR}")
+  endif()
+  file(TO_CMAKE_PATH "${Python_SITEARCH}" Python_SITEARCH)
+endif()
 endif()
 
 set(WRK_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -114,53 +143,69 @@ if(BUILD_SHARED_LIBS)
   set(lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
   set(lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
   set(fftwconf_args "--enable-shared")
+  if (USE_PYTHON)
+  if (DEFINED SKBUILD)
+    set(rpath_rel "../../../${CMAKE_INSTALL_LIBDIR}")
+  else()
+    file(RELATIVE_PATH rpath_rel "${Python_SITEARCH}" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+  endif()
+  endif()
 else()
   set(lib_prefix ${CMAKE_STATIC_LIBRARY_PREFIX})
   set(lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
   set(fftwconf_args "")
 endif()
+set(lib_fftw_name ${lib_prefix}fftw3f${lib_suffix})
 if(NOT SKIP_INSTALL_FFTW3)
+message(STATUS "Setting up to install FFTW3...")
 # install fftw3
 set(fftw_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/fftw")
 set(fftw_src_path "${fftw_dep_path}/src/fftw")
 set(fftw_bin_path "${fftw_dep_path}/src/fftw_ex-build/")
-set(lib_fftw_name ${lib_prefix}fftw3f${lib_suffix})
-
 
 ExternalProject_add(project_fftw
                     PREFIX ${fftw_dep_path}
                     SOURCE_DIR ${fftw_src_path}
                     BINARY_DIR ${fftw_bin_path}
-                    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/fftw/install
+                    INSTALL_DIR ${VENV_INSTALL_DIR}
+                    #INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_fftw_name}
                     URL https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz
                     #PREFIX ${CMAKE_CURRENT_BINARY_DIR}/fftw
                     #BUILD_IN_SOURCE false
                     CONFIGURE_COMMAND <SOURCE_DIR>/configure 
-                    --prefix=${CMAKE_CURRENT_BINARY_DIR}/fftw/install --enable-float 
+                    --prefix=${VENV_INSTALL_DIR} --enable-float
                     --disable-fortran ${fftwconf_args} "CFLAGS=-fPIC"
+                    #--prefix=${CMAKE_CURRENT_BINARY_DIR}/fftw/install --enable-float 
                     )
 if (BUILD_SHARED_LIBS)
-add_library(fftw SHARED IMPORTED)
+add_library(fftw3::fftw3 SHARED IMPORTED)
 else()
-add_library(fftw STATIC IMPORTED)
+add_library(fftw3::fftw3 STATIC IMPORTED)
 endif()
-set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
-add_dependencies(fftw project_fftw)
-set(FFTW3_INCDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/include")
-set(FFTW3_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib")
+#set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
+set(FFTW3_INCDIR "${VENV_INSTALL_DIR}/include")
+set(FFTW3_LIBDIR "${VENV_INSTALL_DIR}/lib")
+set_target_properties(fftw3::fftw3 PROPERTIES
+                      IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
+                      INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
+)
+add_dependencies(fftw3::fftw3 project_fftw)
 else()
-set(FFTW3_INCDIR "${FFTW3_INCLUDE_DIRS}")
-cmake_path(GET FFTW3_LIBRARY PARENT_PATH FFTW3_LIBDIR)
-  if (BUILD_SHARED_LIBS)
-   add_library(fftw SHARED IMPORTED)
-  else()
-   add_library(fftw STATIC IMPORTED)
-  endif()
-  set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${FFTW3_LIBRARY})
+set(FFTW3_INCDIR "${FFTW_INCLUDE_DIRS}")
+set(FFTW3_LIBDIR "${FFTW_LIBRARY_DIRS}")
+#cmake_path(GET FFTW3_LIBRARY PARENT_PATH FFTW3_LIBDIR)
+if (BUILD_SHARED_LIBS)
+ add_library(fftw3::fftw3 SHARED IMPORTED)
+else()
+ add_library(fftw3::fftw3 STATIC IMPORTED)
 endif()
-include_directories(${FFTW3_INCDIR})
-link_directories(${FFTW3_LIBDIR})
+set_target_properties(fftw3::fftw3 PROPERTIES
+                      IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES}
+                      INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
+endif()
+#include_directories(${FFTW3_INCDIR})
+#link_directories(${FFTW3_LIBDIR})
 #if (EXISTS ${FFTW3_LIBDIR}/${lib_fftw_name})
 #message(STATUS "FFTW3 lib = ${FFTW3_LIBDIR}/${lib_fftw_name}")
 #else()
@@ -191,14 +236,18 @@ ExternalProject_add(project_gemmi
                     CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 
 if(BUILD_SHARED_LIBS)
-add_library(gemmi_cpp SHARED IMPORTED)
+add_library(gemmi::gemmi_cpp SHARED IMPORTED)
 else()
-add_library(gemmi_cpp STATIC IMPORTED)
+add_library(gemmi::gemmi_cpp STATIC IMPORTED)
 endif()
-set_target_properties(gemmi_cpp PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_gemmi_name})
-add_dependencies(gemmi_cpp project_gemmi)
-set(GEMMI_INCDIR "${gemmi_src_path}/include")
+set(GEMMI_INCDIR "${VENV_INSTALL_DIR}/include")
 set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
+set_target_properties(gemmi::gemmi_cpp PROPERTIES
+                      IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name}
+                      INTERFACE_INCLUDE_DIRECTORIES ${GEMMI_INCDIR})
+add_dependencies(gemmi::gemmi_cpp project_gemmi)
+#set(GEMMI_INCDIR "${gemmi_src_path}/include")
+#set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
 #include_directories(${GEMMI_INCDIR})
 #link_directories(${GEMMI_LIBDIR})
 
@@ -236,32 +285,44 @@ ExternalProject_add(project_clipper
                     -DGEMMI_INCPATH=${GEMMI_INCDIR} -DGEMMI_LIBPATH=${GEMMI_LIBDIR}/${lib_gemmi_name} 
                     -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 if(BUILD_SHARED_LIBS)
-add_library(clipper-core SHARED IMPORTED)
-add_library(clipper-contrib SHARED IMPORTED)
-add_library(clipper-gemmi SHARED IMPORTED)
-add_library(clipper-minimol SHARED IMPORTED)
-add_library(clipper-cif SHARED IMPORTED)
+add_library(clipper::core SHARED IMPORTED)
+add_library(clipper::contrib SHARED IMPORTED)
+add_library(clipper::gemmi SHARED IMPORTED)
+add_library(clipper::minimol SHARED IMPORTED)
+add_library(clipper::cif SHARED IMPORTED)
 else()
-add_library(clipper-core STATIC IMPORTED)
-add_library(clipper-contrib STATIC IMPORTED)
-add_library(clipper-gemmi STATIC IMPORTED)
-add_library(clipper-minimol STATIC IMPORTED)
-add_library(clipper-cif STATIC IMPORTED)
+add_library(clipper::core STATIC IMPORTED)
+add_library(clipper::contrib STATIC IMPORTED)
+add_library(clipper::gemmi STATIC IMPORTED)
+add_library(clipper::minimol STATIC IMPORTED)
+add_library(clipper::cif STATIC IMPORTED)
 endif()
 add_dependencies(project_clipper project_gemmi) # project_fftw )
-set_target_properties(clipper-core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
-add_dependencies(clipper-core project_clipper) # project_fftw)
-set_target_properties(clipper-contrib PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
-add_dependencies(clipper-contrib project_clipper) # project_fftw)
-set_target_properties(clipper-gemmi PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
-add_dependencies(clipper-gemmi project_clipper project_gemmi)
-set_target_properties(clipper-minimol PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
-add_dependencies(clipper-minimol project_clipper project_gemmi)
-set_target_properties(clipper-cif PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif})
-add_dependencies(clipper-cif project_clipper project_gemmi)
+set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
+set_target_properties(clipper::core PROPERTIES
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore}
+                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+add_dependencies(clipper::core project_clipper) # project_fftw)
+set_target_properties(clipper::contrib PROPERTIES
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib}
+                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+add_dependencies(clipper::contrib project_clipper) # project_fftw)
+set_target_properties(clipper::gemmi
+                      PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi}
+                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+add_dependencies(clipper::gemmi project_clipper project_gemmi)
+set_target_properties(clipper::minimol PROPERTIES
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol}
+                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+add_dependencies(clipper::minimol project_clipper project_gemmi)
+set_target_properties(clipper::cif PROPERTIES
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif}
+                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+add_dependencies(clipper::cif project_clipper project_gemmi)
 
-set(CLIPPER_INCDIR "${clipper_src_path}")
-
+#set(CLIPPER_INCDIR "${clipper_src_path}")
+#set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
+#include_directories(${CLIPPER_INCDIR})
 #find_library(FFTW3_DEP NAMES fftw3f
 #            HINTS ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib)
 #
@@ -319,39 +380,52 @@ list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cb
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/csequins.cpp")
 if(BUILD_SHARED_LIBS)
 add_library(buccaneer_lib SHARED ${BUCCANEER_SRC})
+set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "$ORIGIN")
 else()
 add_library(buccaneer_lib STATIC ${BUCCANEER_SRC})
 endif()
+add_library(buccaneer::buccaneer_lib ALIAS buccaneer_lib)
 add_dependencies(buccaneer_lib project_gemmi project_clipper)
 #set(LINK_LIBS "gemmi_cpp buccaneer_lib fftw3f clipper-cif clipper-core clipper-contrib clipper-minimol clipper-gemmi")
 find_package(Threads REQUIRED)
+#message(STATUS "clipper-cif lib : $<TARGET_FILE:clipper-cif>")
+#message(STATUS "gemmi lib : " $<TARGET_FILE:gemmi_cpp>)
+#message(STATUS "fftw3 lib : " $<TARGET_FILE:fftw3>)
+
 target_link_directories(buccaneer_lib PUBLIC
-                      ${GEMMI_LIBDIR}
+                      #${GEMMI_LIBDIR}
+                      #$<TARGET_FILE_DIR:gemmi_cpp>
                       #/clipper
                       #${VENV_INSTALL_DIR}/lib/clipper/cif
                       #${VENV_INSTALL_DIR}/lib/clipper/core
                       #${VENV_INSTALL_DIR}/lib/clipper/contrib
                       #${VENV_INSTALL_DIR}/lib/clipper/minimol
                       #${VENV_INSTALL_DIR}/lib/clipper/gemmi
+                      ${VENV_INSTALL_DIR}/lib
+                      ${clipper_bin_path}
+                      ${gemmi_bin_path}
                       ${FFTW3_LIBDIR})
                       #${CMAKE_BINARY_DIR}/dependencies/fftw3
                       #${CMAKE_BINARY_DIR}/dependencies/gemmi)
 
 target_link_libraries(buccaneer_lib PUBLIC
-                      clipper-cif
-                      clipper-minimol
-                      clipper-contrib
-                      clipper-gemmi
-                      clipper-core
-                      fftw
-                      #fftw
-                      gemmi_cpp
-                      Threads::Threads)
-
+                      clipper::cif
+                      clipper::minimol
+                      clipper::contrib
+                      clipper::gemmi
+                      clipper::core
+                      fftw3::fftw3
+                      gemmi::gemmi_cpp)
+if (Threads_FOUND)
+  target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
+endif()
+install(TARGETS buccaneer_lib LIBRARY DESTINATION lib )
 #message(STATUS "buccaneer_lib = $<TARGET_FILE:buccaner_lib>")
 file(GLOB PY_SRC "python/*.cpp")
+list(REMOVE_ITEM PY_SRC "python/c_ccp4_mtzio.cpp")
 # pybind11 module
-pybind11_add_module(buc_py MODULE ${PY_SRC} ${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
+if(USE_PYTHON)
+pybind11_add_module(buc_py MODULE ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
 add_dependencies(buc_py project_gemmi project_clipper)
 target_include_directories(buc_py PUBLIC
                            ${CLIPPER_INCDIR}
@@ -368,41 +442,49 @@ target_include_directories(buc_py PUBLIC
                            #${WRK_DIR}/checkouts/fftw3
                            )
                   
-target_link_directories(buc_py PUBLIC
-                        ${GEMMI_LIBDIR}
+target_link_directories(buc_py PRIVATE
+                        #$<TARGET_FILE_DIR:gemmi_cpp>
+                        #${GEMMI_LIBDIR}
                         #${CMAKE_BINARY_DIR}/dependencies/clipper/cif
                         #${CMAKE_BINARY_DIR}/dependencies/clipper/minimol
                         #${CMAKE_BINARY_DIR}/dependencies/clipper/gemmi
                         #${CMAKE_BINARY_DIR}/dependencies/clipper/contrib
                         #${CMAKE_BINARY_DIR}/dependencies/clipper/core
-                        ${FFTW3_LIBDIR})
+                        ${VENV_INSTALL_DIR}/lib
+                        ${FFTW3_LIBDIR}
+                        #$<TARGET_FILE_DIR:fftw3>
+                        ${clipper_bin_path}
+                        ${gemmi_bin_path})
+                        #$<TARGET_FILE_DIR:gemmi_cpp>)
+                        #${FFTW3_LIBDIR})
                         #${CMAKE_BINARY_DIR}/dependencies/fftw3
                         #${CMAKE_BINARY_DIR}/dependencies/gemmi)
 
 target_link_libraries(buc_py PRIVATE buccaneer_lib
-                      clipper-cif
-                      clipper-contrib
-                      clipper-minimol
-                      clipper-gemmi
-                      clipper-core
-                      fftw
+                      clipper::cif
+                      clipper::contrib
+                      clipper::minimol
+                      clipper::gemmi
+                      clipper::core
+                      fftw3::fftw3
                       #${FFTW3_LIBDIR}
-                      gemmi_cpp
-                      Threads::Threads)
-
+                      gemmi::gemmi_cpp)
+if (Threads_FOUND)
+  target_link_libraries(buc_py PRIVATE Threads::Threads)
+endif()
 #install
 #dinstall(TARGETS buc_py LIBRARY DESTINATION bobkit)
 # install
 set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
-if (DEFINED PYTHON_INSTALL_DIR)
-  message(STATUS "Install directory for Python module: ${PYTHON_INSTALL_DIR}")
-  set(Python_SITEARCH "${PYTHON_INSTALL_DIR}")
-endif()
-file(TO_CMAKE_PATH "${Python_SITEARCH}" Python_SITEARCH)
-#install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
-install(TARGETS buccaneer_lib LIBRARY DESTINATION lib )
-install(TARGETS buc_py DESTINATION "${Python_SITEARCH}")
+#set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+if (BUILD_SHARED_LIBS)
+  set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
+endif()
+#install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
+
+install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
+endif()
 #this is for convenience to delete fftw
 #set(INSTALL_SHAREDIR ${FFTW_INSTALL_PATH}/share/fftw3)
 #install(CODE "string(REPLACE \";\" \"\\n\" MY_CMAKE_INSTALL_MANIFEST_CONTENT \"\$\{CMAKE_INSTALL_MANIFEST_FILES\}\")\n\

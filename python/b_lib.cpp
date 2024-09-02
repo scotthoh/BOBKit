@@ -4,7 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include <buccaneer/buccaneer-lib.h>
+#include "buccaneer/buccaneer-lib.h"
 #include <clipper/core/coords.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

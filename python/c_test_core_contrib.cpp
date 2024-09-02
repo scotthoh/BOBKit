@@ -9,6 +9,7 @@
 #include <clipper/clipper.h>
 #include <clipper/contrib/test_contrib.h>
 #include <clipper/core/test_core.h>
+#include <clipper/minimol/test_minimol_gemmi.h>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -34,5 +35,12 @@ void init_clipper_tests(py::module &m) {
       .def("__repr__", [](const Test_contrib &self) {
         return "<clipper.Test_contrib class.>";
       });
-  ;
+
+  py::class_<Test_minimol_gemmi>(m, "Test_minimol_gemmi",
+                                 "Class test clipper minimol-gemmi methods.")
+      .def(py::init<>())
+      .def("run", &Test_minimol_gemmi::run, py::arg("input_file"))
+      .def("__repr__", [](const Test_minimol_gemmi &self) {
+        return "<clipper.Test_minimol_gemmi class.>";
+      });
 }

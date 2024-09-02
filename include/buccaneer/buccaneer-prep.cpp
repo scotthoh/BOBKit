@@ -89,18 +89,18 @@ bool Ca_prep::operator() ( LLK_map_target& llktgt, std::vector<LLK_map_target>& 
   if ( seqnc_ )
     for ( int t = 0; t < nside; t++ ) llkcls[t].prep_llk();
 
-  if (debug_) {
-    std::ofstream outfile;
-    outfile.open("llkcls_prep.txt", std::ios::app);
-    outfile << "Target: \n";
-    outfile << llktgt.format() << std::endl;
-    outfile << "llkcls : " << std::endl;
-    for (int t = 0; t < nside; t++) {
-      outfile << clipper::String(t) << " : " << std::endl;
-      outfile << llkcls[t].format() << std::endl;
-    }
-    outfile.close();
-  }
+  // if (debug_) {
+  //   std::ofstream outfile;
+  //   outfile.open("llkcls_prep.txt", std::ios::app);
+  //   outfile << "Target: \n";
+  //   outfile << llktgt.format() << std::endl;
+  //   outfile << "llkcls : " << std::endl;
+  //   for (int t = 0; t < nside; t++) {
+  //     outfile << clipper::String(t) << " : " << std::endl;
+  //     outfile << llkcls[t].format() << std::endl;
+  //   }
+  //   outfile.close();
+  // }
   return true;
 }
 
