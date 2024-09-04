@@ -1,7 +1,4 @@
 cmake_minimum_required(VERSION 3.20...3.22)
-# Common installation directories, CMake helpers
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 
 # check if called from python skbuild
 if (NOT DEFINED SKBUILD)
@@ -12,12 +9,6 @@ source yourself, run the script 'get_dependencies' included in this \
 package before running the command 'pip install .'.")
 endif()
 
-if(DEFINED ENV{VIRTUAL_ENV})
-  message(STATUS "VIRTUAL ENV PATH = $ENV{VIRTUAL_ENV}")
-  set(VENV_INSTALL_DIR $ENV{VIRTUAL_ENV})
-else()
-  set(VENV_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
-endif()
 #if(NOT APPLE)
 # set(CMAKE_INSTALL_RPATH $ORIGIN)
 #endif()
@@ -59,7 +50,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(BUCCANEER_PROFILE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBUCCANEER_PROFILE=1") # for profiling in BUCCANEER
 endif()
-# find packages
+# Common installation directories, CMake helpers
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+if(DEFINED ENV{VIRTUAL_ENV})
+  message(STATUS "VIRTUAL ENV PATH = $ENV{VIRTUAL_ENV}")
+  set(VENV_INSTALL_DIR $ENV{VIRTUAL_ENV})
+else()
+  set(VENV_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
+endif()
 find_package(PkgConfig REQUIRED)
 set(SKIP_INSTALL_FFTW3 OFF)
 if(NOT BUILD_OWN_FFTW3)
@@ -191,7 +190,7 @@ set(FFTW3_INCDIR "${VENV_INSTALL_DIR}/include")
 set(FFTW3_LIBDIR "${VENV_INSTALL_DIR}/lib")
 set_target_properties(fftw3::fftw3 PROPERTIES
                       IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
-                      INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
+                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
 )
 add_dependencies(fftw3::fftw3 project_fftw)
 else()
@@ -204,8 +203,8 @@ else()
  add_library(fftw3::fftw3 STATIC IMPORTED)
 endif()
 set_target_properties(fftw3::fftw3 PROPERTIES
-                      IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES}
-                      INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
+                      IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif()
 #include_directories(${FFTW3_INCDIR})
 #link_directories(${FFTW3_LIBDIR})
@@ -246,8 +245,8 @@ endif()
 set(GEMMI_INCDIR "${VENV_INSTALL_DIR}/include")
 set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
 set_target_properties(gemmi::gemmi_cpp PROPERTIES
-                      IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name}
-                      INTERFACE_INCLUDE_DIRECTORIES ${GEMMI_INCDIR})
+                      IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${GEMMI_INCDIR})
 add_dependencies(gemmi::gemmi_cpp project_gemmi)
 #set(GEMMI_INCDIR "${gemmi_src_path}/include")
 #set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
@@ -303,24 +302,24 @@ endif()
 add_dependencies(project_clipper project_gemmi) # project_fftw )
 set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
 set_target_properties(clipper::core PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore}
-                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::core project_clipper) # project_fftw)
 set_target_properties(clipper::contrib PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib}
-                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::contrib project_clipper) # project_fftw)
 set_target_properties(clipper::gemmi
-                      PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi}
-                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+                      PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::gemmi project_clipper project_gemmi)
 set_target_properties(clipper::minimol PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol}
-                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
+                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::minimol project_clipper project_gemmi)
 set_target_properties(clipper::cif PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif}
-                      INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif})
+                      #'INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::cif project_clipper project_gemmi)
 
 #set(CLIPPER_INCDIR "${clipper_src_path}")

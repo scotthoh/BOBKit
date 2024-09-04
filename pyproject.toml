@@ -34,7 +34,7 @@ minimum-version = "0.4"
 experimental = true # for install-dir
 # Setuptools style build caching in a local directory
 build-dir = "build/{wheel_tag}"
-wheel.install-dir = "/data"
+#wheel.install-dir = "/data"
 # Build stable ABI wheels for CPython 3.12+
 wheel.py-api = "cp312"
 
