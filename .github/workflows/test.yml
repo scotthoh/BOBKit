@@ -23,7 +23,7 @@ jobs:
         run: |
           g++ --version
           cmake --version
-          pip install --verbose .
+          sudo pip install --verbose .
           #cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
           #cmake --build build --config Debug -j2
           #cmake --build build --config Debug --target check -j2
