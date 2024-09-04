@@ -24,7 +24,7 @@ jobs:
           g++ --version
           cmake --version
           mkdir build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
+          cmake . -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
           cmake --build . --config Debug -j2
           cmake --build . --config Debug --target check -j2
           sudo cmake --install . --config Debug
