@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.20...3.22)
+# Common installation directories, CMake helpers
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 # check if called from python skbuild
 if (NOT DEFINED SKBUILD)
@@ -56,9 +59,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(BUCCANEER_PROFILE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBUCCANEER_PROFILE=1") # for profiling in BUCCANEER
 endif()
-# Common installation directories, CMake helpers
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+# find packages
 find_package(PkgConfig REQUIRED)
 set(SKIP_INSTALL_FFTW3 OFF)
 if(NOT BUILD_OWN_FFTW3)
