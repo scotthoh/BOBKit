@@ -393,7 +393,7 @@ find_package(Threads REQUIRED)
 #message(STATUS "clipper-cif lib : $<TARGET_FILE:clipper-cif>")
 #message(STATUS "gemmi lib : " $<TARGET_FILE:gemmi_cpp>)
 #message(STATUS "fftw3 lib : " $<TARGET_FILE:fftw3>)
-
+target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 target_link_directories(buccaneer_lib PUBLIC
                       #${GEMMI_LIBDIR}
                       #$<TARGET_FILE_DIR:gemmi_cpp>
