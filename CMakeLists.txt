@@ -149,7 +149,7 @@ if(BUILD_SHARED_LIBS)
   if (DEFINED SKBUILD)
     set(rpath_rel "../../../${CMAKE_INSTALL_LIBDIR}")
   else()
-    file(RELATIVE_PATH rpath_rel "${Python_SITEARCH}" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+    file(RELATIVE_PATH rpath_rel "${Python_SITEARCH}" "${VENV_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}")
   endif()
   endif()
 else()
@@ -394,6 +394,7 @@ find_package(Threads REQUIRED)
 #message(STATUS "gemmi lib : " $<TARGET_FILE:gemmi_cpp>)
 #message(STATUS "fftw3 lib : " $<TARGET_FILE:fftw3>)
 target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
+
 target_link_directories(buccaneer_lib PUBLIC
                       #${GEMMI_LIBDIR}
                       #$<TARGET_FILE_DIR:gemmi_cpp>
@@ -421,10 +422,10 @@ target_link_libraries(buccaneer_lib PUBLIC
 if (Threads_FOUND)
   target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
 endif()
-install(TARGETS buccaneer_lib LIBRARY DESTINATION lib )
+install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
 #message(STATUS "buccaneer_lib = $<TARGET_FILE:buccaner_lib>")
-file(GLOB PY_SRC "python/*.cpp")
-list(REMOVE_ITEM PY_SRC "python/c_ccp4_mtzio.cpp")
+file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
+list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_ccp4_mtzio.cpp")
 # pybind11 module
 if(USE_PYTHON)
 pybind11_add_module(buc_py MODULE ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
@@ -462,7 +463,7 @@ target_link_directories(buc_py PRIVATE
                         #${CMAKE_BINARY_DIR}/dependencies/fftw3
                         #${CMAKE_BINARY_DIR}/dependencies/gemmi)
 
-target_link_libraries(buc_py PRIVATE buccaneer_lib
+target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib
                       clipper::cif
                       clipper::contrib
                       clipper::minimol
@@ -484,7 +485,6 @@ if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
 #install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
-
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
 endif()
 #this is for convenience to delete fftw
