@@ -123,7 +123,7 @@ void declare_cell(py::module &m) {
       .def_property_readonly("beta_star", &Cell::beta_star, "Get beta*")
       .def_property_readonly("gamma_star", &Cell::gamma_star, "Get gamma*")
       .def_property_readonly("description", &Cell::descr,
-                             "Return cell dimentions.")
+                             "Return cell dimensions.")
       .def_property_readonly("volume", &Cell::volume, "Retuen cell volume.")
       .def_property_readonly("debug", &Cell::debug, "Output class details.")
       .def("equals", &Cell::equals, py::arg("cell"), py::arg("tol") = 1.0,
@@ -136,7 +136,7 @@ void declare_cell(py::module &m) {
                              "Return real space metric tensor.")
       .def_property_readonly("metric_reci", &Cell::metric_reci,
                              "Return reciprocal space metric tensor.")
-      .doc() = "Cel object.\n"
+      .doc() = "Cell object.\n"
                "The Cell class is the fully functional description of the unit "
                "cell. In addition to the cell parameters, it stores derived "
                "information including the cell volume, orthogonalising and "
