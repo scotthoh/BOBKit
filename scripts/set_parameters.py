@@ -780,6 +780,7 @@ class BuccaneerParams:
         self.verbose = args.verbose
         self.title = args.title
         self.ipseq_wrk = args.seqin
+        self.set_reference_data(args.pdbin_ref, args.mtzin_ref)
         self.set_ncpu(args.nthreads)
         self.set_ncyc(args.cycles)
         self.set_steps(

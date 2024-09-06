@@ -506,10 +506,10 @@ def main(args=None):
     buc_params = BuccaneerParams(parsed_args)
     # if "CLIB" not in os.environ:
     # setting EM reference data
-    buc_params.set_reference_data(
-        pdbref="/opt/xtal/ccp4-8.0/lib/data/reference_structures/reference-EMD-4116.pdb",  # noqa E501
-        mtzref="/opt/xtal/ccp4-8.0/lib/data/reference_structures/reference-EMD-4116.mtz",  # noqa E501
-    )
+    # buc_params.set_reference_data(
+    #    pdbref="/opt/xtal/ccp4-8.0/lib/data/reference_structures/reference-EMD-4116.pdb",  # noqa E501
+    #    mtzref="/opt/xtal/ccp4-8.0/lib/data/reference_structures/reference-EMD-4116.mtz",  # noqa E501
+    # )
     # setting X-ray reference data
     # buc_params.set_reference_data(
     #    pdbref="/opt/xtal/ccp4-8.0/lib/data/reference_structures/reference-1tqw.pdb",  # noqa E501

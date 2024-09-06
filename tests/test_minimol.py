@@ -1,13 +1,13 @@
 """
-unit testing
+pytest for minimol bindings
+Model,Chain,Residue,Atom,Atom_list
 """
-import os
-import sys
-import pathlib
 
+import pathlib
 import pytest
 import math
 import bobkit.clipper as clipper
+
 
 @pytest.fixture
 def cell_descr_instance():
@@ -23,7 +23,9 @@ def cell_instance(cell_descr_instance):
 def read_structure_instance(request, cell_instance):
     testdir = pathlib.Path(request.module.__file__).parent.parent / "test_data"
     mmol = clipper.MiniMol(clipper.Spacegroup.p1(), cell_instance)
-    flag = clipper.read_structure(str(testdir / "pdb5ni1_cryst1.pdb"), mmol, False)
+    flag = clipper.read_structure(
+        str(testdir / "pdb5ni1_cryst1.pdb"), mmol, False
+    )  # noqa 501
     return flag, mmol
 
 
@@ -50,15 +52,15 @@ def atom_instance(residue_instance):
 class TestReadStructure:
     def test_read_structure(self, read_structure_instance):
         flag, mmol = read_structure_instance
-
+        # no merge_chain_parts
         assert flag
-        assert len(mmol) == 4
+        assert len(mmol) == 12
 
 
 class TestMiniMol:
     def test___init__(self):
         mmol = clipper.MiniMol()
-        assert mmol.is_null
+        assert mmol.is_null()
 
     def test_empty_minimol(
         self,
@@ -80,24 +82,25 @@ class TestMiniMol:
             mmol.cell.gamma_deg, cell_descr_instance.gamma_deg, rel_tol=1e-6
         )
         assert mmol.is_empty()
-        assert not mmol.is_null
+        assert not mmol.is_null()
 
         exp = " ".join(repr(mmol).split())
         assert exp == "<clipper.MiniMol containing model with 0 chain(s)>"
 
     def test_minimol(self, read_structure_instance):
+        # no merge_chain_parts
         flag, mmol = read_structure_instance
         assert flag
         exp = " ".join(repr(mmol).split())
-        assert exp == "<clipper.MiniMol containing model with 4 chain(s)>"
-        assert len(mmol) == 4
+        assert exp == "<clipper.MiniMol containing model with 12 chain(s)>"
+        assert len(mmol) == 12
         assert str(mmol.spacegroup) == str(clipper.Spacegroup.p1())
-        mmol_clone = mmol.clone()
-        assert len(mmol_clone) == len(mmol)
-        assert mmol_clone.model()[0].id == mmol.model()[0].id
+        mmol_copy = mmol.copy()
+        assert len(mmol_copy) == len(mmol)
+        assert mmol_copy.model()[0].id == mmol.model()[0].id
         mmol2 = clipper.MiniMol()
         mmol2.model(mmol.model())
-        assert mmol2.model().size() == 4
+        assert mmol2.model().size() == 12
         assert mmol2.model()[3].id == "D"
         assert not mmol.is_empty()
 
@@ -110,8 +113,9 @@ class TestModel:
         assert exp == "<clipper.MModel containing 0 chain(s)>"
 
     def test_model(self, model_instance):
+        # no merge_chain_parts
         model1 = model_instance
-        assert model1.size() == 4
+        assert model1.size() == 12
         assert model1[0]
         assert model1["A"]
 
@@ -119,13 +123,13 @@ class TestModel:
         assert chn_A.id == "A"
 
         exp = " ".join(repr(model1).split())
-        assert exp == "<clipper.MModel containing 4 chain(s)>"
+        assert exp == "<clipper.MModel containing 12 chain(s)>"
 
-        clone_model = model1.clone()
-        assert clone_model.size() == 4
-        assert clone_model[0].id == "A"
-        clone_model[0] = clone_model[3]
-        assert clone_model[0].id == "D"
+        copy_model = model1.copy()
+        assert copy_model.size() == 12
+        assert copy_model[0].id == "A"
+        copy_model[0] = copy_model[3]
+        assert copy_model[0].id == "D"
 
 
 class TestChain:
@@ -136,26 +140,27 @@ class TestChain:
         assert exp == "<clipper.MChain containing 0 residue(s)>"
 
     def test_chain(self, chain_instance):
+        # no merge_chain_parts
         assert chain_instance.id == "A"
-        assert chain_instance.size() == 149
-        assert len(chain_instance) == 149
+        assert chain_instance.size() == 141
+        assert len(chain_instance) == 141
         exp = " ".join(repr(chain_instance).split())
-        assert exp == "<clipper.MChain A containing 149 residue(s)>"
+        assert exp == "<clipper.MChain A containing 141 residue(s)>"
         assert chain_instance[0].id == "1"
-        chn_clone = chain_instance.clone()
-        assert chn_clone.id == "A"
-        assert chn_clone["1"].type == "VAL"
-        chn_clone[0] = chn_clone[1]
-        assert chn_clone[0].id == chn_clone[1].id
-        assert chn_clone[0].type == chn_clone[1].type
-        res = chn_clone.find("6")
+        chn_copy = chain_instance.copy()
+        assert chn_copy.id == "A"
+        assert chn_copy["1"].type == "VAL"
+        chn_copy[0] = chn_copy[1]
+        assert chn_copy[0].id == chn_copy[1].id
+        assert chn_copy[0].type == chn_copy[1].type
+        res = chn_copy.find("6")
         assert res.id == "6"
         chn_tmp = clipper.MChain()
         assert chn_tmp.size() == 0
         chn_tmp.copy_from(chain_instance, clipper.COPY.COPY_MPC)
-        assert chn_tmp.size() == 149
+        assert chn_tmp.size() == 141
         assert chn_tmp[1].type == "LEU"
-        assert chn_tmp[1].seqnum == 2
+        assert chn_tmp[1].seqnum() == 2
 
 
 class TestResidue:
@@ -166,21 +171,19 @@ class TestResidue:
         assert exp == "<clipper.MResidue () containing 0 atom(s)>"
 
     def test_residue(self, residue_instance, chain_instance):
-        assert clipper.MResidue.id_match(
-            residue_instance.id, "1", clipper.MODE.UNIQUE
-        )
+        assert clipper.MResidue.id_match(residue_instance.id, "1", clipper.MODE.UNIQUE)
         assert residue_instance.type == "VAL"
-        assert residue_instance.seqnum == 1
+        assert residue_instance.seqnum() == 1
         assert residue_instance.size() == 7
         assert len(residue_instance) == 7
         exp = " ".join(repr(residue_instance).split())
         assert exp == "<clipper.MResidue 1(VAL) containing 7 atom(s)>"
         assert residue_instance[0].element == "N"
-        res_clone = residue_instance.clone()
-        res_clone[0] = residue_instance[-1]
-        assert res_clone[0].id == "CG2"
-        assert res_clone[0].element == "C"
-        atm_CG = res_clone.find("CG2")
+        res_copy = residue_instance.copy()
+        res_copy[0] = residue_instance[-1]
+        assert res_copy[0].id == "CG2"
+        assert res_copy[0].element == "C"
+        atm_CG = res_copy.find("CG2")
         assert atm_CG.name == "CG2"
         res_tmp = clipper.MResidue()
         assert res_tmp.size() == 0
@@ -221,7 +224,7 @@ class TestResidue:
         )
         assert math.isclose(psi, -1.266930, rel_tol=1e-6)
 
-        res_tmp2 = res_tmp.clone()
+        res_tmp2 = res_tmp.copy()
         res_tmp.build_sidechain_numbered_rotamer(0, t=clipper.TYPE.Dunbrack)
         res_tmp2.build_sidechain_numbered_rotamer(0)
 
@@ -257,7 +260,7 @@ class TestAtom:
         assert atom_instance.id == "N"
         assert atom_instance.name == "N"
         assert atom_instance.occupancy == 1.00
-        assert atom_instance.b_iso == 80.64
+        assert pytest.approx(atom_instance.b_iso, 0.001) == 80.64
         atom_instance.b_iso = 90.56
         assert atom_instance.b_iso == 90.56
         coord_pos1 = clipper.Coord_orth(45.716, 55.727, 67.167)
@@ -272,3 +275,49 @@ class TestAtom:
         assert clipper.MAtom.id_match(
             atm_tmp.id, atom_instance.id, mode=clipper.MODE.UNIQUE
         )
+
+
+class TestAtomList:
+    def test_atomlist(self, read_structure_instance):
+        # no merge_chain_parts
+        flag, mmol = read_structure_instance
+        model_atoms = mmol.atom_list()
+        assert model_atoms.size() == 4579
+        N1 = clipper.Coord_orth(45.716, 55.727, 67.167)
+        O4579 = clipper.Coord_orth(66.745, 51.174, 62.217)
+        O1069 = clipper.Coord_orth(66.279, 44.608, 70.35)
+        assert model_atoms[0].pos.x == N1.x
+        assert model_atoms[0].pos.y == N1.y
+        assert model_atoms[0].pos.z == N1.z
+        assert model_atoms[-1].pos.x == O4579.x
+        assert model_atoms[-1].pos.y == O4579.y
+        assert model_atoms[-1].pos.z == O4579.z
+        tmp_atm = model_atoms[-1]
+        model_atoms.pop_back()
+        assert model_atoms.size() == 4578
+        model_atoms.push_back(tmp_atm)
+        assert model_atoms.size() == 4579
+        assert model_atoms[-1].pos.x == O4579.x
+        assert model_atoms[-1].pos.y == O4579.y
+        assert model_atoms[-1].pos.z == O4579.z
+        chna_atoms = mmol[0].atom_list()
+        assert chna_atoms.size() == 1069
+        res_atoms = mmol[1][0].atom_list()
+        assert res_atoms.size() == 7
+        # chna_atoms.insert_list(res_atoms)
+        chna_atoms.add_list(res_atoms)
+        assert chna_atoms.size() == 1076
+        # chna_atoms.insert_atom(tmp_atm, 0)
+        chna_atoms.add_atom(tmp_atm, 0)
+        assert chna_atoms[0].pos.x == tmp_atm.pos.x
+        assert chna_atoms[0].pos.y == tmp_atm.pos.y
+        assert chna_atoms[0].pos.z == tmp_atm.pos.z
+        chna_atoms.delete_atom(0)
+        assert chna_atoms[0].pos.x == N1.x
+        assert chna_atoms[0].pos.y == N1.y
+        assert chna_atoms[0].pos.z == N1.z
+        chna_atoms.delete_atoms(slice(1069, 1076))
+        assert chna_atoms.size() == 1069
+        assert chna_atoms[-1].pos.x == O1069.x
+        assert chna_atoms[-1].pos.y == O1069.y
+        assert chna_atoms[-1].pos.z == O1069.z

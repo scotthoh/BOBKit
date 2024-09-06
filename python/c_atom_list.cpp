@@ -118,7 +118,7 @@ void init_atomlist(py::module &m) {
           [](Atom_list &self, py::slice slice) { delitem_slice(self, slice); },
           py::arg("slice"), "Delete atoms in range from slice object.")
       .def(
-          "add_atom",
+          "insert_atom",
           [](Atom_list &self, const Atom &atom, const int &pos) {
             add_item(self, atom, pos);
           },
@@ -131,7 +131,7 @@ void init_atomlist(py::module &m) {
           },
           py::keep_alive<0, 1>())
       .def(
-          "add_list",
+          "insert_list",
           [](Atom_list &self, const std::vector<Atom> &a, const int &pos) {
             if (pos == -1)
               self.insert(self.end(), a.begin(), a.end());
