@@ -78,20 +78,6 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-
-## check if fftw3, current project built gemmi, and clipper exist.
-#
-#find_library(FFTW3_LIBRARY NAMES fftw3f
-#             HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib
-#             NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-#if(${FFTW3_LIBRARY} MATCHES "fftw3f")
-#  find_path(FFTW3_INCLUDE_DIRS fftw3.h
-#            HINTS ${VENV_INSTALL_DIR}/lib ${LIB_INSTALL_DIR} ${CMAKE_INSTALL_PREFIX}/lib)
-#  message(STATUS "Found FFTW3 - ${FFTW3_LIBRARY}")
-#  message(STATUS "FFTW3 include dir - ${FFTW3_INCLUDE_DIRS}")
-#  set(SKIP_INSTALL_FFTW3 ON)
-#endif()
-
 # find python
 # We don't need to set policy CMP0069 for this file, because the minimum
 # version is 3.15 and for versions >= 3.9 it's automatically set to NEW.
@@ -135,12 +121,6 @@ set(WRK_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 message(STATUS "CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}")
 # install fftw3 first
 include(ExternalProject)
-#message(STATUS "Trying to install fftw3 ... ")
-#if (VENV_INSTALL_DIR)
-#  set(FFTW_INSTALL_PATH ${VENV_INSTALL_DIR})
-#else()
-#  set(FFTW_INSTALL_PATH "${CMAKE_CURRENT_BINARY_DIR}/fftw/install")
-#endif()
 if(BUILD_SHARED_LIBS)
   set(lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
   set(lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
@@ -206,13 +186,6 @@ set_target_properties(fftw3::fftw3 PROPERTIES
                       IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
                       #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif()
-#include_directories(${FFTW3_INCDIR})
-#link_directories(${FFTW3_LIBDIR})
-#if (EXISTS ${FFTW3_LIBDIR}/${lib_fftw_name})
-#message(STATUS "FFTW3 lib = ${FFTW3_LIBDIR}/${lib_fftw_name}")
-#else()
-#message(FATAL_ERROR "FFTW3 lib not found!")
-#endif()
 
 # install gemmi
 set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
@@ -248,10 +221,6 @@ set_target_properties(gemmi::gemmi_cpp PROPERTIES
                       IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name})
                       #INTERFACE_INCLUDE_DIRECTORIES ${GEMMI_INCDIR})
 add_dependencies(gemmi::gemmi_cpp project_gemmi)
-#set(GEMMI_INCDIR "${gemmi_src_path}/include")
-#set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
-#include_directories(${GEMMI_INCDIR})
-#link_directories(${GEMMI_LIBDIR})
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
@@ -274,12 +243,9 @@ ExternalProject_add(project_clipper
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
                     "${clipper_src_path}/CMakeLists.txt"
-                    #COMMAND ${CMAKE_COMMAND} -E copy "/home/swh514/Projects/clipper/git_tmp/clipper/gemmi/clipper_gemmi.h" "${clipper_src_path}/clipper/gemmi/clipper_gemmi.h"
-                    #COMMAND ${CMAKE_COMMAND} -E copy "/home/swh514/Projects/clipper/git_tmp/clipper/gemmi/clipper_gemmi.cpp" "${clipper_src_path}/clipper/gemmi/clipper_gemmi.cpp"
-
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${clipper_bin_path}
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${clipper_bin_path} --prefix=${VENV_INSTALL_DIR}
-                    INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
+                    INSTALL_DIR ${VENV_INSTALL_DIR}
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_clippercore}
                     <INSTALL_DIR>/lib/${lib_clippercif} <INSTALL_DIR>/lib/${lib_clipperminimol}
                     <INSTALL_DIR>/lib/${lib_clippercontrib} <INSTALL_DIR>/lib/${lib_clippergemmi}
@@ -322,59 +288,6 @@ set_target_properties(clipper::cif PROPERTIES
                       #'INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::cif project_clipper project_gemmi)
 
-#set(CLIPPER_INCDIR "${clipper_src_path}")
-#set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
-#include_directories(${CLIPPER_INCDIR})
-#find_library(FFTW3_DEP NAMES fftw3f
-#            HINTS ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib)
-#
-#message(STATUC "FFTW3 found = ${FFTW3_DEP}")
-
-#set(ccp4c_src_path "${CMAKE_SOURCE_DIR}/checkouts/libccp4")
-#
-#ExternalProject_Add(ccp4_ex
-#    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libccp4
-#    SOURCE_DIR ${ccp4c_src_path}
-#    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/libccp4/install
-#    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libccp4/bin
-#    BUILD_BYPRODUCTS ${CMAKE_SOURCE_DIR}/lib/libccp4.so
-#    #DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/_deps/mmdb2-src"
-#    UPDATE_COMMAND ""
-#    BUILD_IN_SOURCE false
-#    PATCH_COMMAND ${CMAKE_COMMAND} -E copy
-#      "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/libccp4/CMakeLists.txt" ${ccp4c_src_path}/CMakeLists.txt
-#    #CONFIGURE_COMMAND ""
-#    BUILD_COMMAND ${CMAKE_COMMAND} --build $<BINARY_DIR> #--prefix=${CMAKE_SOURCE_DIR}
-#    INSTALL_COMMAND ${CMAKE_COMMAND} --install $<BINARY_DIR> --prefix=${CMAKE_CURRENT_BINARY_DIR}/libccp4
-#)
-
-
-# set subdirectories for dependencies
-#add_subdirectory(${WRK_DIR}/dependencies/gemmi)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/core)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/gemmi)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/cns)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/cif)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/phs)
-#add_subdirectory(${WRK_DIR}/dependencies/clipper/contrib)
-#add_subdirectory(${WRK_DIR}/dependencies/fftw3)
-
-
-#include_directories(${CMAKE_CURRENT_SOURCE_DIR}
-#                    #${WRK_DIR}/checkouts/gemmi/include
-#                    ${WRK_DIR}/checkouts/clipper
-#                    
-#                    #${WRK_DIR}/checkouts/fftw3
-#                    )
-
-#link_directories(${WRK_DIR}/dependencies/clipper
-#                 #${WRK_DIR}/dependencies/fftw3
-#                 
-#                 ${WRK_DIR}/dependencies/include
-#                 #${WRK_DIR}/dependencies/gemmi
-#                 ${CMAKE_BINARY_DIR})
-
 file(GLOB BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.cpp")
 file(GLOB BUCCANEER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.h")
 # remove cbuccaneer.cpp and csequins.cpp, not compiling these
@@ -396,21 +309,11 @@ find_package(Threads REQUIRED)
 target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 
 target_link_directories(buccaneer_lib PUBLIC
-                      #${GEMMI_LIBDIR}
-                      #$<TARGET_FILE_DIR:gemmi_cpp>
-                      #/clipper
-                      #${VENV_INSTALL_DIR}/lib/clipper/cif
-                      #${VENV_INSTALL_DIR}/lib/clipper/core
-                      #${VENV_INSTALL_DIR}/lib/clipper/contrib
-                      #${VENV_INSTALL_DIR}/lib/clipper/minimol
-                      #${VENV_INSTALL_DIR}/lib/clipper/gemmi
                       ${VENV_INSTALL_DIR}/lib
                       ${clipper_bin_path}
                       ${gemmi_bin_path}
                       ${FFTW3_LIBDIR})
-                      #${CMAKE_BINARY_DIR}/dependencies/fftw3
-                      #${CMAKE_BINARY_DIR}/dependencies/gemmi)
-
+                      
 target_link_libraries(buccaneer_lib PUBLIC
                       clipper::cif
                       clipper::minimol
@@ -425,7 +328,7 @@ endif()
 install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
 #message(STATUS "buccaneer_lib = $<TARGET_FILE:buccaner_lib>")
 file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
-list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_ccp4_mtzio.cpp")
+#list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_ccp4_mtzio.cpp")
 # pybind11 module
 if(USE_PYTHON)
 pybind11_add_module(buc_py MODULE ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
@@ -433,36 +336,16 @@ add_dependencies(buc_py project_gemmi project_clipper)
 target_include_directories(buc_py PUBLIC
                            ${CLIPPER_INCDIR}
                            ${GEMMI_INCDIR}
-                           #${WRK_DIR}/checkouts/gemmi
-                           #${WRK_DIR}/checkouts/clipper
-                           #${WRK_DIR}/checkouts/clipper/clipper/cif
-                           #${WRK_DIR}/checkouts/clipper/clipper/minimol
-                           #${WRK_DIR}/checkouts/clipper/clipper/gemmi
-                           #${WRK_DIR}/checkouts/clipper/clipper/contrib
-                           #${WRK_DIR}/checkouts/clipper/clipper/core
                            ${FFTW3_INCDIR}
                            ${CMAKE_SOURCE_DIR}/include
-                           #${WRK_DIR}/checkouts/fftw3
                            )
                   
 target_link_directories(buc_py PRIVATE
-                        #$<TARGET_FILE_DIR:gemmi_cpp>
-                        #${GEMMI_LIBDIR}
-                        #${CMAKE_BINARY_DIR}/dependencies/clipper/cif
-                        #${CMAKE_BINARY_DIR}/dependencies/clipper/minimol
-                        #${CMAKE_BINARY_DIR}/dependencies/clipper/gemmi
-                        #${CMAKE_BINARY_DIR}/dependencies/clipper/contrib
-                        #${CMAKE_BINARY_DIR}/dependencies/clipper/core
                         ${VENV_INSTALL_DIR}/lib
                         ${FFTW3_LIBDIR}
-                        #$<TARGET_FILE_DIR:fftw3>
                         ${clipper_bin_path}
                         ${gemmi_bin_path})
-                        #$<TARGET_FILE_DIR:gemmi_cpp>)
-                        #${FFTW3_LIBDIR})
-                        #${CMAKE_BINARY_DIR}/dependencies/fftw3
-                        #${CMAKE_BINARY_DIR}/dependencies/gemmi)
-
+                        
 target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib
                       clipper::cif
                       clipper::contrib
@@ -470,21 +353,16 @@ target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib
                       clipper::gemmi
                       clipper::core
                       fftw3::fftw3
-                      #${FFTW3_LIBDIR}
                       gemmi::gemmi_cpp)
 if (Threads_FOUND)
   target_link_libraries(buc_py PRIVATE Threads::Threads)
 endif()
-#install
-#dinstall(TARGETS buc_py LIBRARY DESTINATION bobkit)
 # install
 set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
-#set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
-#install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
 endif()
 #this is for convenience to delete fftw
@@ -492,50 +370,3 @@ endif()
 #install(CODE "string(REPLACE \";\" \"\\n\" MY_CMAKE_INSTALL_MANIFEST_CONTENT \"\$\{CMAKE_INSTALL_MANIFEST_FILES\}\")\n\
 #            file(WRITE ${CMAKE_BINARY_DIR}/FFTW3_INSTALL_MANIFEST.txt \"\$\{MY_CMAKE_INSTALL_MANIFEST_CONTENT\}\\n${INSTALL_SHAREDIR}/FFTW3_INSTALL_MANIFEST.txt\")")
 #install(FILES "${CMAKE_BINARY_DIR}/FFTW3_INSTALL_MANIFEST.txt" DESTINATION ${INSTALL_SHAREDIR})
-
-#target_include_directories(buc_py PRIVATE "dependencies/include")
-#target_include_directories(buc_py PRIVATE "include")
-##find_library(MMDB2DEP NAMES mmdb2)
-##find_library(CCP4DEP NAMES ccp4c)
-#find_library(CLIPPERCOREDEP NAMES clipper-core
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-#find_library(CLIPPERMMDBDEP NAMES clipper-mmdb
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-#find_library(CLIPPERMINIMOLDEP NAMES clipper-minimol
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-#find_library(CLIPPERCONTRIBDEP NAMES clipper-contrib
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-#find_library(CLIPPERCCP4DEP NAMES clipper-ccp4
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-##message(STATUS "MMDB2  ${MMDB2DEP}")
-#find_library(CLIPPERGEMMI NAMES clipper-gemmi
-#            HINTS ${CMAKE_SOURCE_DIR}/dependencies/lib ${CLIBENV})
-#
-##message(STATUS "CCP4C ${CCP4CDEP}")
-#message(STATUS "CLIPPERCORE ${CLIPPERCOREDEP}")
-##message(STATUS "CLIPPERMMDB ${CLIPPERMMDBDEP}")
-#message(STATUS "CLIPPERMINI ${CLIPPERMINIMOLDEP}")
-#message(STATUS "CLIPPERCONT ${CLIPPERCONTRIBDEP}")
-#message(STATUS "CLIPPERGEMMI ${CLIPPERGEMMI}")
-##message(STATUS "CLIPPERCCP4 ${CLIPPERCCP4DEP}")
-#
-#find_package(Threads REQUIRED)
-#
-#target_link_libraries(buc_py PRIVATE #${MMDB2DEP}
-#                                     #${CCP4DEP}
-#                                     ${CLIPPERCOREDEP}
-#                                     #${CLIPPERMMDBDEP}
-#                                     ${CLIPPERMINIMOLDEP}
-#                                     ${CLIPPERCONTRIBDEP}
-#                                     ${CLIPPERGEMMI}
-#                                     #${CLIPPERCCP4DEP}
-#                                     Threads::Threads)
-#set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
-## install
-#if (DEFINED PYTHON_INSTALL_DIR)
-#  message(STATUS "Install directory for Python module: ${PYTHON_INSTALL_DIR}")
-#  set(Python_SITEARCH "${PYTHON_INSTALL_DIR}")
-#endif()
-#file(TO_CMAKE_PATH "${Python_SITEARCH}" Python_SITEARCH)
-##install(TARGETS buccaneer_cpp LIBRARY DESTINATION "${Python_SITEARCH}")
-#install(TARGETS buc_py DESTINATION "${Python_SITEARCH}")
