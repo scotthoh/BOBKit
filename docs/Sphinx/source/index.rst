@@ -99,3 +99,9 @@ Contents
    Building NCS <ncsbuild>
    prune
    Rebuilding <rebuild>
+
+.. toctree::
+   :caption: API Reference
+   :maxdepth: 5
+
+   py_api_reference

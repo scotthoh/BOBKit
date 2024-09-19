@@ -10,13 +10,15 @@ assumed to be correct. These C-alpha positions will be used as seed points from 
 chains will be grown. In subsequent cycles, the finding step is modified to preferentially
 find C-alpha positions which are in regions where no model is present.
 
-Classes which can be used for the finding routine:
+Classes which are used in the finding routine:
 
-* ``Ca_find`` for finding C-alphas in density
-* ``Search_threaded`` for searching C-alpha groups
-* ``SearchResult`` to store result scores.
-* ``SSfind`` alternative to fffear for fast secondary structure finding
-* ``Target_fn_refine_llk_map_target`` to refine C-alpha groups
+* :ref:`Ca_find <cafind>` for finding C-alphas in density
+* :ref:`Search_threaded <searchthreaded>` for searching C-alpha groups
+* :ref:`SearchResult <searchresult>` to store result scores.
+* :ref:`SSfind <ssfind>` alternative to fffear for fast secondary structure finding
+* :ref:`Target_fn_refine_llk_map_target <tgt_ref>` to refine C-alpha groups
+
+.. _cafind:
 
 Ca_find class
 -------------
@@ -24,24 +26,26 @@ Ca_find class
 
    bobkit.buccaneer.Ca_find
 
-The constructor takes in two arguments. An int for number of seeds to find and a float for resolution limit.
+The :py:meth:`constructor <bobkit.buccaneer.Ca_find.__init__>` takes in two arguments.
+An int for number of seeds to find and a float for resolution limit.
 
-``Ca_find.set_cpus()`` can be used to set the number of cpu threads to use in running the calculations.
+:py:meth:`Ca_find.set_cpus() <bobkit.buccaneer.Ca_find.set_cpus>` can be used to set the 
+number of cpu threads to use in running the calculations.
 
-There are two methods used in the finding routine.
-The fastest method typically gives 2-3x speedup over the best method for a very similar model, but results might vary.
+There are two methods used in the finding routine. The fastest method typically gives 2-3x
+speedup over the best method for a very similar model, but results might vary.
 
-* ``Ca_find.TYPE.SECSTRUC`` for fastest method
-* ``Ca_find.TYPE.LIKELIHOOD`` for best method
+* :py:attr:`Ca_find.TYPE.SECSTRUC <bobkit.buccaneer.Ca_find.TYPE.SECSTRUC>` for fastest method
+* :py:attr:`Ca_find.TYPE.LIKELIHOOD <bobkit.buccaneer.Ca_find.TYPE.LIKELIHOOD>` for best method
 
-Either of the types can be passed as argument when calling the Ca_find instance.
-The following arguments are required to run the finding routine:-
+Either of the types can be passed as argument when :py:meth:`calling the Ca_find <bobkit.Ca_find.__call__>` 
+instance. The following arguments are required to run the finding routine:-
 
 * a **clipper.MiniMol** object containing the working model or can be empty (during the first find), constructed from the spacegroup and unit cell of the input data
 * a **buccaneer.KnownStructure** object containing information of known structure (can be empty if no known structure)
 * a working map of type **clipper.XMap_float**
 * a likelihood map target of type **buccaneer.LLK_map_target**
-* fastest or best finding method ``Ca_find.TYPE.SECSTRUC`` or ``Ca_find.TYPE.LIKELIHOOD``
+* fastest or best finding method **Ca_find.TYPE.SECSTRUC** or **Ca_find.TYPE.LIKELIHOOD**
 * modelindex: 0 to use all results, otherwise downweight 50% of results on the basis of position in ASU when filtering prior model (input work model)
 
 The C-alpha finding stage starts by making a prior map from the given model and working map.
@@ -57,12 +61,15 @@ The working model passed in to the finding method will be updated with C-alpha g
    >>> cafind = Ca_find(500, 2.0)
    >>> cafind(mol_wrk, knownstruc, xwrk, llktgt, findtype, modelindex)
 
+.. _searchthreaded:
+
 Search_threaded class
 ---------------------
 .. autosummary::
 
    bobkit.buccaneer.Search_threaded
 
+.. _searchresult:
 
 SearchResult class
 ------------------
@@ -70,11 +77,15 @@ SearchResult class
 
    bobkit.buccaneer.SearchResult
 
+.. _ssfind:
+
 SSfind class
 ------------
 .. autosummary::
 
    bobkit.buccaneer.SSfind
+
+.. _tgt_ref:
 
 Target_fn_refine_llk_map_target class
 -------------------------------------

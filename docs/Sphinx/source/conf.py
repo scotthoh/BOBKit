@@ -8,6 +8,7 @@
 import sys
 import os
 import re
+import subprocess
 
 pybuc_path = os.path.abspath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../python")
@@ -40,6 +41,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.doctest",
+    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.viewcode",
 ]
 
 templates_path = ["_templates"]
@@ -54,8 +57,8 @@ html_static_path = ["_static"]
 
 # -- Breathe configuration ---------------------------------------------------
 #
-
-breathe_projects = {"buccaneer": "./../../Doxygen/generated_docs/xml"}
+subprocess.call("cd ../../Doxygen ; doxygen Doxyfile-bobkit.cfg", shell=True)
+breathe_projects = {"buccaneer": "../../Doxygen/generated_docs/xml"}
 breathe_default_project = "BOBKit"
 
 primary_domain = "cpp"

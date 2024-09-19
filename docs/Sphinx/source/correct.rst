@@ -13,9 +13,10 @@ Ca_correct class
 
    bobkit.buccaneer.Ca_correct
 
-The constructor takes in an argument for torsion sampling (default: 12).
-An instance of the class can be called by passing it the working model, working map,
-likelihood map targets for the amino acids and the known sequence.
+The :py:meth:`constructor <bobkit.buccaneer.Ca_correct.__init__>` takes in an argument
+for torsion sampling (default: 12). An instance of the class can be 
+:py:meth:`called <bobkit.buccaneer.Ca_correct.__call__>` by passing it the working model, 
+working map, likelihood map targets for the amino acids and the known sequence.
 
 .. doctest::
 

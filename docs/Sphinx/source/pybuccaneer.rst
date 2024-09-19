@@ -3,7 +3,7 @@
 Running Buccaneer in Python
 ===========================
 
-A python implementation of Buccaneer (buccaneer.py) can be found inside the **scripts** folder in the repository.
+A python implementation of Buccaneer ``buccaneer.py`` can be found inside the **scripts** folder in the repository.
 
 Built model requires further refinement as Buccaneer_ itself does not perform refinement of the model.
 

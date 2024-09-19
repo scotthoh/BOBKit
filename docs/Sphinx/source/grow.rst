@@ -9,12 +9,14 @@ to the constraints of the Ramachandran plot. The log-likelihood function used fo
 by growth is the same used in the initial finding stage. However, it is now evaluated in real space for each
 candidate position and orientation instead of using the fast-fourier transform (FFT) approach.
 
-Classes which can be used for the growing routine:
+Classes which are used in the growing routine:
 
-* ``Ca_grow`` for growing C-alphas using density
-* ``Grow_threaded`` for growing C-alpha groups
-* ``Target_fn_refine_n_terminal_build`` for refining grown C-alpha groups
-* ``Target_fn_refine_c_terminal_build`` for refining grown C-alpha groups
+* :ref:`Ca_grow <cagrow>` for growing C-alphas using density
+* :ref:`Grow_threaded <growthread>` for growing C-alpha groups
+* :ref:`Target_fn_refine_n_terminal_build <tgtref_nterm>` for refining grown C-alpha groups
+* :ref:`Target_fn_refine_c_terminal_build <tgtref_cterm>` for refining grown C-alpha groups
+
+.. _cagrow:
 
 Ca_grow class
 -------------
@@ -23,11 +25,12 @@ Ca_grow class
 
    bobkit.buccaneer.Ca_grow
 
-The constructor takes a maximum number of residues to add in either direction.
-The instance can then be called by giving it a MiniMol instance, a map and a target.
-It will first find starting chains to expand. A cutoff threshold for
-the log-likelihood function is determined through map statistics. It is required to 
-determine when to stop growing the chain in either direction. . 
+The :py:meth:`constructor <bobkit.buccaneer.Ca_grow.__init__>` takes a maximum number 
+of residues to add in either direction. The instance can then be :py:meth:`called <bobkit.buccaneer.Ca_grow.__call__>`
+by giving it a :py:obj:`MiniMol <bobkit.clipper.MiniMol>` instance, a map and a target. 
+It will first find starting chains to expand.
+A cutoff threshold for the log-likelihood function is determined through map statistics. 
+It is required to determine when to stop growing the chain in either direction. . 
 
 Several optimisations are used to improve the performance. The log-likelihood function
 is approximated by only using the grid points in the calculation.
@@ -36,8 +39,8 @@ and the best 30 combined scores are then rescored using all hte points in the
 log-likehood function. The simplex algorithm search is used to refine the
 Ramachandran angles for the best solution.
 
-``Ca_grow.set_cpus()`` can be used to set the number of cpu threads to use in
-running the calculations.
+:py:meth:`Ca_grow.set_cpus() <bobkit.buccaneer.Ca_grow.set_cpus>` can be used to set 
+the number of cpu threads to use in running the calculations.
 
 .. doctest::
 
@@ -49,6 +52,7 @@ running the calculations.
   >>> # llktgt - likelihood map target
   >>> cagrow(mol_wrk, xwrk, llktgt)
 
+.. _growthread:
 
 Grow_threaded class
 -------------------
@@ -56,11 +60,15 @@ Grow_threaded class
 
    bobkit.buccaneer.Grow_threaded
   
+.. _tgtref_nterm:
+
 Target_fn_refine_n_terminal_build class
 ---------------------------------------
 .. autosummary::
 
    bobkit.buccaneer.Target_fn_refine_n_terminal_build
+
+.. _tgtref_cterm:
 
 Target_fn_refine_c_terminal_build class
 ---------------------------------------

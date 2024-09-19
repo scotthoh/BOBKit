@@ -13,8 +13,10 @@ Ca_filter class
 
    bobkit.buccaneer.Ca_filter
   
-The constructor takes in an argument for the sigma cutoff (default: 3.0 Å, Buccaneer use 1.0 Å).
-An instance of the class can be called by passing it the working model and a working map.
+The :py:meth:`constructor <bobkit.buccaneer.Ca_filter.__init__>` takes in an argument 
+for the sigma cutoff (default: 3.0 Å, Buccaneer use 1.0 Å). An instance of the class 
+can be :py:meth:`called <bobkit.buccaneer.Ca_filter.__call__>` by passing it the working 
+model and a working map.
 
 .. doctest::
 
@@ -22,24 +24,17 @@ An instance of the class can be called by passing it the working model and a wor
   >>> cafltr = Ca_filter(1.0)
   >>> cafltr(mol_wrk, xwrk)
 
-There are also two static methods ``filter`` which can be used to run the filtering routine.
-One takes in the following arguments:
-
-* ``mol`` - working model
-* ``xmap`` - working map
-* ``sigcut`` - sigma cutoff to keep residues
-* ``keep`` - boolean argument to keep or delete residues in poor density
+There is also a static method :py:meth:`filter <bobkit.buccaneer.Ca_filter.filter>` 
+which can be used to run the filtering routine, with or without a working map.
+If the method is called without giving it a working map, the residues are scored
+based on their U-values. Residues with good B factors will be kept.
 
 .. doctest::
 
+  >>> # with working map, xwrk
   >>> # keep=True will keep the residues in poor density
   >>> Ca_filter.filter(mol_wrk, xwrk, 1.0, keep=False)
-
-or the other without the working map, in which the residues are scored based on their U-values.
-Residues with good B factors will be kept. The arguments are:
-
-* ``mol`` - working model
-* ``sigcut`` - sigma cutoff to keep residues
-
+  >>>
+  >>> # without working map
   >>> Ca_filter.filter(mol_wrk, 1.0)
 
