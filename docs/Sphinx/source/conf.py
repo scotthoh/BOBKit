@@ -56,8 +56,13 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 # -- Breathe configuration ---------------------------------------------------
-#
-subprocess.call("cd ../../Doxygen ; doxygen Doxyfile-bobkit.cfg", shell=True)
+# -- Generating Doxygen xml files --------------------------------------------
+read_the_docs_build = os.environ.get("READTHEDOCS", "") == "True"
+if read_the_docs_build:
+    subprocess.call(
+        "cd ../../Doxygen ; doxygen Doxyfile-bobkit.cfg", shell=True
+    )  # noqa501
+
 breathe_projects = {"buccaneer": "../../Doxygen/generated_docs/xml"}
 breathe_default_project = "BOBKit"
 
