@@ -17,9 +17,65 @@ void declare_buccaneer_util(py::module &m) {
                   py::arg("mtz"), py::arg("pdb"),
                   "Set reference MTZ and PDB, only work when CCP4's CLIBD "
                   "environment path is set.")
-      .def_static("read_model", &BuccaneerUtil::read_model, py::arg("mol"),
-                  py::arg("file"), py::arg("verbose") = true,
-                  "Read model and export to minimol.");
+      //.def_static("read_model", &BuccaneerUtil::read_model, py::arg("mol"),
+      //            py::arg("file"), py::arg("verbose") = true,
+      //            "Read model and export to minimol.")
+      .def_static(
+          "read_structure",
+          [](const std::string &fpath, bool enable_messages) {
+            if (fpath == "undefined") {
+              throw std::invalid_argument(
+                  "No path/filename provided for input model! Aborting...");
+            }
+
+            clipper::MiniMol mmol;
+            BuccaneerUtil::read_model(mmol, fpath, enable_messages);
+            // MiniMol *pymmol = new MiniMol(mmol);
+            return mmol;
+          },
+          // need to see how to read in spacegroup/cell
+          // maybe should update clipper to exchange with gemmi
+          // return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
+          // },
+          py::arg("filepath") = "undefined",
+          py::arg("enable_user_messages") = true,
+          "Reads a coordinate file into MiniMol")
+      .def_static(
+          "read_structure",
+          [](MiniMol &mmol, const std::string &fpath, bool enable_messages) {
+            if (fpath == "undefined") {
+              throw std::invalid_argument(
+                  "No path/filename provided for input model! Aborting...");
+            }
+            BuccaneerUtil::read_model(mmol, fpath, enable_messages);
+            return (mmol.model().size() > 0);
+            // MiniMol *pymmol = new MiniMol(mmol);
+          },
+          // return mmol; },
+          //  need to see how to read in spacegroup/cell
+          //  maybe should update clipper to exchange with gemmi
+          //  return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
+          //  },
+          py::arg("minimol"), py::arg("filepath") = "undefineed",
+          py::arg("enable_user_messages") = true,
+          "Reads a coordinate file into MiniMol")
+      .def_static(
+          "write_structure",
+          [](MiniMol &mmol, const std::string &fpath, bool cif_format) {
+            clipper::GEMMIfile gfile;
+            gfile.export_minimol(mmol);
+            if (fpath == "undefined") {
+              throw std::invalid_argument(
+                  "No output path/filename provided! Aborting...");
+            }
+            std::string filename = fpath.substr(0, fpath.rfind(".") + 1);
+            if (cif_format)
+              gfile.write_file(filename + "cif", clipper::GEMMIfile::CIF);
+            else
+              gfile.write_file(filename + "pdb");
+          },
+          py::arg("minimol"), py::arg("filepath") == "undefined",
+          py::arg("cif_format") = true);
 }
 
 void declare_buccaneer_log(py::module &m) {

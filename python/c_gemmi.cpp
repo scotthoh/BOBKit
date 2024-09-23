@@ -76,7 +76,7 @@ void declare_gemmifile(py::module &m) {
            "Export MiniMol to Gemmi Structure.")
       .def_property("gemmi_structure", &GEMMIfile::get_gemmi_structure,
                     &GEMMIfile::set_gemmi_structure,
-                    "Set structure if not read from file.")
+                    "Get/set structure if not read from file.")
       .def("set_mmcif_output_groups", &GEMMIfile::set_mmcif_output_groups,
            "Set mmcif output groups.")
       .def("set_pdb_write_options", &GEMMIfile::set_pdb_write_options,

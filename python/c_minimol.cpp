@@ -4,7 +4,7 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "buccaneer/buccaneer-util.h"
+// ##include "buccaneer/buccaneer-util.h"
 #include "helper_functions.h"
 #include "type_conversions.h"
 #include <clipper/clipper-minimol.h>
@@ -477,56 +477,6 @@ void init_minimol(py::module &m) {
   // py::keep_alive<0, 1>());
   //.def("model", (std::vector<MChain>(MModel::*)()) & MiniMol::model,
   // py::keep_alive<0, 1>());
-
-  m.def(
-      "read_structure",
-      [](const std::string &fpath, bool enable_messages) {
-        if (fpath == "undefined") {
-          throw std::invalid_argument(
-              "No path/filename provided for input model! Aborting...");
-        }
-        MiniMol mmol;
-        BuccaneerUtil::read_model(mmol, fpath, enable_messages);
-        // MiniMol *pymmol = new MiniMol(mmol);
-        return mmol;
-      },
-      // need to see how to read in spacegroup/cell
-      // maybe should update clipper to exchange with gemmi
-      // return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
-      // },
-      py::arg("filepath"), py::arg("enable_user_messages") = true,
-      "Reads a coordinate file into MiniMol");
-  m.def(
-      "read_structure",
-      [](const std::string &fpath, MiniMol &mmol, bool enable_messages) {
-        if (fpath == "undefined") {
-          throw std::invalid_argument(
-              "No path/filename provided for input model! Aborting...");
-        }
-        BuccaneerUtil::read_model(mmol, fpath, enable_messages);
-        return (mmol.model().size() > 0);
-        // MiniMol *pymmol = new MiniMol(mmol);
-      },
-      // return mmol; },
-      //  need to see how to read in spacegroup/cell
-      //  maybe should update clipper to exchange with gemmi
-      //  return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
-      //  },
-      py::arg("filepath"), py::arg("minimol"),
-      py::arg("enable_user_messages") = true,
-      "Reads a coordinate file into MiniMol");
-  m.def(
-      "write_structure",
-      [](const std::string &fpath, MiniMol &mmol, bool cif_format) {
-        clipper::GEMMIfile gfile;
-        gfile.export_minimol(mmol);
-        std::string filename = fpath.substr(0, fpath.rfind(".") + 1);
-        if (cif_format)
-          gfile.write_file(filename + "cif", clipper::GEMMIfile::CIF);
-        else
-          gfile.write_file(filename + "pdb");
-      },
-      py::arg("filepath"), py::arg("minimol"), py::arg("cif_format") = true);
 
   //  py::class_<bk::PyCMiniMol>(m, "PyCMiniMol")
   //      .def(py::init<std::string &, bool>(),
