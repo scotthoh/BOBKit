@@ -1,9 +1,9 @@
 name: Test
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - add_ci_for_ubuntu24
 
 jobs:
   ubuntu2404:
