@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20...3.22)
+cmake_minimum_required(VERSION 3.20)
 
 # check if called from python skbuild
 if (NOT DEFINED SKBUILD)
@@ -59,9 +59,9 @@ if(DEFINED ENV{VIRTUAL_ENV})
 else()
   set(VENV_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
 endif()
-find_package(PkgConfig REQUIRED)
 set(SKIP_INSTALL_FFTW3 OFF)
 if(NOT BUILD_OWN_FFTW3)
+find_package(PkgConfig REQUIRED)
 pkg_search_module(FFTW 3.3.4...<3.3.10 REQUIRED fftw3f IMPORTED_TARGET)
 if(FFTW_FOUND)
   message(STATUS "Found FFTW3 - ${FFTW_LINK_LIBRARIES}")
@@ -83,8 +83,12 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # version is 3.15 and for versions >= 3.9 it's automatically set to NEW.
 # But a FindPython script in cmake 3.15 have "cmake_policy(VERSION 3.7)"
 # so we need to set CMP0069 because of that.
-cmake_policy(SET CMP0069 NEW)
-cmake_policy(SET CMP0135 NEW)
+if(POLICY CMP0069)
+  cmake_policy(SET CMP0069 NEW)
+endif()
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
 if(USE_PYTHON)
 find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
 if (EXISTS "${CMAKE_HOME_DIRECTORY}/pybind11")
