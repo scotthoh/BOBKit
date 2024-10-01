@@ -304,11 +304,12 @@ class TestAtomList:
         assert chna_atoms.size() == 1069
         res_atoms = mmol[1][0].atom_list()
         assert res_atoms.size() == 7
-        # chna_atoms.insert_list(res_atoms)
-        chna_atoms.add_list(res_atoms)
+        chna_atoms.insert_list(res_atoms)
+        # chna_atoms.add_list(res_atoms)
+        # chna_atoms.insert_list(res_atoms, -1)
         assert chna_atoms.size() == 1076
-        # chna_atoms.insert_atom(tmp_atm, 0)
-        chna_atoms.add_atom(tmp_atm, 0)
+        chna_atoms.insert_atom(tmp_atm, 0)
+        # chna_atoms.add_atom(tmp_atm, 0)
         assert chna_atoms[0].pos.x == tmp_atm.pos.x
         assert chna_atoms[0].pos.y == tmp_atm.pos.y
         assert chna_atoms[0].pos.z == tmp_atm.pos.z
