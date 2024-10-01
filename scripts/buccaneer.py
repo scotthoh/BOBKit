@@ -3,6 +3,7 @@ Python script to run pybind11 version of Buccaneer
 Author: S.W.Hoh, University of York, 2024
 """
 
+# import faulthandler
 import bobkit.clipper as clipper
 import bobkit.buccaneer as buccaneer
 import numpy as np
@@ -11,6 +12,7 @@ import gemmi
 from logger import set_logger
 from set_parameters import BuccaneerParams, BucArgParse
 import datetime
+# faulthandler.enable()
 
 
 class Buccaneer:
@@ -356,7 +358,9 @@ class Buccaneer:
             if args.seqnc:
                 caseq = buccaneer.Ca_sequence(args.seq_rel)
                 caseq(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
-                self._print_steps_Casummaries("sequenced", caseq.num_sequenced())
+                self._print_steps_Casummaries(
+                    "sequenced", caseq.num_sequenced()
+                )  # noqa E501
                 history = caseq.format()
                 sys.stdout.flush()
                 self.log.log("SEQU", mol_wrk, args.verbose > 9)
