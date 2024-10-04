@@ -6,6 +6,7 @@
 
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
+#include <clipper/core/clipper_types.h>
 #include <gemmi/math.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>

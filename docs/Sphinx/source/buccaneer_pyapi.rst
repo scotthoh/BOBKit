@@ -1,4 +1,4 @@
-BOBKit.buccaneer
+bobkit.buccaneer
 ================
 
 .. automodule:: bobkit.buccaneer

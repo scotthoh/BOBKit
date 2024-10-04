@@ -3,13 +3,16 @@
 Rebuilding side chains/atoms
 ============================
 
+.. automodule:: bobkit.buccaneer
+  :member:
+
 At this stage, side chain atoms and carbony oxygens are rebuilt.
 
 Ca_build class
 --------------
-.. autosummary::
-
-   bobkit.buccaneer.Ca_build
+//.. autosummary::
+//
+//   bobkit.buccaneer.Ca_build
 
 The constructor takes in two arguments:
 

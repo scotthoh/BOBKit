@@ -39,7 +39,7 @@ void declare_buccaneer_util(py::module &m) {
           // },
           py::arg("filepath") = "undefined",
           py::arg("enable_user_messages") = true,
-          "Reads a coordinate file into MiniMol")
+          "Reads a coordinate file and return a structure in MiniMol.")
       .def_static(
           "read_structure",
           [](MiniMol &mmol, const std::string &fpath, bool enable_messages) {
@@ -58,7 +58,7 @@ void declare_buccaneer_util(py::module &m) {
           //  },
           py::arg("minimol"), py::arg("filepath") = "undefineed",
           py::arg("enable_user_messages") = true,
-          "Reads a coordinate file into MiniMol")
+          "Reads a coordinate file and store structure into MiniMol")
       .def_static(
           "write_structure",
           [](MiniMol &mmol, const std::string &fpath, bool cif_format) {
@@ -74,7 +74,7 @@ void declare_buccaneer_util(py::module &m) {
             else
               gfile.write_file(filename + "pdb");
           },
-          py::arg("minimol"), py::arg("filepath") == "undefined",
+          py::arg("minimol"), py::arg("filepath") = "undefined",
           py::arg("cif_format") = true);
 }
 

@@ -42,21 +42,23 @@ void init_ca_join(py::module &m) {
   using NodeClass = Ca_join::Node;
   py::class_<NodeClass>(pyCaJoin, "Node")
       .def(py::init<>())
-      .def(py::init([](const float &score, const py::array_t<int> &pointers) {
-        NodeClass *nptr = new Ca_join::Node();
-        auto buf = pointers.request();
-        if (buf.ndim != 1)
-          throw std::runtime_error("Pointers must be a 1D array!");
-        int *iptr = (int *)buf.ptr;
-        int n = buf.shape[0];
-        for (int i = 0; i < n; ++i) {
-          nptr->ptrs.push_back(*iptr);
-          iptr += 1;
-        }
-
-        nptr->score = score;
-        return std::unique_ptr<NodeClass>(nptr);
-      }))
+      //.def(py::init([](const float &score, const py::array_t<int> &pointers) {
+      //       NodeClass *nptr = new Ca_join::Node();
+      //       auto buf = pointers.request();
+      //       if (buf.ndim != 1)
+      //         throw std::runtime_error("Pointers must be a 1D array!");
+      //       int *iptr = (int *)buf.ptr;
+      //       int n = buf.shape[0];
+      //       for (int i = 0; i < n; ++i) {
+      //         nptr->ptrs.push_back(*iptr);
+      //         iptr += 1;
+      //       }
+      //
+      //       nptr->score = score;
+      //       return std::unique_ptr<NodeClass>(nptr);
+      //     }),
+      //     py::arg("score"), py::arg("pointers"),
+      //     "Constructor from score and array of pointers.")
       .def_readwrite("score", &NodeClass::score)
       //.def_readwrite("ptrs", &NodeClass::ptrs);
       .def(
@@ -81,13 +83,17 @@ void init_ca_join(py::module &m) {
               iptr += 1;
             }
           },
-          "Set the Node.ptrs from an array, Overrides existing data.")
-      .def("__repr__", [](const NodeClass &self) {
-        std::stringstream stream;
-        stream << "<buccaneer.Ca_join.Node: score = ";
-        stream << clipper::String(self.score, 10, 4) << " >";
-        return stream.str();
-      });
+          py::arg("array"),
+          "Set the Node.ptrs from an array, Overrides "
+          "existing data.")
+      .def("__repr__",
+           [](const NodeClass &self) {
+             std::stringstream stream;
+             stream << "<buccaneer.Ca_join.Node: score = ";
+             stream << clipper::String(self.score, 10, 4) << " >";
+             return stream.str();
+           })
+      .doc() = "Node class to store pointers and scores.";
 
   // py::bind_vector<std::vector<int>>(m, "VectorInt");
 

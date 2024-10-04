@@ -78,7 +78,7 @@ PYBIND11_MODULE(bobkit, mbk) {
         PyErr_SetString(PyExc_RuntimeError, e.text().c_str());
       } });
 
-  mbk.def("long running_func", []() {
+  mbk.def("long_running_func", []() {
     for (;;) {
       if (PyErr_CheckSignals() != 0)
         throw py::error_already_set();

@@ -1,4 +1,4 @@
-BOBKit.clipper
+bobkit.clipper
 ================
 
 .. automodule:: bobkit.clipper

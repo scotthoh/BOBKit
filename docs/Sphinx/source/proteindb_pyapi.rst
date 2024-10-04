@@ -1,4 +1,4 @@
-BOBKit.protein_db
+bobkit.protein_db
 =================
 
 .. automodule:: bobkit.protein_db

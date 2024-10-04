@@ -10,35 +10,30 @@
 namespace py = pybind11;
 using namespace clipper;
 
-template <typename T>
-void delitem_at_index(T &container, pybind11::ssize_t index)
-{
+template <typename T> void delitem_at_index(T &container, ssize_t index) {
   container.erase(container.begin() + index);
 }
 
 template <typename Item>
-void delitem_at_index(std::vector<Item> &items, pybind11::ssize_t index)
-{
+void delitem_at_index(std::vector<Item> &items, ssize_t index) {
   items.erase(items.begin() + index);
 }
 
 template <typename T>
-void delitem_range(T &container, pybind11::ssize_t start, pybind11::ssize_t end)
-{
+void delitem_range(T &container, ssize_t start, ssize_t end) {
   container.erase(container.begin() + start, container.begin() + end);
 }
 
 template <typename Item>
-void delitem_range(std::vector<Item> &items, pybind11::ssize_t start, pybind11::ssize_t end)
-{
+void delitem_range(std::vector<Item> &items, ssize_t start, ssize_t end) {
   items.erase(items.begin() + start, items.begin() + end);
 }
 
 template <typename Items>
 void delitem_slice(Items &items, const pybind11::slice &slice)
 {
-  py::ssize_t start, stop, step, slice_len;
-  if (!slice.compute((py::ssize_t)items.size(), &start, &stop, &step, &slice_len))
+  ssize_t start, stop, step, slice_len;
+  if (!slice.compute((ssize_t)items.size(), &start, &stop, &step, &slice_len))
     throw py::error_already_set();
   if (step == 1)
   {
