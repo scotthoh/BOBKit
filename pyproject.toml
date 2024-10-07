@@ -58,6 +58,7 @@ cmake.verbose = true
 USE_PYTHON = "ON"
 BUCCANEER_PROFILE = "ON"
 BUILD_OWN_FFTW3 = "ON"
+BUILD_SHARED_LIBS = "OFF"
 
 # Get version from python/version.hpp file
 [tool.scikit-build.metadata.version]

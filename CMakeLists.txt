@@ -36,6 +36,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 option(SHOW_COMPILE_TIME "Show compile time" OFF)
 option(USE_PYTHON "Build Python bindings" ON)
+option(STANDALONE_PYTHON_MODULE "Avoid linking Python module to libbuccaneer_lib DLL" ON)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
 option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" ON)
 option(BUCCANEER_PROFILE "Set Buccaneer profiling on/off" ON)
@@ -85,6 +86,16 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # so we need to set CMP0069 because of that.
 cmake_policy(SET CMP0069 NEW)
 cmake_policy(SET CMP0135 NEW)
+if (NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT is_ipo_supported OUTPUT ipo_error)
+  if(is_ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
+  else()
+    message(STATUS "Interprocedural optimization not supported: ${error}")
+  endif()
+endif()
 if(USE_PYTHON)
 find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
 if (EXISTS "${CMAKE_HOME_DIRECTORY}/pybind11")
@@ -294,12 +305,15 @@ file(GLOB BUCCANEER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.h")
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cbuccaneer.cpp")
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/csequins.cpp")
 if(BUILD_SHARED_LIBS)
-add_library(buccaneer_lib SHARED ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
-set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "$ORIGIN")
+  add_library(buccaneer_lib SHARED ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
+  #if(NOT STANDALONE_PYTHON_MODULE)
+  set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "$ORIGIN")
+  #endif()
 else()
 add_library(buccaneer_lib STATIC ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
 endif()
 add_library(buccaneer::buccaneer_lib ALIAS buccaneer_lib)
+set_target_properties(buccaneer_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_dependencies(buccaneer_lib project_gemmi project_clipper)
 #set(LINK_LIBS "gemmi_cpp buccaneer_lib fftw3f clipper-cif clipper-core clipper-contrib clipper-minimol clipper-gemmi")
 find_package(Threads REQUIRED)
@@ -308,13 +322,13 @@ find_package(Threads REQUIRED)
 #message(STATUS "fftw3 lib : " $<TARGET_FILE:fftw3>)
 target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 
-target_link_directories(buccaneer_lib PUBLIC
+target_link_directories(buccaneer_lib PRIVATE
                       ${VENV_INSTALL_DIR}/lib
                       ${clipper_bin_path}
                       ${gemmi_bin_path}
                       ${FFTW3_LIBDIR})
                       
-target_link_libraries(buccaneer_lib PUBLIC
+target_link_libraries(buccaneer_lib PRIVATE
                       clipper::cif
                       clipper::minimol
                       clipper::contrib
@@ -325,43 +339,51 @@ target_link_libraries(buccaneer_lib PUBLIC
 if (Threads_FOUND)
   target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
 endif()
-#install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
-install(TARGETS buccaneer_lib LIBRARY DESTINATION ${Python_SITEARCH})
+install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
+#install(TARGETS buccaneer_lib LIBRARY DESTINATION ${Python_SITEARCH})
 #message(STATUS "buccaneer_lib = $<TARGET_FILE:buccaner_lib>")
 file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 #list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_ccp4_mtzio.cpp")
 # pybind11 module
 if(USE_PYTHON)
 pybind11_add_module(buc_py MODULE ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
-add_dependencies(buc_py project_gemmi project_clipper)
+add_dependencies(buc_py project_gemmi project_clipper buccaneer_lib)
+
 target_include_directories(buc_py PUBLIC
-                           ${CLIPPER_INCDIR}
-                           ${GEMMI_INCDIR}
-                           ${FFTW3_INCDIR}
-                           ${CMAKE_SOURCE_DIR}/include
-                           )
-                  
+${CLIPPER_INCDIR}
+${GEMMI_INCDIR}
+${FFTW3_INCDIR}
+${CMAKE_SOURCE_DIR}/include
+)
+
+if (STANDALONE_PYTHON_MODULE)
+  target_sources(buc_py PRIVATE $<TARGET_OBJECTS:buccaneer_lib>)
+  get_target_property(_buccaneer_lib_libs buccaneer_lib LINK_LIBRARIES)
+  set_property(TARGET buc_py APPEND PROPERTY LINK_LIBRARIES ${_buccaneer_lib_libs})
+else()
 target_link_directories(buc_py PRIVATE
-                        ${VENV_INSTALL_DIR}/lib
-                        ${FFTW3_LIBDIR}
-                        ${clipper_bin_path}
-                        ${gemmi_bin_path})
-                        
-target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib
-                      clipper::cif
-                      clipper::contrib
-                      clipper::minimol
-                      clipper::gemmi
-                      clipper::core
-                      fftw3::fftw3
-                      gemmi::gemmi_cpp)
+${VENV_INSTALL_DIR}/lib
+${FFTW3_LIBDIR}
+${clipper_bin_path}
+${gemmi_bin_path})
+
+target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib)
+#clipper::cif
+#clipper::contrib
+#clipper::minimol
+#clipper::gemmi
+#clipper::core
+#fftw3::fftw3
+#gemmi::gemmi_cpp)
+endif() # STANDALONE_PYTHON_MODULE
+
 if (Threads_FOUND)
   target_link_libraries(buc_py PRIVATE Threads::Threads)
 endif()
 # install
 set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
 
-if (BUILD_SHARED_LIBS)
+if (BUILD_SHARED_LIBS AND NOT STANDALONE_PYTHON_MODULE)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
