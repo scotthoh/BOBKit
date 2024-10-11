@@ -1,10 +1,6 @@
 name: Test
 
-on:
-  pull_request:
-    branches:
-      - main
-      - development
+on: [push, pull_request]
 
 jobs:
   ubuntu2404:
@@ -14,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.12"]
+        python-version: ["3.8", "3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,23 +19,20 @@ jobs:
       - name: apt-get
         run: |
           sudo apt-get update
-          sudo apt-get install libz-dev python3-full g++ gfortran
+          sudo apt-get install libz-dev
       #- name: install pybind11
       #  run: |
       #    python3 -m pip install pybind11
       - name: build and test
         run: |
-          g++ --version
-          cmake --version
           python3 -m venv pyenv
           source pyenv/bin/activate
+          python3 -m pip install --upgrade pip
           python3 -m pip install pybind11
           python3 -m pip install numpy
+          python3 -m pip install pytest
           pip install --verbose .
-          #cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
-          #cmake --build build --config Debug -j2
-          #cmake --build build --config Debug --target check -j2
-          #sudo cmake --install build --config Debug
+          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
   ubuntu2004:
     name: "Test build Ubuntu 20.04"
     runs-on: ubuntu-20.04
@@ -49,20 +42,14 @@ jobs:
       - name: apt-get
         run: |
           sudo apt-get update
-          sudo apt-get install libz-dev python3-pip g++ gfortran python3-numpy
+          sudo apt-get install libz-dev python3-pip
       - name: install pybind11
         run: |
           python3 -m pip install pybind11
       - name: build and test
         run: |
-          g++ --version
-          cmake --version
           sudo pip install --verbose .
-          #cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
-          #cmake --build build --config Debug -j2
-          #cmake --build build --config Debug --target check -j2
-          #sudo cmake --install build --config Debug
-          
+          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
         #uses: actions/setup-python@v5
         #with:
         #  # Semantic version range syntax or exact version of a Python version
@@ -74,5 +61,18 @@ jobs:
       #
       #- name: Build and install
       #  run: pip install --verbose .
-
-      
+  macos14:
+    name: "macos 14"
+    runs-on: macos-14
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and install
+        run: |
+          python3 -m venv pyenv
+          source pyenv/bin/activate
+          python3 -m install pybind11
+          python3 -m pip install numpy
+          python3 -m pip install pytest
+          python3 -m pip install -v .
+          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
