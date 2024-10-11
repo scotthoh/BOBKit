@@ -15,6 +15,7 @@
 namespace py = pybind11;
 
 void init_clipper_types(py::module &m);
+void init_ramachandran(py::module &m);
 void init_clipper_memory(py::module &m);
 void init_matomindex(py::module &m);
 void init_minimol(py::module &m);
@@ -91,17 +92,18 @@ PYBIND11_MODULE(bobkit, mbk) {
   auto mpdb = mbk.def_submodule("protein_db");
 
   init_clipper_types(mc);
+  init_ramachandran(mc);
   init_clipper_memory(mc);
   init_cell(mc);
+  init_symop(mc);
+  init_spacegroup(mc);
   init_coord_orth(mc);
   init_matomindex(mc);
   init_atomlist(mc);
-  init_symop(mc);
-  init_spacegroup(mc);
   init_hklinfo(mc);
   init_containers(mc);
-  init_hkl_data(mc);
   init_hkl_datatypes(mc);
+  init_hkl_data(mc);
   init_sfscale(mc);
 
   init_minimol(mc);

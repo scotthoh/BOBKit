@@ -307,6 +307,7 @@ class TestAtomList:
         assert res_atoms.size() == 7
         chna_atoms.insert_list(res_atoms)
         # chna_atoms.add_list(res_atoms)
+        # chna_atoms.insert_list(res_atoms, -1)
         assert chna_atoms.size() == 1076
         chna_atoms.insert_atom(tmp_atm, 0)
         # chna_atoms.add_atom(tmp_atm, 0)
