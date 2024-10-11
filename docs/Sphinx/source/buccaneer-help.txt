@@ -1,0 +1,129 @@
+
+$ python3 buccaneer.py -h
+
+usage: python3 buccaneer.py [-h] [-v] --mtzin X --seqin X --resolution X
+                                  [--title X] [--mtzin-ref X] [--pdbin-ref X]
+                                  [--mapin X] [--model X] [--cycles X]
+                                  [--model-in-mr X] [--output-model X]
+                                  [--output-sim-map X] [--xmlout X]
+                                  [--colin-ref-fo X] [--colin-ref-hl X]
+                                  [--colin-fo X] [--colin-hl X]
+                                  [--colin-phifom X] [--colin-fc X]
+                                  [--colin-free X] [--merge true/false]
+                                  [--find true/false] [--grow true/false]
+                                  [--join true/false] [--link true/false]
+                                  [--sequence true/false]
+                                  [--correct true/false] [--filter true/false]
+                                  [--ncsbuild true/false] [--prune true/false]
+                                  [--rebuild true/false] [--tidy true/false]
+                                  [--fast] [--build-semet]
+                                  [--anisotropy-correction] [--fix-position]
+                                  [--output-intermediates] [--threads X]
+                                  [--fragments X]
+                                  [--fragments-per-100-residues X]
+                                  [--free-flag X] [--model-index X]
+                                  [--random-seed X]
+                                  [--ramachandran-filter all | helix | strand | nonhelix]
+                                  [--known-structure X]
+                                  [--nonprotein-radius X]
+                                  [--main-chain-likelihood-radius X]
+                                  [--side-chain-likelihood-radius X]
+                                  [--sequence-reliability X] [--offset X]
+                                  [--correlation-mode] [--two-char-chain-id]
+                                  [--no-write-cif] [--model-filter]
+                                  [--model-filter-sigma X] [--mr-model]
+                                  [--mr-model-filter] [--mr-model-seed]
+                                  [--mr-model-filter-sigma X]
+                                  [--verbose Verbose]
+
+Buccaneer wrapped in python.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+
+required arguments:
+  --mtzin X             Input mtz.
+  --seqin X             Input sequence file.
+  --resolution X        High resolution limit in Angstroms.
+
+optional arguments:
+  --title X             Simple job title.
+  --mtzin-ref X         MTZ file for reference data.
+  --pdbin-ref X         PDB file for reference data.
+  --mapin X             Input working map for model building.
+  --model X             A starting model in PDB or mmCIF format.
+  --cycles X            Number of cycles to run Buccaneer.
+  --model-in-mr X       Input molecular replacement model.
+  --output-model X      Filename used for output model.
+  --output-sim-map X    Output filename used for simulated map.
+  --xmlout X            Filename for XML output.
+  --colin-ref-fo X      Reference column labels for Fo and sigFo.
+  --colin-ref-hl X      Reference column labels for Hendriksson Lattman
+                        coefficients.
+  --colin-fo X          Column labels for Fo,sigFo of working data. (e.g
+                        'Fout,sigF')
+  --colin-hl X          Column labels for Hendrikkson Lattman coefficients.
+  --colin-phifom X      Column labels for phases and figure of merits. (e.g.
+                        Phi,FOM)
+  --colin-fc X          Column labels for calculated F and sigF.
+  --colin-free X        Column label for the free-R flag.
+  --merge true/false    Merge multi-model.
+  --find true/false     Turn on find step.
+  --grow true/false     Turn on grow step.
+  --join true/false     Turn on join step.
+  --link true/false     Turn on link step.
+  --sequence true/false
+                        Turn on sequence step.
+  --correct true/false  Turn on correct step.
+  --filter true/false   Turn on filter step.
+  --ncsbuild true/false
+                        Turn on non crystallographic symmetry building step.
+  --prune true/false    Turn on prune step.
+  --rebuild true/false  Turn on rebuild step.
+  --tidy true/false     Turn on tidy step.
+  --fast                Fast mode will be used when finding C-alphas.
+  --build-semet         Build Selenmethionine instead of methionine.
+  --anisotropy-correction
+                        Apply anisotropy correction.
+  --fix-position        Turn on fix position by symmetry match.
+  --output-intermediates
+                        Output intermediates model files.
+  --threads X           The number of threads to use in some internal steps of
+                        Buccaneer.
+  --fragments X         Set starting number of fragments.
+  --fragments-per-100-residues X
+                        Set number of fragments per 100 residues.
+  --free-flag X         Free-R flag index.
+  --model-index X       Model index.
+  --random-seed X       Set random seed.
+  --ramachandran-filter all | helix | strand | nonhelix
+                        Specify ramachandran filter type.
+  --known-structure X   This keyword can be used multiple times. Use this to
+                        specify atoms or chains from the input model to be
+                        retained in the output structure. Syntax: known-
+                        structure coodinateID:radius (E.g. known-structure
+                        /A///:2.0) - keep all atoms in chain A and don't build
+                        within 2A.
+  --nonprotein-radius X
+                        Set non protein radius, so buccaneer will not build
+                        within the radius.
+  --main-chain-likelihood-radius X
+                        Set main chain likelihood radius.
+  --side-chain-likelihood-radius X
+                        Set side chain likelihood radius.
+  --sequence-reliability X
+                        Set sequence reliability.
+  --offset X            Set offset for map density.
+  --correlation-mode    Turn on correlation mode.
+  --two-char-chain-id   Label chain IDs with two character IDs.
+  --no-write-cif        Prevent writing output model in mmCIF format.
+  --model-filter        Turn on to filter input model.
+  --model-filter-sigma X
+                        Set filter sigma for model.
+  --mr-model            Turn on MR model.
+  --mr-model-filter     Turn on to filter input molecular replacement model.
+  --mr-model-seed       Turn on molecular replacement model seed.
+  --mr-model-filter-sigma X
+                        Set filter sigma for molecular replacement model.
+  --verbose Verbose     Set verbosity level.

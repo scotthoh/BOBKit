@@ -7,6 +7,7 @@ import pathlib
 import pytest
 import math
 import bobkit.clipper as clipper
+import bobkit.buccaneer as buccaneer
 
 
 @pytest.fixture
@@ -23,8 +24,8 @@ def cell_instance(cell_descr_instance):
 def read_structure_instance(request, cell_instance):
     testdir = pathlib.Path(request.module.__file__).parent.parent / "test_data"
     mmol = clipper.MiniMol(clipper.Spacegroup.p1(), cell_instance)
-    flag = clipper.read_structure(
-        str(testdir / "pdb5ni1_cryst1.pdb"), mmol, False
+    flag = buccaneer.Util.read_structure(
+        mmol, str(testdir / "pdb5ni1_cryst1.pdb"), False
     )  # noqa 501
     return flag, mmol
 

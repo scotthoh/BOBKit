@@ -27,7 +27,7 @@ void declare_score_list(py::module &m, const std::string name) {
            "Is given score good enough to add to list?")
       .def("add", &SLClass::add, py::arg("score"), py::arg("data"),
            "Add a score to list, if it is good enough.")
-      .def("del", &SLClass::del, py::arg("pos"), "Delete score from list.")
+      .def("delete", &SLClass::del, py::arg("pos"), "Delete score from list.")
       .def("score", &SLClass::score, py::arg("pos"), "Access score.")
       .def(
           "__getitem__",

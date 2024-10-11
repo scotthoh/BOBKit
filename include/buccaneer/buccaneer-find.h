@@ -114,7 +114,7 @@ public:
   int num_params() const { return 6; }
   //! evaluate target function for given rotation
   double operator() ( const clipper::RTop_orth& rtop ) const;
-  //! \internal evaluate target function for EulerXYZr offset from rot_
+  //! \internal evaluate target function for EulerXYZr offset from rotation
   double operator() ( const std::vector<double>& args ) const;
   //! \internal convert params to rotation
   clipper::RTop_orth rtop_orth( const std::vector<double>& args ) const;  

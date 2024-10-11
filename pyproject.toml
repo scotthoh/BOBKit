@@ -29,24 +29,28 @@ dynamic = ["version"]
 Homepage = "https://github.com/scotthoh/BOBKit"
 
 [tool.scikit-build]
-# Protec the configuration against future changes in scikit-build-core
-minimum-version = "0.4"
+# Protect the configuration against future changes in scikit-build-core
+minimum-version = "0.8"
 experimental = true # for install-dir
+# minimum cmake version
+cmake.version = ">=3.20"
+ninja.version = ">=1.11"
 # Setuptools style build caching in a local directory
 build-dir = "build/{wheel_tag}"
 #wheel.install-dir = "/data"
 # Build stable ABI wheels for CPython 3.12+
-wheel.py-api = "cp312"
+#wheel.py-api = "cp312"
+
 
 wheel.packages = []
-sdist.exclude = ["*"]
+sdist.exclude = [".github"]
 sdist.include = [
-"/README.md",
-"/LICENSE.txt",
-"/CMakeLists.txt",
-"/pyproject.toml",
+"./README.md",
+"./LICENSE.txt",
+"./CMakeLists.txt",
+"./pyproject.toml",
 "include/buccaneer/*.h",
-"src/*.cpp",
+"reference_data",
 "python/*.cpp",
 "python/*.h",
 "python/version.hpp",
@@ -58,6 +62,7 @@ cmake.verbose = true
 USE_PYTHON = "ON"
 BUCCANEER_PROFILE = "ON"
 BUILD_OWN_FFTW3 = "ON"
+BUILD_SHARED_LIBS = "OFF"
 
 # Get version from python/version.hpp file
 [tool.scikit-build.metadata.version]
@@ -69,5 +74,3 @@ regex = "#define BOBKIT_VERSION \"(?P<value>[0-9dev.-]+)\""
 #minversion = "6.0"
 #addopts = ["-ra", "-q"]
 #testpaths = ["tests"]
-
-

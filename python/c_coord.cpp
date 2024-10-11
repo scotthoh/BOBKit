@@ -6,6 +6,7 @@
 
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
+#include <clipper/core/clipper_types.h>
 #include <gemmi/math.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -441,7 +442,7 @@ void init_coord_orth(py::module &m) {
            "Return lattice copy near the specified coordinate.")
       .def("symmetry_copy_near", &Coord_frac::symmetry_copy_near,
            py::arg("spacegroup"), py::arg("cell"), py::arg("cf"),
-           "Return symmetry copy `near the specified coordinate.")
+           "Return symmetry copy near the specified coordinate.")
       .def("__str__", &Coord_frac::format)
       .def("format", &Coord_frac::format,
            "Return formatted string representation.")
