@@ -67,7 +67,7 @@ public:
   Target_fn_refine_n_terminal_build( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const clipper::Ramachandran& rama1, const clipper::Ramachandran& rama2, const double& rot_step );
   ~Target_fn_refine_n_terminal_build() {}
   int num_params() const { return 4; }
-  //! evaluate target function for EulerXYZr offset from rot_
+  //! evaluate target function for EulerXYZr offset from rotation
   double operator() ( const std::vector<double>& args ) const;
   //! refine rotation
   std::vector<double> refine( const Ca_chain& chain, const std::vector<double>& args );
@@ -88,7 +88,7 @@ class Target_fn_refine_c_terminal_build : Target_fn_order_zero
   Target_fn_refine_c_terminal_build( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const clipper::Ramachandran& rama1, const clipper::Ramachandran& rama2, const double& rot_step );
   ~Target_fn_refine_c_terminal_build() {}
   int num_params() const { return 4; }
-  //! evaluate target function for EulerXYZr offset from rot_
+  //! evaluate target function for EulerXYZr offset from rotation
   double operator() ( const std::vector<double>& args ) const;
   //! refine rotation
   std::vector<double> refine( const Ca_chain& chain, const std::vector<double>& args );

@@ -23,15 +23,15 @@ public:
   //! Constructor: takes std::vector<LLK_map_target>
   LLK_TargetList(const std::vector<LLK_map_target> &l) {
     llkcls_ = l;
-    max = llkcls_.size();
+    max_ = llkcls_.size();
   };
   //! Constructor: takes int size of vector to initialise
   LLK_TargetList(const int &num) { init(num); };
-  //! Initiliaser: takes int size of vector to initilise
+  //! Initialiser: takes int size of vector to initialise
   void init(const int &n) {
-    max = n;
+    max_ = n;
     llkcls_.clear();
-    llkcls_.resize(max);
+    llkcls_.resize(max_);
   }
   // access methods to LLK_map_target stored in vector
   //! get LLK_map_target by index
@@ -46,7 +46,7 @@ public:
 private:
   // members
   std::vector<LLK_map_target> llkcls_;
-  int max;
+  int max_;
 };
 
 void declare_llktargetlist(py::module &m) {

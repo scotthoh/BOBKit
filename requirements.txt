@@ -1,3 +1,0 @@
-pyyaml
-requests
-gemmi==0.6.4

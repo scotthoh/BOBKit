@@ -87,7 +87,7 @@ void declare_target_functions(py::module &m) {
            (double(refine_llk::*)(const std::vector<double> &) const) &
                refine_llk::operator(),
            py::arg("args"),
-           "Evalutate target function for EulerXYZr offset from rot_.")
+           "Evaluate target function for EulerXYZr offset from rotation.")
       .def("rtop_orth", &refine_llk::rtop_orth, py::arg("args"),
            "Convert parameters to rotation.")
       .def("refine", &refine_llk::refine, py::arg("rtop"), "Refine rotation.")

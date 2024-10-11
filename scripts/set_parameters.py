@@ -881,8 +881,8 @@ class BuccaneerParams:
 
     def check_steps(self):
         """Turn all buccaneer steps on if all are off"""
-        if [
-            x
+        if all(
+            x is False
             for x in (
                 self.find,
                 self.grow,
@@ -895,9 +895,10 @@ class BuccaneerParams:
                 self.prune,
                 self.build,
                 self.tidy,
-            )  # noqa 501
-            if not x
-        ]:
+            )
+        ):  # noqa 501
+            # if not x
+            # ]:
             self.set_steps(
                 find=True,
                 grow=True,
