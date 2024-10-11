@@ -38,14 +38,14 @@ speedup over the best method for a very similar model, but results might vary.
 * :py:attr:`Ca_find.TYPE.SECSTRUC <bobkit.buccaneer.Ca_find.TYPE.SECSTRUC>` for fastest method
 * :py:attr:`Ca_find.TYPE.LIKELIHOOD <bobkit.buccaneer.Ca_find.TYPE.LIKELIHOOD>` for best method
 
-Either of the types can be passed as argument when :py:meth:`calling the Ca_find <bobkit.Ca_find.__call__>` 
+Either of the types can be passed as argument when :py:meth:`calling the Ca_find <bobkit.buccaneer.Ca_find.__call__>` 
 instance. The following arguments are required to run the finding routine:-
 
-* a **clipper.MiniMol** object containing the working model or can be empty (during the first find), constructed from the spacegroup and unit cell of the input data
-* a **buccaneer.KnownStructure** object containing information of known structure (can be empty if no known structure)
-* a working map of type **clipper.XMap_float**
-* a likelihood map target of type **buccaneer.LLK_map_target**
-* fastest or best finding method **Ca_find.TYPE.SECSTRUC** or **Ca_find.TYPE.LIKELIHOOD**
+* a :py:meth:`clipper.MiniMol <bobkit.clipper.MiniMol>` object containing the working model or can be empty (during the first find), constructed from the spacegroup and unit cell of the input data
+* a :py:meth:`buccaneer.KnownStructure <bobkit.buccaneer.KnownStructure>` object containing information of known structure (can be empty if no known structure)
+* a working map of type :py:meth:`clipper.XMap_float <bobkit.clipper.Xmap_float>`
+* a likelihood map target of type :py:meth:`buccaneer.LLK_map_target <bobkit.buccaneer.LLK_map_target>`
+* fastest or best finding method :py:meth:`Ca_find.TYPE.SECSTRUC <bobkit.buccaneer.Ca_find.TYPE.SECSTRUC>` or :py:meth:`Ca_find.TYPE.LIKELIHOOD <bobkit.buccaneer.Ca_find.TYPE.LIKELIHOOD>`
 * modelindex: 0 to use all results, otherwise downweight 50% of results on the basis of position in ASU when filtering prior model (input work model)
 
 The C-alpha finding stage starts by making a prior map from the given model and working map.
@@ -56,9 +56,18 @@ The working model passed in to the finding method will be updated with C-alpha g
 
 .. doctest::
 
-   >>> from bobkit.buccaneer import Ca_find
-   >>> Ca_find.set_cpus(1)
-   >>> cafind = Ca_find(500, 2.0)
+   >>> import bobkit.buccaneer #import Ca_find, KnownStructure, LLK_map_target
+   >>> import bobkit.clipper #import MiniMol, XMap_float, Cell, Spacegroup
+   #>>> import gemmi
+   >>> buccaneer.Ca_find.set_cpus(1)
+   >>> cafind = buccaneer.Ca_find(500, 2.0)
+   #>>> gmap = gemmi.read_ccp4_map("../../../test_data/5ni1_chnA_trimmed_starting.mrc")
+   #>>> sg = clipper.Spacegroup.from_gemmi_spacegroup(gmap.grid.spacegroup)
+   #>>> ucell = clipper.Cell.from_gemmi_cell(gmap.grid.unit_cell)
+   #>>> xwrk = clipper.XMap_float(sg, ucell)
+   #>>> xwrk.import_from_gemmi(gmap)
+   #>>> mol_wrk = clipper.MiniMol(sg, ucell)
+   #>>> knownstruc = buccaneer.KnownStructure(mol_wrk,[],-1.0)
    >>> cafind(mol_wrk, knownstruc, xwrk, llktgt, findtype, modelindex)
 
 .. _searchthreaded:

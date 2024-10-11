@@ -16,9 +16,12 @@ become less likely (wrongly sequence fragments are morely likely to occur when f
 a maximum of six amino acids bridging fragment should probably be relaxed to allow longer loops to be built.
 
 Classes which can be used for the linking routine:
-``Ca_link`` for linking of nearby N and C termini of fragments
-``Ca_group`` class to store and generate groups of N, C-alpha, and C atoms of neighour residues
-``ProteinLoop`` builder class for loops of various lengths
+
+* :ref:`Ca_link <calink>` for linking of nearby N and C termini of fragments
+* :ref:`Ca_group <cagroup>` class to store and generate groups of N, C-alpha, and C atoms of neighour residues
+* :ref:`ProteinLoop <proteinloop>` builder class for loops of various lengths
+
+.. _calink:
 
 Ca_link class
 -------------
@@ -26,8 +29,9 @@ Ca_link class
 
    bobkit.buccaneer.Ca_link
   
-The constructor takes in two arguments: link radius (default: 5.0 Å, Buccaneer uses 10.0 Å) and torsion sampling (default: 24).
-An instance of the class can be called by passing it the model/fragments to link, a working map and likelihood map target.
+The :py:meth:`constructor <bobkit.buccaneer.Ca_link.__init__>` takes in two arguments: link radius (default: 5.0 Å, Buccaneer uses 10.0 Å) 
+and torsion sampling (default: 24). An instance of the class can be :py:meth:`called <bobkit.buccaneer.Ca_link.__call__>`
+by passing it the model/fragments to link, a working map and likelihood map target.
 
 .. doctest::
 
@@ -37,3 +41,19 @@ An instance of the class can be called by passing it the model/fragments to link
   >>> # to check numbers of C-alphas linked
   >>> calink.num_linked()
 
+.. _cagroup:
+
+Ca_group class
+--------------
+.. autosummary::
+
+   bobkit.buccaneer.Ca_group
+
+
+.. _proteinloop:
+
+ProteinLoop class
+-----------------
+.. autosummary::
+
+   bobkit.buccaneer.ProteinLoop

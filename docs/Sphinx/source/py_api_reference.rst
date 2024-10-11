@@ -2,7 +2,7 @@ Python API Reference
 ====================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
    buccaneer_pyapi
    clipper_pyapi

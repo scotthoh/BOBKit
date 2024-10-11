@@ -12,13 +12,14 @@ Ca_ncsbuild class
 
    bobkit.buccaneer.Ca_ncsbuild
 
-The constructor takes in three arguments:
+The :py:meth:`constructor <bobkit.buccaneer.Ca_ncsbuild.__init__>` takes in three arguments:
  
 * ``reliability`` - sequence reliability
 * ``rmsd`` - root mean square deviation
 * ``nmin`` - minimum number of matches
 
-An instance of the class can be called by passing it the following arguments:
+An instance of the class can be :py:meth:`called <bobkit.buccaneer.Ca_ncsbuild.__call__>` by 
+passing it the following arguments:
 
 * ``mol`` - working model
 * ``xmap`` - working map

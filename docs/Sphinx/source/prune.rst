@@ -3,8 +3,9 @@
 Pruning fragments
 =================
 
-In this stage, the fragments which provide inconsistent interpretations of the same electron density are examined.
-Those clashing residues with lower scores, fragments with sequences less than 6 residues, or with worse density are removed.
+In this stage, the fragments which provide inconsistent interpretations of the same 
+electron density are examined. Those clashing residues with lower scores, fragments with 
+sequences less than 6 residues, or with worse density are removed.
 
 Ca_prune class
 --------------
@@ -12,8 +13,9 @@ Ca_prune class
 
    bobkit.buccaneer.Ca_prune
   
-The constructor takes in an argument for radius cutoff (default: 3.0 Å).
-An instance of the Ca_prune class can be called by passing it the following arguments:
+The :py:meth:`constructor <bobkit.buccaneer.Ca_prune.__init__>` takes in an argument 
+for radius cutoff (default: 3.0 Å). An instance of the Ca_prune class can be 
+:py:meth:`called <bobkit.buccaneer.Ca_prune.__call__>` by passing it the following arguments:
 
 * ``mol`` - working model
 * ``xmap`` - working map
@@ -24,7 +26,8 @@ An instance of the Ca_prune class can be called by passing it the following argu
   >>> caprune = Ca_prune(3.0)
   >>> caprune(mol_wrk, xwrk)
 
-The equivalent static method ``Ca_prune.prune()`` takes in three arguments:
+The equivalent static method :py:meth:`prune <bobkit.buccaneer.Ca_prune.prune>` 
+takes in three arguments:
 
 * ``mol`` - working model
 * ``xmap`` - working map

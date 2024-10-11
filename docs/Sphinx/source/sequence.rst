@@ -10,9 +10,11 @@ This allows longer fragments to be matched to the sequence.
 
 Class which can be used for the sequencing routine:
 
-* ``Ca_sequence`` for sequencing C-alpha chains using density
-* ``Sequence_score_threaded`` for running multi-threaded sequence scoring routine
-* ``Sequence_threaded`` for running multi-threaded sequencing routine
+* :ref:`Ca_sequence <caseq>` for sequencing C-alpha chains using density
+* :ref:`Sequence_score_threaded <seqscorethread>` for running multi-threaded sequence scoring routine
+* :ref:`Sequence_threaded <seqthread>` for running multi-threaded sequencing routine
+
+.. _caseq:
 
 Ca_sequence class
 -----------------
@@ -22,9 +24,9 @@ Ca_sequence class
 
 The constructor takes in an argument for sequence reliability (default: 0.5, Buccaneer use 0.95).
 
-* ``Ca_sequence.set_cpus()`` can be used to set the number of cpu threads to use in running the calculations.
-* ``Ca_sequence.set_semet()`` is used to set the flag to translate methionine (MET) to seleno-methionine (MSE).
-* ``Ca_sequence.seq_prior_model()`` can be used to set a prior model for sequencing.
+* :py:meth:`Ca_sequence.set_cpus() <bobkit.buccaneer.Ca_sequence.set_cpus>` can be used to set the number of cpu threads to use in running the calculations.
+* :py:meth:`Ca_sequence.set_semet() <bobkit.buccaneer.Ca_sequence.set_semet>` is used to set the flag to translate methionine (MET) to seleno-methionine (MSE).
+* :py:meth:`Ca_sequence.set_prior_model() <bobkit.buccaneer.Ca_sequence.set_prior_model>` can be used to set a prior model for sequencing.
 
 .. doctest::
 
@@ -40,12 +42,15 @@ The constructor takes in an argument for sequence reliability (default: 0.5, Buc
   >>> results = caseq.format()
   >>> print(results)
 
+.. _seqscorethread:
 
 Sequence_score_threaded class
 -----------------------------
 .. autosummary::
 
    bobkit.buccaneer.Sequence_score_threaded
+
+.. _seqthread:
 
 Sequence_threaded class
 -----------------------

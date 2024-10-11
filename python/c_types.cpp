@@ -120,7 +120,7 @@ template <class T> void declare_vec3(py::module &m, const std::string &name) {
           },
           "Test for null vector (only valid for floating point types).")
       .def_static("dot", &VecClass::dot, py::arg("v1"), py::arg("v2"),
-                  "Vector dot product (equivalent to /*).")
+                  "Vector dot product. (Equivalent to v1 * v2)")
       .def_static("cross", &VecClass::cross, py::arg("v1"), py::arg("v2"),
                   "Vector cross product.")
       .def(

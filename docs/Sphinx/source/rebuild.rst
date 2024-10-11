@@ -3,23 +3,21 @@
 Rebuilding side chains/atoms
 ============================
 
-.. automodule:: bobkit.buccaneer
-  :member:
-
-At this stage, side chain atoms and carbony oxygens are rebuilt.
+At this stage, side chain atoms and carbonyl oxygens are rebuilt.
 
 Ca_build class
 --------------
-//.. autosummary::
-//
-//   bobkit.buccaneer.Ca_build
+.. autosummary::
 
-The constructor takes in two arguments:
+   bobkit.buccaneer.Ca_build
+
+The :py:meth:`constructor <bobkit.buccaneer.Ca_build.__init__>` takes in two arguments:
 
 * ``newrestype`` - three-letter code, new residue will be built as given type
 * ``flexible`` - boolean type to set if rotamers are flexible
 
-An instance of the class Ca_build can be called by passing it the following arguments:
+An instance of the class Ca_build can be :py:meth:`called <bobkit.buccaneer.Ca_build.__call__>`
+by passing it the following arguments:
 
 * ``mol`` - working model
 * ``xmap`` - working map
@@ -30,7 +28,8 @@ An instance of the class Ca_build can be called by passing it the following argu
   >>> cabuild = Ca_build("ALA", False)
   >>> cabuild(mol_wrk, xwrk)
 
-The equivalent static method ``Ca_build.build()`` takes in four arguments:
+The equivalent static method :py:meth:`build <bobkit.buccaneer.Ca_build.build>` 
+takes in four arguments:
 
 * ``mol`` - working model
 * ``xmap`` - working map

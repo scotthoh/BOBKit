@@ -5,7 +5,7 @@ Filtering fragments in poor density
 
 In the filtering routine, the residues which have not been docked into the sequence
 and are in poor density are removed. Fragments with sequences of less than 6 residues 
-are removed.
+are also removed.
 
 Ca_filter class
 ---------------

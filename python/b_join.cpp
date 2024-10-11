@@ -22,7 +22,7 @@ void init_ca_join(py::module &m) {
   py::class_<Ca_join> pyCaJoin(m, "Ca_join");
 
   pyCaJoin
-      .def(py::init<double &, float &>(), py::arg("rad_merge") = 2.0,
+      .def(py::init<double &, double &>(), py::arg("rad_merge") = 2.0,
            py::arg("rad_join") = 2.0)
       .def("__call__", &Ca_join::operator(), py::arg("mol"),
            "Build chains by merging and joining tri-residue fragments.")

@@ -91,22 +91,23 @@ void init_minimol(py::module &m) {
                   py::arg("is_gemmi") = false, "Convert id to standard format.")
       .def_static("id_match", &MAtom::id_match, py::arg("id1"), py::arg("id2"),
                   py::arg("mode"), "Compare IDs.")
-      .doc() = "MiniMol atom object.\nThe MiniMol atom is derived "
-               "from the basic clipper::Atom, with the addition of an 'id', "
-               "which is a unique identifier within a monomer in accordance "
-               "with the mmCIF definition.\nIn addition, it is a "
-               "clipper::PropertyManager, which means you can add labelled "
-               "properties of any type to the object. These may be simple "
-               "strings, or complex objects such as maps, function objects, "
-               "or whatever.\nThe most commonly used properties are: "
-               "- \"CID\" The original CID of this atom in an MMDB heirarchy. "
-               "The id() is the unique key which identifies an atom.";
+      .doc() =
+      "MiniMol atom object.\nThe MiniMol atom is derived "
+      "from the basic clipper::Atom, with the addition of an 'id', "
+      "which is a unique identifier within a monomer in accordance "
+      "with the mmCIF definition.\nIn addition, it is a "
+      "clipper::PropertyManager, which means you can add labelled "
+      "properties of any type to the object. These may be simple "
+      "strings, or complex objects such as maps, function objects, "
+      "or whatever.\nThe most commonly used properties are: "
+      "`-` \"CID\" The original CID of this atom in an MMDB heirarchy. "
+      "The id() is the unique key which identifies an atom.";
 
   pyResidue.def(py::init<>())
       .def_property("id", &MResidue::id, &MResidue::set_id,
                     "Get/set monomer ID.")
       .def_property("type", &MResidue::type, &MResidue::set_type,
-                    "Get/set monomer type, e.g. LYS, VAL, G")
+                    "Get/set monomer type, e.g. LYS, VAL, G.")
       //.def("set_type", &MResidue::set_type)
       .def("seqnum", &MResidue::seqnum, "Get monomer sequence number.")
       .def("set_seqnum", &MResidue::set_seqnum, py::arg("s"),
@@ -175,7 +176,7 @@ void init_minimol(py::module &m) {
            py::arg("mode") = MM::MODE::UNIQUE,
            "Creates a copy of this monomet containing only atoms described by "
            "selection string. The atom selection must contain an atom ID or "
-           "a comma separated list of atom IDs, or \'*\' to select all atoms.")
+           "a comma separated list of atom IDs, or \"*\" to select all atoms.")
       .def("select_index", &MResidue::select_index, py::arg("sel"),
            py::arg("mode") = MM::MODE::UNIQUE,
            "Creates a list of inidices of children matching the given "
@@ -240,12 +241,12 @@ void init_minimol(py::module &m) {
                   "Return Ramachandran psi, or NaN if atoms missing.")
       .def_static("default_type", &MResidue::default_type,
                   "Return default rotamer library type.")
-      .doc() = "MiniMol monomer (e.g. residue) object.\n The MiniMol "
+      .doc() = "MiniMol monomer (e.g. residue) object.\nThe MiniMol "
                "monomer object contains a list of clipper::MAtom. "
                "It has two properties: a sequence number and a type. "
                "The sequence number need not reflect the order in which "
                "the monomers are stored in a polymer. MResidue is an alias "
-               "for MMonomer.\nIn addition, it is a clipper::PropertyManager, "
+               "for MMonomer. In addition, it is a clipper::PropertyManager, "
                "refer documented details in MAtom class.";
 
   pyChain.def(py::init<>())
@@ -330,7 +331,7 @@ void init_minimol(py::module &m) {
                   "Convert ID to standard format.")
       .def_static("id_match", &MChain::id_match, py::arg("id1"), py::arg("id2"),
                   py::arg("mode") = MM::MODE::UNIQUE, "Compare two ids.")
-      .doc() = "MiniMol polymer (e.g. chain) object.\n The MiniMol "
+      .doc() = "MiniMol polymer (e.g. chain) object.\nThe MiniMol "
                "polymer object has one property: an identifying name. "
                "It contains a list of clipper::MMonomer. In addition, "
                "it is a clipper::PropertyManager, refer documented "
@@ -392,17 +393,13 @@ void init_minimol(py::module &m) {
       .def("select", &MModel::select, py::arg("selection"),
            py::arg("mode") = MM::MODE::UNIQUE,
            "Creates copy of this model containing only the polymers, "
-           "monomers "
-           "and atoms described by the selection string. The selection "
-           "string "
-           "must be of the form 'X/Y/Z' where X is a polymer selection, Y "
-           "is a "
-           "monomer selection described under MMonomer::select(), and Z is "
-           "an "
-           "atom selection described under MAtom::select(). The polymer "
-           "selection must contain a polymer ID or a comma separated list "
-           "of "
-           "polymer IDs, or '*' to select all polymers.")
+           "monomers and atoms described by the selection string. The "
+           "selection string must be of the form \'X/Y/Z\' where X is a "
+           "polymer selection, Y is a monomer selection described "
+           "under MMonomer::select(), and Z is an atom selection "
+           "described under MAtom::select(). The polymer selection must "
+           "contain a polymer ID or a comma separated list of "
+           "polymer IDs, or \"*\" to select all polymers.")
       .def("select_index", &MModel::select_index, py::arg("selection"),
            py::arg("mode") = MM::MODE::UNIQUE,
            "Creates a list of indices of children matching the given "
@@ -422,7 +419,7 @@ void init_minimol(py::module &m) {
           "copy", [](const MModel &self) { return self; },
           "Return a copy of object. Use this to make copy because "
           "assignment operator in Python only create bindings not copy.")
-      .doc() = "MiniMol model object.\n The MiniMol model object contains "
+      .doc() = "MiniMol model object.\nThe MiniMol model object contains "
                "a list of clipper::MPolymer. It is a clipper::PropertyManager, "
                "refer documented details in MAtom class.";
 

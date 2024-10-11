@@ -102,6 +102,6 @@ Contents
 
 .. toctree::
    :caption: API Reference
-   :maxdepth: 5
+   :maxdepth: 2
 
    py_api_reference
