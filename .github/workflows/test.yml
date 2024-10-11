@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-versions: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
       - name: apt-get
         run: |
           sudo apt-get update
