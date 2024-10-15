@@ -1,80 +1,22 @@
-name: Test
+name: CI
 
 on: 
   push:
      branches: test_yml
 
 jobs:
-  ubuntu2404:
-    name: "Test build on Ubuntu 24.04"
-    runs-on: ubuntu-24.04
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.10", "3.12"]
+  windows:
+    name: Build and test on windows
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: apt-get
-        run: |
-          sudo apt-get update
-          sudo apt-get install libz-dev
-      #- name: install pybind11
-      #  run: |
-      #    python3 -m pip install pybind11
-      - name: build and test
-        run: |
-          python3 -m venv pyenv
-          source pyenv/bin/activate
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pybind11
-          python3 -m pip install numpy
-          python3 -m pip install pytest
-          pip install --verbose .
-          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
-  ubuntu2004:
-    name: "Test build Ubuntu 20.04"
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    steps:
-      - uses: actions/checkout@v4
-      - name: apt-get
-        run: |
-          sudo apt-get update
-          sudo apt-get install libz-dev python3-pip
-      - name: install pybind11
-        run: |
-          python3 -m pip install pybind11
-      - name: build and test
-        run: |
-          sudo pip install --verbose .
-          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
-        #uses: actions/setup-python@v5
-        #with:
-        #  # Semantic version range syntax or exact version of a Python version
-        #  python-version: '3.8'
-        #  # Optional - x64 or x86 architecture, defaults to x64
+          python-version: '3.10'
       
-      #- name: Add requirements
-      #  run: python -m pip install --upgrade wheel setuptools
-      #
-      #- name: Build and install
-      #  run: pip install --verbose .
-  macos14:
-    name: "macos 14"
-    runs-on: macos-14
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build and install
-        run: |
-          python3 -m venv pyenv
-          source pyenv/bin/activate
-          python3 -m pip install pybind11
-          python3 -m pip install numpy
-          python3 -m pip install pytest
-          python3 -m pip install -v .
-          pytest tests/test_cell.py tests/test_clipper.py tests/test_coord.py tests/test_minimol.py
+      - uses: TheMrMilchmann/setup-msvc-dev@v3
+        with:
+          arch: x64
+      
+      - name: install package
+        run: pip install .        
