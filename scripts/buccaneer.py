@@ -139,9 +139,10 @@ class Buccaneer:
         wrk_fwrk.copy_from(wrk_f)
         ih = hkls_wrk.first()
         sys.stdout.flush()
-        if ih != ih.last():
+        while not ih.last():
             if flag[ih].flag == args.freerindex:
                 wrk_fwrk[ih] = clipper.HKL_data_F_sigF_float()
+            ih.next()
         # fill in hl
         if args.ipcol_hl == "NONE":
             wrk_hl.compute_from_phi_fom(wrk_pw)
