@@ -24,8 +24,15 @@ class Ca_find {
  public:
   enum TYPE { LIKELIHOOD, SECSTRUC };
   Ca_find( int n_find = 500, double resol = 1.0 ) : nfind( n_find ), resol_( resol ) {}
-  bool operator() ( clipper::MiniMol& mol, const KnownStructure& knownstruc, const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const TYPE type = LIKELIHOOD, const int modelindex = 0 );
+  bool operator()( clipper::MiniMol& mol, const KnownStructure& knownstruc,
+                   const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
+                   const std::vector<clipper::Coord_orth>& aa_instance,
+                   const TYPE type = LIKELIHOOD, const int modelindex = 0 );
   static void set_cpus( int cpus ) { ncpu = cpus; }
+  // new methods to find Ca from centroids from ML predictions
+  // bool operator()( clipper::MiniMol& aa_instance, const clipper::Xmap<float>& xmap_wrk,
+  //                 const float step = 0.1, bool debug = false,
+  //                 Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL );
 
  private:
   friend class Search_threaded;
@@ -37,6 +44,9 @@ class Ca_find {
   std::vector<SearchResult> search_llk( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const;
   // SSfind map search function
   std::vector<SearchResult> search_sec( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const;
+  std::vector<SearchResult> search_sec( const clipper::Xmap<float>& xmap,
+                                        const LLK_map_target& llktarget,
+                                        const std::vector<clipper::Coord_orth>& aa_instance ) const;
   // prepare lateral growing prior
   void prep_prior( clipper::Xmap<float>& prior, const clipper::MiniMol& mol, const double radius=9.0 ) const;
   // modify prior on the basis of multi-model index number
@@ -94,6 +104,8 @@ class SSfind {
   void prep_xmap( const clipper::Xmap<float>& xmap, const double radius );
   void prep_search( const clipper::Xmap<float>& xmap );
   void prep_search( const clipper::Xmap<float>& xmap, const double rhocut, const double radcut, const clipper::Coord_orth centre );
+  void prep_search( const clipper::Xmap<float>& xmap,
+                    const std::vector<clipper::Coord_orth>& aa_instance );
   std::vector<SearchResult> search( const std::vector<Pair_coord>& target_cs, const std::vector<clipper::RTop_orth>& ops, const double rhocut, const double frccut = 0.0 ) const;
 
  private:
@@ -125,6 +137,28 @@ public:
   const LLK_map_target* llktarget_;
   double rot_step_, trn_step_;
   clipper::RTop_orth rtop_;
+};
+
+//! class for refining Ca positions from centroids
+class Target_fn_refine_calpha : Target_fn_order_zero {
+ public:
+  Target_fn_refine_calpha() {}
+  Target_fn_refine_calpha( const clipper::Xmap<float>& xmap, float step = 0.1,
+                           bool debug_mode = false,
+                           Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL )
+      : xmap_( &xmap ), step_( step ), debug_mode_( debug_mode ), opt_type_( type ) {};
+  ~Target_fn_refine_calpha() {}
+  int num_params() const { return 3; }
+
+  double operator()( const std::vector<double>& args ) const;
+  //! refine positions
+  clipper::Coord_orth refine( const clipper::Coord_orth& coord );
+
+ private:
+  const clipper::Xmap<float>* xmap_;
+  double step_;
+  bool debug_mode_;
+  Optimiser_simplex::TYPE opt_type_;
 };
 
 #endif

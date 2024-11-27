@@ -100,7 +100,7 @@ class TestMiniMol:
         assert len(mmol_copy) == len(mmol)
         assert mmol_copy.model()[0].id == mmol.model()[0].id
         mmol2 = clipper.MiniMol()
-        mmol2.model(mmol.model())
+        mmol2.set_model(mmol.model())
         assert mmol2.model().size() == 12
         assert mmol2.model()[3].id == "D"
         assert not mmol.is_empty()

@@ -7,9 +7,38 @@
 
 int Ca_find::ncpu = 0;
 
+// new methods for refinement of calpha positions from starting centroid
 
-// methods for refinement target
+double Target_fn_refine_calpha::operator()( const std::vector<double>& args ) const {
+  clipper::Coord_orth coord( args[0], args[1], args[2] );
+  return -xmap_->interp<clipper::Interp_cubic>( coord.coord_frac( xmap_->cell() ) );
+}
 
+clipper::Coord_orth Target_fn_refine_calpha::refine( const clipper::Coord_orth& coord ) {
+  std::vector<double> args{ coord.x(), coord.y(), coord.z() };
+  std::vector< std::vector<double> > args_init;
+
+  args_init.push_back( args );
+  args[0] = coord.x() + step_;
+  args[1] = coord.y();
+  args[2] = coord.z();
+  args_init.push_back( args );
+  args[0] = coord.x();
+  args[1] = coord.y() + step_;
+  args[2] = coord.z();
+  args_init.push_back( args );
+  args[0] = coord.x();
+  args[1] = coord.y();
+  args[2] = coord.z() + step_;
+  args_init.push_back( args );
+
+  double tol = 0.005 * ( *this )( args_init[0] );
+  Optimiser_simplex opt_simp( tol, 100, opt_type_ );
+  if ( debug_mode_ ) opt_simp.debug();
+  std::vector< double > args_refined = opt_simp( *this, args_init );
+
+  return clipper::Coord_orth( args_refined[0], args_refined[1], args_refined[2] );
+}
 
 Target_fn_refine_llk_map_target::Target_fn_refine_llk_map_target( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const double& rot_step, const double& trn_step )
 {
@@ -18,6 +47,8 @@ Target_fn_refine_llk_map_target::Target_fn_refine_llk_map_target( const clipper:
   rot_step_ = rot_step;
   trn_step_ = trn_step;
 }
+
+// methods for refinement target
 
 double Target_fn_refine_llk_map_target::operator() ( const clipper::RTop_orth& rtop ) const 
 {
@@ -238,6 +269,15 @@ void SSfind::prep_search( const clipper::Xmap<float>& xmap, const double rhocut,
     }
 }
 
+void SSfind::prep_search( const clipper::Xmap<float>& xmap,
+                          const std::vector<clipper::Coord_orth>& aa_instance ) {
+  // make a list of results
+  srctrn.clear();
+  for ( auto i = 0; i < aa_instance.size(); i++ ) {
+    clipper::Coord_grid cg = aa_instance[i].coord_frac( xmap.cell() ).coord_grid( grid );
+    srctrn.push_back( grid.index( cg ) );
+  }
+}
 
 std::vector<SearchResult> SSfind::search( const std::vector<Pair_coord>& target_cs, const std::vector<clipper::RTop_orth>& ops, const double rhocut, const double frccut ) const
 {
@@ -356,9 +396,10 @@ void Ca_find::filter_prior( clipper::Xmap<float>& prior, const int modelindex ) 
   }
 }
 
-
-bool Ca_find::operator() ( clipper::MiniMol& mol, const KnownStructure& knownstruc, const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const TYPE type, const int modelindex )
-{
+bool Ca_find::operator()( clipper::MiniMol& mol, const KnownStructure& knownstruc,
+                          const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
+                          const std::vector<clipper::Coord_orth>& aa_instance, const TYPE type,
+                          const int modelindex ) {
   typedef clipper::Xmap<float>::Map_reference_index MRI;
   const clipper::Spacegroup&    spgr = xmap.spacegroup();
   const clipper::Cell&          cell = xmap.cell();
@@ -387,7 +428,12 @@ bool Ca_find::operator() ( clipper::MiniMol& mol, const KnownStructure& knownstr
 
   // NOW DO THE SEARCH (FIRST CYCLE ONLY)
   if ( results.size() == 0 ) {
-    if ( type == LIKELIHOOD ) {
+    if ( aa_instance.size() != 0 ) {
+      // make a list of rotation ops to try
+      ops = llktarget.rtop_list( clipper::Spacegroup::p1(), stepss );
+      // do the search
+      results = search_sec( xmap, llktarget, aa_instance );
+    } else if ( type == LIKELIHOOD ) {
       // make a list of rotation ops to try
       ops = llktarget.rtop_list( spgr, stepff );
       // do the search
@@ -470,7 +516,24 @@ bool Ca_find::operator() ( clipper::MiniMol& mol, const KnownStructure& knownstr
   return true;
 }
 
-
+// bool Ca_find::operator()( clipper::MiniMol& mol, const clipper::Xmap<float>& xmap_wrk, float
+// step,
+//                           bool debug, Optimiser_simplex::TYPE type ) {
+//   // refine C-alpha dummy atom positions at centroids
+//   // clipper::MiniMol mol_ = mol;
+//
+//   for ( int poly = 0; poly < mol.model().size(); poly++ )
+//     for ( int mon = 0; mon < mol.model()[poly].size(); mon++ )
+//       for ( int atom = 0; atom < mol.model()[poly][mon].size(); atom++ ) {
+//         Target_fn_refine_calpha refinement_target( xmap_wrk, step, debug, type );
+//         clipper::Coord_orth refined_coord =
+//             refinement_target.refine( mol.model()[poly][mon][atom].coord_orth() );
+//         mol.model()[poly][mon][atom].set_coord_orth( refined_coord );
+//       }
+//
+//   return true;
+// }
+//
 void Ca_find::search_op( std::vector<SearchResult>& results, clipper::Xmap<float> xmap1, const clipper::Xmap<int>& xlookp1, const clipper::FFFear_fft<float>& srch, const LLK_map_target& llktarget, const std::vector<clipper::RTop_orth>& ops, int op )
 {
   typedef clipper::Xmap<float>::Map_reference_index MRI;
@@ -533,9 +596,8 @@ std::vector<SearchResult> Ca_find::search_llk( const clipper::Xmap<float>& xmap,
   return result;
 }
 
-
-std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const
-{
+std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap,
+                                               const LLK_map_target& llktarget ) const {
   const clipper::Grid_sampling& grid = xmap.grid_sampling();
 
   // control params
@@ -550,6 +612,120 @@ std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap,
   SSfind ssfind;
   ssfind.prep_xmap( xmap, rad );
   ssfind.prep_search( xmap );
+
+  /*
+  // do initial search with itentity op to get stats
+  clipper::RTop_orth rtid( clipper::RTop_orth::identity() );
+  std::vector<clipper::RTop_orth> opsid( 1, rtid );
+  ssfind.prep_results( xmap, -1.0e20 );
+  ssfind.prep_target( SSfind::ALPHA3, sslen );
+  ssfind.search( opsid, -1.0e20 );
+  ssfind.prep_target( SSfind::BETA3, sslen );
+  ssfind.search( opsid, -1.0e20 );
+  const std::vector<SearchResult> resultz = ssfind.results();
+  double s0(0.0), s1(0.0), s2(0.0);
+  for ( int i = 0; i < resultz.size(); i++ ) {
+    s0 += 1.0;
+    s1 += resultz[i].score;
+    s2 += resultz[i].score * resultz[i].score;
+  }
+  s1 /= s0; s2 /= s0;
+  s2 = sqrt( s2 - s1*s1 );
+  */
+
+  // do full search
+  SSfind::Target targeta( SSfind::ALPHA3, sslen );
+  SSfind::Target targetb( SSfind::BETA3, sslen );
+  std::vector<SearchResult> resulta, resultb;
+  resulta = ssfind.search( targeta.target_coords(), ops, sigcut, 0.0 );
+  resultb = ssfind.search( targetb.target_coords(), ops, sigcut, 0.0 );
+  std::vector<SearchResult> result( resulta.size() );
+  for ( int i = 0; i < result.size(); i++ ) {
+    if ( resulta[i].score > resultb[i].score )
+      result[i] = resulta[i];
+    else
+      result[i] = resultb[i];
+  }
+
+  // rescore
+  double s0( 0.0 ), s1( 0.0 ), s2( 0.0 );
+  int zstep = std::max( int( result.size() / 1000 ), 1 );
+  for ( int i = 0; i < result.size(); i++ ) {
+    clipper::Coord_orth co = xmap.coord_orth( grid.deindex( result[i].trn ).coord_map() );
+    // update score for target
+    if ( result[i].rot >= 0 ) {
+      clipper::RTop_orth rtop( ops[result[i].rot].rot(), co );
+      result[i].score = llktarget.llk_approx( xmap, rtop );
+    } else {
+      result[i].score = 1.0e20;
+    }
+    // and accumulate z-score stats
+    if ( i % zstep == 0 ) {
+      clipper::RTop_orth rtid( clipper::Mat33<>::identity(), co );
+      double score = llktarget.llk_approx( xmap, rtid );
+      s0 += 1.0;
+      s1 += score;
+      s2 += score * score;
+    }
+  }
+  s1 /= s0;
+  s2 /= s0;
+  s2 = sqrt( s2 - s1 * s1 );
+
+  // convert to Z scores
+  for ( int i = 0; i < result.size(); i++ ) result[i].score = ( result[i].score - s1 ) / s2;
+
+  /*
+  // build the result
+  const clipper::Cell& cell = xmap.cell();
+  std::sort( result.begin(), result.end() );
+  clipper::MiniMol mol( xmap.spacegroup(), xmap.cell() );
+  const clipper::String chainids = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  std::vector<clipper::Coord_orth> calphas = ssfind.calpha_coords();
+  clipper::Coord_orth co, cr;
+  for ( int i = 0; i < result.size(); i++ ) {
+    if ( i >= chainids.size() ) break;
+    std::cout << i << " " << result[i].score << " " << result[i].rot << " " << result[i].trn <<
+  std::endl; clipper::MPolymer mpca; co =
+  grid.deindex(result[i].trn).coord_frac(grid).coord_orth(cell); for ( int r = 0; r <
+  calphas.size(); r++ ) { cr = ops[result[i].rot].inverse() * calphas[r]; clipper::MAtom maca =
+  clipper::MAtom::null(); maca.set_id( " CA " );  maca.set_element( "C" ); maca.set_u_iso( 0.25 );
+  maca.set_occupancy( 1.00 ); maca.set_coord_orth( co + cr ); clipper::MMonomer mmca; mmca.set_type(
+  "ALA" ); mmca.set_seqnum( r+1 ); mmca.insert( maca ); mpca.insert( mmca );
+    }
+    mpca.set_id( chainids.substr( i, 1 ) );
+    mol.insert( mpca );
+  }
+  clipper::MMDBfile mfile;
+  mfile.export_minimol( mol );
+  mfile.write_file( "ssfind.pdb" );
+  */
+
+  // remove results where no match was found
+  std::vector<SearchResult> result_trim;
+  for ( int i = 0; i < result.size(); i++ )
+    if ( result[i].rot >= 0 ) result_trim.push_back( result[i] );
+
+  return result_trim;
+}
+
+std::vector<SearchResult> Ca_find::search_sec(
+    const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
+    const std::vector<clipper::Coord_orth>& aa_instance ) const {
+  const clipper::Grid_sampling& grid = xmap.grid_sampling();
+
+  // control params
+  const int sslen = 3;
+  const double rad = 1.9 * sslen + 1.0;
+
+  // get cutoff (for optimisation)
+  clipper::Map_stats stats( xmap );
+  double sigcut = stats.mean() + 1.0 * stats.std_dev();
+
+  // prepare target map
+  SSfind ssfind;
+  ssfind.prep_xmap( xmap, rad );
+  ssfind.prep_search( xmap, aa_instance );
 
   /*
   // do initial search with itentity op to get stats
@@ -652,7 +828,6 @@ std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap,
 
   return result_trim;
 }
-
 
 // Threadable search class methods
 

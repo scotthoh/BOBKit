@@ -171,6 +171,9 @@ class ProteinTools {
   static void insert_ca_chains( clipper::MiniMol& mol, const std::vector<Ca_chain>& chains );
   static void trim_to_protein( clipper::MiniMol& mol );
   static bool is_protein( const clipper::MMonomer& mm );
+  // static bool calculate_residues_centre_of_mass_relative_to_calpha( const clipper::Minimol& mol,
+  // std::vector<clipper::Coord_orth> coms, bool backbone_only = false );
+
  private:
   class MapFilterFn_g5 : public clipper::MapFilterFn_base { public:
     clipper::ftype operator() ( const clipper::ftype& radius ) const { return exp(-radius*radius/50.0); }
