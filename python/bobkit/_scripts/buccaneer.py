@@ -6,13 +6,211 @@ Author: S.W.Hoh, University of York, 2024
 # import faulthandler
 import bobkit.clipper as clipper
 import bobkit.buccaneer as buccaneer
+import bobkit.util as util
 import numpy as np
 import sys
 import gemmi
-from logger import set_logger
-from set_parameters import BuccaneerParams, BucArgParse
+from .logger import set_logger
+from .set_parameters import BuccaneerParams, BucArgParse
 import datetime
+from sklearn.cluster import DBSCAN
+
 # faulthandler.enable()
+
+
+def get_aa_pred(
+    datapath: str, cell: clipper.Cell, grid_sampling: clipper.Grid_sampling
+):
+    aa_pred = np.load(f"{datapath}/inst_pred.npy")
+    for i in range(0, len(aa_pred)):
+        aa_pred[i] = np.swapaxes(aa_pred[i], 0, 2)
+    nxs = -aa_pred[0].shape[0] // 2
+    nys = -aa_pred[0].shape[1] // 2
+    nzs = -aa_pred[0].shape[2] // 2
+    ncorrect = 1
+    spacing = np.array(
+        [
+            cell.a / aa_pred[0].shape[0],
+            cell.b / aa_pred[0].shape[1],
+            cell.c / aa_pred[0].shape[2],
+        ]
+    )
+    corrections = [spacing[0], spacing[1], spacing[2], nxs, nys, nzs, ncorrect]
+    # here 27 jan 2025
+
+
+def get_coordinates_from_predicted_instance(
+    datapath: str,
+    cell: clipper.Cell,
+    grid_sampling: clipper.Grid_sampling,
+    fix_axis_positions=False,
+    fix_origin=True,
+    mapin_path="NONE",
+    write_npy=False,
+    return_map_index=True,
+):
+    offsets = np.load(f"{datapath}/inst_pred.npy")
+    density = np.load(f"{datapath}/density.npy")
+    nxs = 0
+    nys = 0
+    nzs = 0
+    if mapin_path != "NONE":
+        gmap = gemmi.read_ccp4_map(mapin_path)
+        if fix_axis_positions and (gmap.grid.axis_order != gemmi.AxisOrder.XYZ):
+            axis_pos = np.array(gmap.axis_positions())
+            offsets = np.swapaxes(offsets, axis_pos[0], np.where(axis_pos == 0)[0][0])
+            offsets = np.swapaxes(offsets, axis_pos[1], np.where(axis_pos == 1)[0][0])
+            density = np.swapaxes(density, axis_pos[0], np.where(axis_pos == 0)[0][0])
+            density = np.swapaxes(density, axis_pos[1], np.where(axis_pos == 1)[0][0])
+            gmap.setup(float("nan"), gemmi.MapSetup.ReorderOnly)
+        if fix_origin:
+            nxs = gmap.header_i32(5)
+            nys = gmap.header_i32(6)
+            nzs = gmap.header_i32(7)
+            ncorrect = 0
+        spacing = np.array(
+            [
+                cell.a / gmap.header_i32(8),
+                cell.b / gmap.header_i32(9),
+                cell.c / gmap.header_i32(10),
+            ]
+        )
+    else:
+        if fix_axis_positions:  # will swap the x and z axes from the ML npy output
+            offsets = np.swapaxes(offsets, 1, 3)
+            density = np.swapaxes(density, 0, 2)
+        if fix_origin:
+            nxs = -density.shape[0] // 2
+            nys = -density.shape[1] // 2
+            nzs = -density.shape[2] // 2
+            ncorrect = 1
+        spacing = np.array(
+            [
+                cell.a / density.shape[0],
+                cell.b / density.shape[1],
+                cell.c / density.shape[2],
+            ]
+        )
+    if fix_origin:
+        xyz = np.mgrid[
+            nxs : density.shape[0] + (nxs + ncorrect),
+            nys : density.shape[1] + (nys + ncorrect),
+            nzs : density.shape[2] + (nzs + ncorrect),
+        ].astype(np.float64)
+    else:
+        xyz = np.mgrid[
+            nxs : density.shape[0], nys : density.shape[1], nzs : density.shape[2]
+        ].astype(np.float64)
+
+    print(f"xyz shape : {xyz.shape}")
+    print(f"offsets shape : {offsets.shape}")
+    print(f"density shape : {density.shape}")
+    print(f"grid sampling : {grid_sampling.format()}")
+    print(f"spacing: {spacing}")
+    if not return_map_index:
+        for i in (0, 1, 2):
+            offsets[i] = offsets[i] * spacing[i]
+            xyz[i] = xyz[i] * spacing[i]
+    points = (xyz + offsets) * (density > 0)
+    points = points[:, density > 0].T
+    points_int = np.floor(points).astype(int)
+    uniq, indices, count = np.unique(
+        points_int, return_inverse=True, return_counts=True, axis=0
+    )
+    counts = count[indices]
+    aa_instance_coordinates = []
+    if return_map_index:
+        if write_npy:
+            np.save("aa_inst_mean.npy", uniq, allow_pickle=False)
+        for point_ind in uniq:
+            aa_instance_coordinates.append(clipper.Coord_map(point_ind))
+    else:
+        counts = count[indices]
+        # use dbscan to group nearby points together
+        db = DBSCAN(eps=np.max(np.sqrt(3 * (spacing * spacing))), min_samples=10).fit(
+            points
+        )
+        labels = db.labels_
+        groups = {}
+        weights = {}
+        for label in np.unique(labels):
+            if label != -1:
+                groups[label] = points[labels == label]
+                weights[label] = counts[labels == label]
+
+        tmp = np.zeros((len(groups), 3))
+        count = 0
+        for label, group in groups.items():
+            sum_x = 0.0
+            sum_y = 0.0
+            sum_z = 0.0
+            w = 0.0
+            for p in zip(group, weights[label]):
+                sum_x += p[0][0] * p[1]
+                sum_y += p[0][1] * p[1]
+                sum_z += p[0][2] * p[1]
+                w += p[1]
+            tmp[count] = np.array([sum_x / w, sum_y / w, sum_z / w])
+            aa_instance_coordinates.append(clipper.Coord_orth(tmp[count]))
+            count += 1
+        if write_npy:
+            np.save("aa_inst_mean.npy", tmp, allow_pickle=False)
+    return aa_instance_coordinates, spacing
+
+
+def sequence_predictions_to_map(
+    datapath: str,
+    mapin_path: str = "NONE",
+    fix_axis_positions: bool = False,
+    fix_origin: bool = True,
+):
+    aa_pred = np.load(f"{datapath}/pred.npy")
+    nxs = 0
+    nys = 0
+    nzs = 0
+    if mapin_path != "NONE":
+        gmap = gemmi.read_ccp4_map(mapin_path)
+        if fix_axis_positions and (gmap.grid.axis_order != gemmi.AxisOrder.XYZ):
+            axis_pos = np.array(gmap.axis_positions())
+            aa_pred = np.swapaxes(aa_pred, axis_pos[0], np.where(axis_pos == 0)[0][0])
+            aa_pred = np.swapaxes(aa_pred, axis_pos[1], np.where(axis_pos == 1)[0][0])
+            gmap.setup(float("nan"), gemmi.MapSetup.ReorderOnly)
+        if fix_origin:
+            nxs = gmap.header_i32(5)
+            nys = gmap.header_i32(6)
+            nzs = gmap.header_i32(7)
+            ncorrect = 0
+    else:
+        if fix_axis_positions:  # will swap the x and z axes from the ML npy output
+            aa_pred = np.swapaxes(aa_pred, 1, 3)
+        if fix_origin:
+            nxs = -aa_pred[0].shape[0] // 2
+            nys = -aa_pred[0].shape[1] // 2
+            nzs = -aa_pred[0].shape[2] // 2
+            ncorrect = 1
+
+    pred = np.zeros(aa_pred[0].shape, dtype=np.float32)
+    for i in range(0, aa_pred.shape[0] - 1):
+        pred += float(i + 1.0) * (aa_pred[i] > 0.8)
+    #### here 16 Dec 2024
+    xmap = clipper.Xmap_float()
+    xmap.init(
+        clipper.Spacegroup.p1(),
+    )
+    xmap.import_from_gemmi(gmap)
+
+    if fix_origin:
+        xyz = np.mgrid[
+            nxs : aa_pred[0].shape[0] + (nxs + ncorrect),
+            nys : aa_pred[0].shape[1] + (nys + ncorrect),
+            nzs : aa_pred[0].shape[2] + (nzs + ncorrect),
+        ].astype(np.float64)
+    else:
+        xyz = np.mgrid[
+            nxs : aa_pred[0].shape[0],
+            nys : aa_pred[0].shape[1],
+            nzs : aa_pred[0].shape[2],
+        ].astype(np.float64)
 
 
 class Buccaneer:
@@ -78,6 +276,7 @@ class Buccaneer:
             )
             sys.stdout.flush()
         hkls_ref = clipper.HKL_info()
+
         hkls_ref.init(
             clipper.Spacegroup.from_gemmi_spacegroup(mtz.spacegroup),
             clipper.Cell.from_gemmi_cell(mtz.cell),
@@ -158,9 +357,9 @@ class Buccaneer:
         gfile_ref.read_file(args.pdbin_ref)
         gfile_ref.import_minimol(mol_ref)
         if args.pdbin != "NONE":
-            clipper.read_structure(args.pdbin, mol_wrk)
+            util.read_structure(mol_wrk, args.pdbin)
         if mol_seq.size() > 0:
-            clipper.Ca_sequence.set_prior_model(mol_seq)
+            buccaneer.Ca_sequence.set_prior_model(mol_seq)
         mol_wrk_in = mol_wrk.copy()  # store a copy of the input model
         knownstruc = buccaneer.KnownStructure(
             mol_wrk_in,
@@ -202,6 +401,10 @@ class Buccaneer:
         )
         xref = clipper.Xmap_float(hkls_ref.spacegroup, hkls_ref.cell, grid)
         xref.fft_from(ref_fp)
+        # ccp41 = gemmi.Ccp4Map()
+        # xref.export_to_gemmi(ccp41)
+        # ccp41.write_ccp4_map("scaled_refmap.map")
+
         # prepare llk targets
         sys.stdout.flush()
         caprep = buccaneer.Ca_prep(
@@ -244,6 +447,7 @@ class Buccaneer:
             ccp4.write_ccp4_map(args.mapout)
         # initial number of fragments/residues to find
         vol = xwrk.cell.volume / float(xwrk.spacegroup.num_symops())
+
         nres = int(vol / 320.0)  # 320A^3/residue on average (inc solvent)
         args.nfrag = min(args.nfrag, int((args.nfragr * nres) / 100))
         sys.stdout.flush()
@@ -253,6 +457,20 @@ class Buccaneer:
         sys.stdout.flush()
         # prepare search target
         cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
+        if args.aa_instance_directory != "NONE":
+            aa_instance_coords, spacing = get_coordinates_from_predicted_instance(
+                args.aa_instance_directory,
+                xwrk.cell,
+                xwrk.grid_sampling,
+                fix_axis_positions=True,
+                mapin_path=args.mapin,
+                write_npy=True,
+                return_map_index=False,
+            )
+            cafind.set_starting_centroid_coords(aa_instance_coords)
+            aa_pred = np.load(f"{args.aa_instance_directory}/pred.npy")
+            caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, spacing)
+
         # merge multi model results
         if args.merge:
             camerge = buccaneer.Ca_merge(args.seq_rel)
@@ -357,6 +575,8 @@ class Buccaneer:
                 sys.stdout.flush()
 
             if args.seqnc:
+                # caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, corrections)
+                caseq_ml(mol_wrk)
                 caseq = buccaneer.Ca_sequence(args.seq_rel)
                 caseq(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
                 self._print_steps_Casummaries(

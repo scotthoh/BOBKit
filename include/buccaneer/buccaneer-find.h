@@ -26,9 +26,12 @@ class Ca_find {
   Ca_find( int n_find = 500, double resol = 1.0 ) : nfind( n_find ), resol_( resol ) {}
   bool operator()( clipper::MiniMol& mol, const KnownStructure& knownstruc,
                    const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
-                   const std::vector<clipper::Coord_orth>& aa_instance,
                    const TYPE type = LIKELIHOOD, const int modelindex = 0 );
   static void set_cpus( int cpus ) { ncpu = cpus; }
+  void set_starting_centroid_coords( const std::vector<clipper::Coord_orth>& aa_instance ) {
+    aa_instance_positions = aa_instance;
+    has_aa_instance = true;
+  };
   // new methods to find Ca from centroids from ML predictions
   // bool operator()( clipper::MiniMol& aa_instance, const clipper::Xmap<float>& xmap_wrk,
   //                 const float step = 0.1, bool debug = false,
@@ -44,9 +47,6 @@ class Ca_find {
   std::vector<SearchResult> search_llk( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const;
   // SSfind map search function
   std::vector<SearchResult> search_sec( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const;
-  std::vector<SearchResult> search_sec( const clipper::Xmap<float>& xmap,
-                                        const LLK_map_target& llktarget,
-                                        const std::vector<clipper::Coord_orth>& aa_instance ) const;
   // prepare lateral growing prior
   void prep_prior( clipper::Xmap<float>& prior, const clipper::MiniMol& mol, const double radius=9.0 ) const;
   // modify prior on the basis of multi-model index number
@@ -55,6 +55,8 @@ class Ca_find {
   double resol_;
   std::vector<clipper::RTop_orth> ops;
   std::vector<SearchResult> results;
+  std::vector<clipper::Coord_orth> aa_instance_positions;
+  bool has_aa_instance = false;
   static int ncpu;
 };
 

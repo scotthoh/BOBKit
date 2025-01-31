@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.15...3.22)
+
 # get version string from version.hpp
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/version.hpp"
      gemmi_version_line REGEX "#define GEMMI_VERSION \"")
@@ -18,21 +19,38 @@ if (DEFINED SKBUILD)  # building with scikit-build-core (pip install)
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared library" ON)
-#option(BUILD_GEMMI_PROGRAM "Build gemmi command-line program" OFF)
+option(BUILD_GEMMI_PROGRAM "Build gemmi command-line program" ON)
 option(INSTALL_DEV_FILES "Install C++ headers, cmake configs, static lib" ON)
 option(USE_FORTRAN "Build Fortran bindings" OFF)
-option(USE_PYTHON "Build Python bindings" ON)
+option(USE_PYTHON "Build Python bindings" OFF)
+option(USE_ZLIB_NG "Use zlib-ng instead of zlib" OFF)
+option(FETCH_ZLIB_NG "Download, build (statically) and use zlib-ng" OFF)
+option(INTERNAL_ZLIB "Use subset of zlib distributed with gemmi" OFF)
+option(GENERATE_STUBS "Generate Python type stubs" OFF)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
 option(USE_WMAIN "(Windows only) take Unicode arguments in gemmi program" ON)
-set(GEMMI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/gemmi" CACHE STRING
-    "Install path for gemmi CMake files")
+option(STANDALONE_PYTHON_MODULE "Avoid linking Python module to libgemmi_cpp DLL" ON)
+if (WIN32)
+  set(GEMMI_INSTALL_CMAKEDIR "cmake" CACHE STRING
+      "Install path for gemmi CMake files")
+else()
+  set(GEMMI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/gemmi" CACHE STRING
+      "Install path for gemmi CMake files")
+endif()
 option(STRIP_BINARY "Strip symbols from program" OFF)
+option(ADD_SOVERSION "For shared library (on Linux):\
+ set ABI version to 0, build versions to project version" OFF)
+option(USE_NLOPT "Experimental, for testing only, don't use it" OFF)
 
 # uncomment to show compilation times for each compilation unit
 #set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 
-if (DEFINED ENV{FC} OR CMAKE_Fortran_COMPILER)
+if ((DEFINED ENV{FC} AND NOT "$ENV{FC}" STREQUAL "") OR CMAKE_Fortran_COMPILER)
   set(USE_FORTRAN ON CACHE BOOL "Build Fortran bindings" FORCE)
+endif()
+
+if (DEFINED Python_EXECUTABLE)
+  set(USE_PYTHON ON CACHE BOOL "Build Python bindings" FORCE)
 endif()
 
 if (NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
@@ -68,9 +86,9 @@ if (INFO)
 endif()
 
 if (USE_FORTRAN)
-   message(STATUS "Currently, Fortran bindings are not built by cmake.")
-   message(STATUS "They can be built by running make in fortran directory.")
-  enable_language(Fortran)
+  message(STATUS "Currently, Fortran bindings are not built by cmake.")
+  message(STATUS "They can be built by running make in fortran/.")
+  #enable_language(Fortran)
 else()
   #message(STATUS "Skipping Fortran bindings. Add -D USE_FORTRAN=1 to build them.")
 endif()
@@ -81,6 +99,7 @@ endif()
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 
 include(CheckIncludeFile)  # for check_include_file
 
@@ -96,12 +115,49 @@ if (NOT CMAKE_BUILD_TYPE AND NOT USING_ENV_CXXFLAGS)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-find_package(ZLIB)
-if (ZLIB_FOUND)
-  include_directories("${ZLIB_INCLUDE_DIR}")
+if (FETCH_ZLIB_NG)
+  message(STATUS " =============== fetching and building zlib-ng ===============")
+  include(FetchContent)
+  # FetchContent_Declare can take EXCLUDE_FROM_ALL only since CMake 3.28;
+  # for now use FetchContent_Populate instead of FetchContent_MakeAvailable.
+  if (POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+  endif()
+  FetchContent_Declare(zlib-ng GIT_REPOSITORY https://github.com/zlib-ng/zlib-ng.git
+                               GIT_TAG        2.2.x
+                               GIT_SHALLOW TRUE)
+  FetchContent_GetProperties(zlib-ng)
+  if (NOT zlib-ng_POPULATED)
+    FetchContent_Populate(zlib-ng)
+    set(ZLIB_ENABLE_TESTS OFF CACHE INTERNAL "")
+    set(BUILD_SHARED_LIBS_here ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "build static zlib-ng")
+    add_subdirectory(${zlib-ng_SOURCE_DIR} ${zlib-ng_BINARY_DIR} EXCLUDE_FROM_ALL)
+    set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_here} CACHE BOOL "Build shared library" FORCE)
+    set_property(TARGET zlib PROPERTY POSITION_INDEPENDENT_CODE ON)
+    # zlib-ng, unless built WITH_NATIVE_INSTRUCTIONS=ON (-march=native),
+    # builds multiple variants of some functions, using different CPU features.
+    # IPO (LTO) has been reported to mess it up leading to illegal-instruction
+    # crash. When zlib-ng is built as a standalone project, not subdirectory,
+    # these flags are set in zlib-ng/CMakeLists.txt.
+    if (NOT WITH_NATIVE_INSTRUCTIONS)
+      set_target_properties(zlib PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF
+                                            INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF
+                                            INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL OFF)
+    endif()
+    message(STATUS " =============== end of zlib-ng configuration ===============\n")
+  endif()
+elseif (USE_ZLIB_NG)
+  set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools")
+  find_package(ZLIB_NG REQUIRED)
 else()
-  message(STATUS "The build will use zlib code from third_party/zlib.")
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
+  if (NOT INTERNAL_ZLIB)
+    # CMake >= 3.24 respects variable ZLIB_USE_STATIC_LIBS
+    find_package(ZLIB)
+  endif()
+  if (NOT ZLIB_FOUND)
+    message(STATUS "The build will use zlib code from third_party/zlib.")
+  endif()
 endif()
 
 if (NOT DEFINED SKBUILD AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -133,37 +189,6 @@ if (USE_FORTRAN)
   endif()
 endif()
 
-
-if (ZLIB_FOUND)
-  macro(support_gz exe)
-    target_link_libraries(${exe} PRIVATE ZLIB::ZLIB)
-  endmacro()
-else()
-  add_library(ungz OBJECT
-      "third_party/zlib/adler32.c"
-      "third_party/zlib/crc32.c"
-      "third_party/zlib/gzlib.c"
-      "third_party/zlib/gzread.c"
-      "third_party/zlib/inflate.c"
-      "third_party/zlib/inftrees.c"
-      "third_party/zlib/inffast.c"
-      "third_party/zlib/zutil.c")
-  check_include_file(unistd.h has_unistd_h)
-  target_compile_definitions(ungz PRIVATE NO_GZCOMPRESS=1)
-  if (has_unistd_h)
-    target_compile_definitions(ungz PRIVATE Z_HAVE_UNISTD_H=1)
-  endif()
-  if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    # /wd4996 - the POSIX name for this item is deprecated.
-    # /wd4267 - conversion from 'size_t' to 'unsigned int', possible loss of data
-    target_compile_options(ungz PRIVATE /wd4996 /wd4267)
-  endif()
-  set_property(TARGET ungz PROPERTY POSITION_INDEPENDENT_CODE ON)
-  macro(support_gz exe)
-    target_sources(${exe} PUBLIC $<TARGET_OBJECTS:ungz>)
-  endmacro()
-endif()
-
 if (WIN32 AND USE_WMAIN)
   add_definitions(-D_UNICODE=1)
 endif()
@@ -174,13 +199,6 @@ endif()
 #  add_library(fgemmi STATIC fortran/gemmi.f90)
 #  target_link_libraries(fgemmi PRIVATE cgemmi)
 #endif()
-#include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
-#        "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
-
-file(GLOB gemmi_CPPSRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-file(GLOB gemmi_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/*.hpp")
-file(GLOB gemmi_third_party-headers_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi/third_party/*.h")
-file(GLOB gemmi_py_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 
 add_library(gemmi_headers INTERFACE)
 add_library(gemmi::headers ALIAS gemmi_headers)
@@ -190,7 +208,13 @@ target_include_directories(gemmi_headers INTERFACE
 target_compile_features(gemmi_headers INTERFACE cxx_std_11)
 set_target_properties(gemmi_headers PROPERTIES EXPORT_NAME headers)
 
-add_library(gemmi_cpp ${gemmi_CPPSRC})
+add_library(gemmi_cpp
+            src/align.cpp src/assembly.cpp src/calculate.cpp src/crd.cpp
+            src/ddl.cpp src/eig3.cpp src/gz.cpp src/intensit.cpp src/json.cpp
+            src/mmcif.cpp src/mmread_gz.cpp src/mtz.cpp src/mtz2cif.cpp
+            src/pdb.cpp src/polyheur.cpp src/read_cif.cpp src/read_map.cpp
+            src/resinfo.cpp src/riding_h.cpp src/sprintf.cpp src/to_mmcif.cpp
+            src/to_pdb.cpp src/monlib.cpp src/topo.cpp src/xds_ascii.cpp)
 add_library(gemmi::gemmi_cpp ALIAS gemmi_cpp)
 set_property(TARGET gemmi_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
 #set_property(TARGET gemmi_cpp PROPERTY CXX_VISIBILITY_PRESET hidden)
@@ -199,9 +223,231 @@ target_include_directories(gemmi_cpp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_
 
 if (BUILD_SHARED_LIBS)
   target_compile_definitions(gemmi_cpp PUBLIC GEMMI_SHARED)
+  if (ADD_SOVERSION)
+    set_target_properties(gemmi_cpp PROPERTIES VERSION ${PROJECT_VERSION}
+                                               SOVERSION "0")
+  endif()
 endif()
 target_link_libraries(gemmi_cpp PUBLIC gemmi_headers)
-support_gz(gemmi_cpp)
+
+if (FETCH_ZLIB_NG)
+  target_compile_definitions(gemmi_cpp PRIVATE USE_ZLIB_NG=1)
+  target_link_libraries(gemmi_cpp PRIVATE zlib)
+elseif (ZLIB_NG_FOUND)
+  target_compile_definitions(gemmi_cpp PRIVATE USE_ZLIB_NG=1)
+  target_link_libraries(gemmi_cpp PRIVATE ZLIB_NG::ZLIB_NG)
+elseif (ZLIB_FOUND)
+  target_link_libraries(gemmi_cpp PRIVATE ZLIB::ZLIB)
+else()
+  target_sources(gemmi_cpp PRIVATE
+      "third_party/zlib/adler32.c"
+      "third_party/zlib/crc32.c"
+      "third_party/zlib/gzlib.c"
+      "third_party/zlib/gzread.c"
+      "third_party/zlib/inflate.c"
+      "third_party/zlib/inftrees.c"
+      "third_party/zlib/inffast.c"
+      "third_party/zlib/zutil.c")
+  check_include_file(unistd.h has_unistd_h)
+  target_compile_definitions(gemmi_cpp PRIVATE NO_GZCOMPRESS=1 DYNAMIC_CRC_TABLE=1)
+  if (has_unistd_h)
+    target_compile_definitions(gemmi_cpp PRIVATE Z_HAVE_UNISTD_H=1)
+  endif()
+  target_include_directories(gemmi_cpp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # /wd4267 - conversion from 'size_t' to 'unsigned int', possible loss of data
+    target_compile_options(gemmi_cpp PRIVATE /wd4267)
+  endif()
+endif()
+
+
+### programs from prog/ ###
+
+add_library(options OBJECT prog/options.cpp)
+target_link_libraries(options PUBLIC gemmi_headers)
+target_include_directories(options PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+if (GEMMI_VERSION_INFO)
+  target_compile_definitions(options PRIVATE GEMMI_VERSION_INFO=${GEMMI_VERSION_INFO})
+endif()
+
+# Gemmi subcommands compiled as individual binaries.
+# Not built by default and used mostly for testing.
+function(add_single_prog target)
+  cmake_parse_arguments(arg "NOLIB" "ADD_SRC" "" ${ARGN})
+  add_executable(gemmi-${target} EXCLUDE_FROM_ALL prog/${target}.cpp ${arg_ADD_SRC}
+                 $<TARGET_OBJECTS:options>)
+  if (arg_NOLIB)
+    target_link_libraries(gemmi-${target} PRIVATE gemmi_headers)
+  else()
+    target_link_libraries(gemmi-${target} PRIVATE gemmi_cpp)
+  endif()
+  target_include_directories(gemmi-${target} PRIVATE
+                             "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+endfunction()
+
+add_single_prog(align)
+add_single_prog(blobs ADD_SRC prog/mapcoef.cpp)
+add_single_prog(cif2json)
+add_single_prog(cif2mtz)
+add_single_prog(cifdiff)
+add_single_prog(contact)
+add_single_prog(contents)
+add_single_prog(convert)
+add_single_prog(crd ADD_SRC prog/monlib_opt.cpp)
+add_single_prog(ecalc)
+add_single_prog(fprime NOLIB)
+add_single_prog(grep)
+add_single_prog(h)
+add_single_prog(json2cif)
+add_single_prog(map)
+add_single_prog(map2sf)
+add_single_prog(mask)
+add_single_prog(mixmtz)
+add_single_prog(merge)
+add_single_prog(mondiff)
+add_single_prog(mtz)
+add_single_prog(mtz2cif)
+add_single_prog(reindex)
+add_single_prog(residues)
+add_single_prog(rmsz)
+add_single_prog(sf2map ADD_SRC prog/mapcoef.cpp)
+add_single_prog(sfcalc)
+add_single_prog(sg NOLIB)
+add_single_prog(tags)
+add_single_prog(validate ADD_SRC prog/validate_mon.cpp)
+add_single_prog(wcn)
+add_single_prog(xds2mtz)
+
+# gemmi program with a number of subcommands
+add_executable(gemmi_prog
+               prog/align.cpp prog/blobs.cpp
+               prog/cif2mtz.cpp prog/cif2json.cpp prog/cifdiff.cpp
+               prog/contact.cpp prog/contents.cpp prog/convert.cpp prog/crd.cpp
+               prog/ecalc.cpp prog/fprime.cpp
+               prog/grep.cpp prog/h.cpp prog/json2cif.cpp
+               prog/main.cpp prog/map.cpp prog/map2sf.cpp
+               prog/mapcoef.cpp prog/mask.cpp prog/merge.cpp
+               prog/mondiff.cpp prog/monlib_opt.cpp prog/mtz.cpp prog/mtz2cif.cpp
+               prog/reindex.cpp prog/residues.cpp prog/rmsz.cpp prog/set.cpp
+               prog/sf2map.cpp prog/sfcalc.cpp prog/sg.cpp prog/tags.cpp
+               prog/validate.cpp prog/validate_mon.cpp prog/wcn.cpp
+               prog/xds2mtz.cpp
+               $<TARGET_OBJECTS:options>)
+add_executable(gemmi::prog ALIAS gemmi_prog)
+target_link_libraries(gemmi_prog PRIVATE gemmi_cpp)
+target_include_directories(gemmi_prog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+target_compile_definitions(gemmi_prog PRIVATE GEMMI_ALL_IN_ONE=1)
+set_target_properties(gemmi_prog PROPERTIES OUTPUT_NAME gemmi EXPORT_NAME prog)
+if (BUILD_SHARED_LIBS)
+  if (APPLE)
+    set(origin "@loader_path")
+  else ()
+    set(origin "$ORIGIN")
+  endif ()
+  set_property(TARGET gemmi_prog
+               PROPERTY INSTALL_RPATH "${origin}/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+if (WIN32 AND USE_WMAIN)
+  # _UNICODE=1 is now set globally
+  #target_compile_definitions(gemmi_prog PRIVATE _UNICODE=1)
+  if(MINGW)
+    target_link_options(gemmi_prog PRIVATE "-municode")
+  endif()
+endif()
+if (NOT BUILD_GEMMI_PROGRAM)
+  set_property(TARGET gemmi_prog PROPERTY EXCLUDE_FROM_ALL TRUE)
+endif()
+
+# I'm not sure if this option should be here.
+# The alternative is to use install/strip target, or cmake --install --strip.
+if (STRIP_BINARY AND CMAKE_STRIP)
+  add_custom_command(TARGET gemmi_prog POST_BUILD
+                     COMMENT "Strip symbols from program with ${CMAKE_STRIP}"
+                     COMMAND ${CMAKE_STRIP}
+                     ARGS $<TARGET_FILE:gemmi_prog>)
+endif()
+
+### tests and examples ###
+
+#add_executable(c_test EXCLUDE_FROM_ALL fortran/c_test.c)
+#target_link_libraries(c_test PRIVATE cgemmi)
+
+add_executable(cpptest EXCLUDE_FROM_ALL tests/main.cpp tests/cif.cpp tests/windowsh.cpp)
+target_compile_definitions(cpptest PRIVATE USE_STD_SNPRINTF=1)
+target_link_libraries(cpptest PRIVATE gemmi_headers)
+target_include_directories(cpptest PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+
+add_executable(hello EXCLUDE_FROM_ALL examples/hello.cpp)
+target_link_libraries(hello PRIVATE gemmi_headers)
+add_executable(doc_example EXCLUDE_FROM_ALL
+               docs/code/sym.cpp docs/code/elem.cpp docs/code/resinfo.cpp
+               docs/code/cell.cpp src/resinfo.cpp)
+target_link_libraries(doc_example PRIVATE gemmi_headers)
+add_executable(doc_example2 EXCLUDE_FROM_ALL docs/code/cif_cc.cpp)
+target_link_libraries(doc_example2 PRIVATE gemmi_headers)
+add_executable(doc_maybegz EXCLUDE_FROM_ALL docs/code/maybegz.cpp docs/code/mutate.cpp)
+target_link_libraries(doc_maybegz PRIVATE gemmi_cpp)
+add_executable(doc_newmtz EXCLUDE_FROM_ALL docs/code/newmtz.cpp)
+target_link_libraries(doc_newmtz PRIVATE gemmi_cpp)
+
+# always compile these tests with assertions enabled
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel")
+  target_compile_options(doc_example PRIVATE -UNDEBUG)
+endif()
+
+add_executable(test_disulf EXCLUDE_FROM_ALL tests/disulf.cpp)
+target_link_libraries(test_disulf PRIVATE gemmi_cpp)
+
+# auth_label requires <experimental/filesystem> and -lstdc++fs
+add_executable(auth_label EXCLUDE_FROM_ALL examples/auth_label.cpp)
+target_link_libraries(auth_label PRIVATE gemmi_cpp)
+
+add_executable(check_conn EXCLUDE_FROM_ALL examples/check_conn.cpp)
+target_link_libraries(check_conn PRIVATE gemmi_cpp)
+
+enable_testing()
+
+add_custom_target(print-version
+  COMMAND gemmi_prog --version
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  COMMENT "gemmi --version"
+)
+
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -C \"$<CONFIG>\")
+add_test(NAME cpptest COMMAND cpptest)
+
+add_dependencies(check
+    cpptest hello doc_example doc_example2 doc_maybegz doc_newmtz
+    test_disulf check_conn print-version)
+
+if (USE_FORTRAN)
+#  add_executable(ftest EXCLUDE_FROM_ALL fortran/ftest.f90)
+#  target_link_libraries(ftest PRIVATE fgemmi)
+#  add_test(NAME ftest COMMAND ftest)
+#  add_executable(ftest_grid EXCLUDE_FROM_ALL fortran/ftest_grid.f90)
+#  target_link_libraries(ftest_grid PRIVATE fgemmi)
+#  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+#    set_property(TARGET ftest ftest_grid PROPERTY LINKER_LANGUAGE Fortran)
+#  endif()
+#  add_test(NAME ftest_grid COMMAND ftest_grid)
+#  add_dependencies(check ftest ftest_grid)
+
+endif()
+
+### benchmarks ###
+
+if (benchmark_FOUND)
+  foreach(b stoi elem mod niggli pdb resinfo round sym writecif)
+    add_executable(${b}-bm EXCLUDE_FROM_ALL benchmarks/${b}.cpp)
+    if (b MATCHES "resinfo|pdb|writecif")
+      target_link_libraries(${b}-bm PRIVATE gemmi_cpp)
+    endif()
+    target_link_libraries(${b}-bm PRIVATE gemmi_headers benchmark::benchmark)
+    set_property(TARGET ${b}-bm PROPERTY RUNTIME_OUTPUT_DIRECTORY
+                                             "${CMAKE_BINARY_DIR}/benchmarks")
+    add_dependencies(check ${b}-bm)
+  endforeach()
+endif()
 
 ### Python bindings ###
 if (USE_PYTHON)
@@ -211,6 +457,10 @@ if (USE_PYTHON)
     find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
   else()
     find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development.Module)
+  endif()
+  # pybind11 macros use PYTHON_EXECUTABLE
+  if (DEFINED Python_EXECUTABLE AND NOT DEFINED PYTHON_EXECUTABLE)
+    set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
   endif()
   if (EXISTS "${CMAKE_HOME_DIRECTORY}/pybind11")
     message(STATUS "Using ${CMAKE_HOME_DIRECTORY}/pybind11 (internal copy).")
@@ -222,32 +472,78 @@ if (USE_PYTHON)
     find_package(pybind11 2.6 CONFIG REQUIRED)
     message(STATUS "Found pybind11 ${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
   endif()
-  pybind11_add_module(gemmi_py ${gemmi_py_SRC} $<TARGET_OBJECTS:gemmi_cpp>)
-  target_link_libraries(gemmi_py PRIVATE gemmi_headers)
+  pybind11_add_module(gemmi_py
+          python/mol.cpp python/gemmi.cpp python/align.cpp
+          python/ccp4.cpp python/chemcomp.cpp python/cif.cpp python/custom.cpp
+          python/elem.cpp python/grid.cpp python/hkl.cpp
+          python/meta.cpp python/monlib.cpp
+          python/mtz.cpp python/read.cpp python/recgrid.cpp
+          python/scaling.cpp python/search.cpp
+          python/sf.cpp python/sym.cpp python/topo.cpp
+          python/unitcell.cpp python/write.cpp)
+  if (STANDALONE_PYTHON_MODULE)
+    target_sources(gemmi_py PRIVATE $<TARGET_OBJECTS:gemmi_cpp>)
+    get_target_property(_gemmi_cpp_libs gemmi_cpp LINK_LIBRARIES)
+    set_property(TARGET gemmi_py APPEND PROPERTY LINK_LIBRARIES ${_gemmi_cpp_libs})
+  else()
+    target_link_libraries(gemmi_py PRIVATE gemmi_cpp)
+  endif()
   set_property(TARGET gemmi_py PROPERTY OUTPUT_NAME gemmi)
   if(CMAKE_CXX_FLAGS MATCHES "-Wshadow")
     target_compile_options(gemmi_py PRIVATE "-Wno-shadow")
   endif()
-  support_gz(gemmi_py)
+
+  if (USE_NLOPT)
+    message(STATUS "Using NLopt.")
+    find_package(NLopt REQUIRED)
+    target_link_libraries(gemmi_py PRIVATE NLopt::nlopt)
+    target_compile_definitions(gemmi_py PRIVATE WITH_NLOPT=1)
+  endif()
+
+  if (GENERATE_STUBS AND CMAKE_CROSSCOMPILING)
+    message(WARNING "Stubs cannot be generated when cross-compiling - skipping.")
+  elseif (GENERATE_STUBS)
+    set(sep ":")
+    if (WIN32)
+      set(sep ";")
+    endif()
+    add_custom_command(TARGET gemmi_py POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E env
+         "PYTHONPATH=$<TARGET_FILE_DIR:gemmi_py>${sep}$ENV{PYTHONPATH}"
+       ${Python_EXECUTABLE} -m pybind11_stubgen gemmi
+         --enum-class-locations=Ignore:gemmi.ContactSearch
+         --enum-class-locations=.+:gemmi
+         --numpy-array-remove-parameters
+         --output-dir stubs
+     COMMAND ${CMAKE_COMMAND} -E touch stubs/gemmi/py.typed
+     COMMENT "Generate type stubs with pybind11-stubgen"
+     BYPRODUCTS stubs/gemmi/__init__.pyi stubs/gemmi/cif.pyi stubs/gemmi/py.typed
+     VERBATIM)
+  endif()
 else()
   message(STATUS "Skipping Python module. Add -D USE_PYTHON=1 to build it.")
 endif()
 
 # avoid GCC warning: the ABI of passing structure with 'complex float' member
 # has changed in GCC 4.4
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/python/recgrid.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/hkl.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/mtz.cpp ${CMAKE_CURRENT_SOURCE_DIR}/prog/mtz.cpp
+set_property(SOURCE python/recgrid.cpp python/hkl.cpp python/mtz.cpp prog/mtz.cpp
              PROPERTY COMPILE_FLAGS $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi>)
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tools/gemmi-config.cmake.in gemmi-config.cmake
+configure_package_config_file(tools/gemmi-config.cmake.in gemmi-config.cmake
                               INSTALL_DESTINATION "${GEMMI_INSTALL_CMAKEDIR}")
 write_basic_package_version_file(gemmi-config-version.cmake
                                  VERSION ${PROJECT_VERSION}
                                  COMPATIBILITY AnyNewerVersion)
 
+if (BUILD_GEMMI_PROGRAM)
+  # Is it useful to have the program location in gemmi-targets.cmake?
+  install(TARGETS gemmi_prog EXPORT GemmiTargets)
+endif()
+
 if (INSTALL_DEV_FILES)
   # In CMake 3.23 we'll be able to use FILE_SET to install the headers
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/gemmi DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+  install(DIRECTORY include/gemmi DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
   install(TARGETS gemmi_headers gemmi_cpp EXPORT GemmiTargets)
   install(EXPORT GemmiTargets FILE gemmi-targets.cmake NAMESPACE gemmi::
           DESTINATION "${GEMMI_INSTALL_CMAKEDIR}")
@@ -255,7 +551,7 @@ if (INSTALL_DEV_FILES)
           "${CMAKE_CURRENT_BINARY_DIR}/gemmi-config.cmake"
           "${CMAKE_CURRENT_BINARY_DIR}/gemmi-config-version.cmake"
           DESTINATION "${GEMMI_INSTALL_CMAKEDIR}")
-elseif (BUILD_SHARED_LIBS)
+elseif (BUILD_SHARED_LIBS AND BUILD_GEMMI_PROGRAM)
   install(TARGETS gemmi_cpp)
 endif()
 
@@ -268,7 +564,7 @@ if (USE_PYTHON)
   # Using Python_SITEARCH/SITELIB is not good, because they are absolute
   # and don't respect CMAKE_INSTALL_PREFIX.
   # https://discourse.cmake.org/t/findpython3-how-to-specify-local-installation-directory-for-python-module/3580/5
-  if (BUILD_SHARED_LIBS)
+  if (BUILD_SHARED_LIBS AND NOT STANDALONE_PYTHON_MODULE)
     if (DEFINED SKBUILD)
       # When building via pip, Python_SITEARCH is /tmp.../wheel/platlib,
       # different from the actual install path. Best guess:
@@ -279,5 +575,12 @@ if (USE_PYTHON)
     endif()
     set_target_properties(gemmi_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
   endif()
-  install(TARGETS gemmi_py DESTINATION "${Python_SITEARCH}")
+  install(TARGETS gemmi_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
+  install(DIRECTORY examples DESTINATION "${Python_SITEARCH}/gemmi" COMPONENT py
+          FILES_MATCHING PATTERN "*.py"
+          PATTERN "[._]*" EXCLUDE)
+  if (GENERATE_STUBS AND NOT CMAKE_CROSSCOMPILING)
+    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/stubs/gemmi"
+            DESTINATION "${Python_SITEARCH}" COMPONENT py)
+  endif()
 endif()

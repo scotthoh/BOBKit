@@ -7,8 +7,8 @@
 #include "helper_functions.h"
 #include "type_conversions.h"
 #include <clipper/clipper.h>
-#include <clipper/core/clipper_types.h>
-#include <clipper/core/clipper_util.h>
+// #include <clipper/core/clipper_types.h>
+// #include <clipper/core/clipper_util.h>
 #include <pybind11/detail/common.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

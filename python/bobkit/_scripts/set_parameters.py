@@ -623,6 +623,17 @@ class BucArgParse:
             help="Set filter sigma for molecular replacement model.",
         )
         _GROUP.add_argument(
+            "--aa-instance-directory",
+            dest="aa_instance_directory",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help=(
+                "Directory containing numpy files density and inst_pred "
+                "for starting positions of amino acid instances from machine learning output."
+            ),
+        )
+        _GROUP.add_argument(
             "--verbose",
             dest="verbose",
             type=int,
@@ -652,7 +663,7 @@ class BuccaneerParams:
     pdbin_ref: str
     mtzin_ref: str
     pdbin_mr: str
-
+    aa_instance_directory: str
     # columns
     title: str
     ipcol_ref_fo: str  # "FP.F_sigF.F,FP.F_sigF.sigF"
@@ -722,6 +733,7 @@ class BuccaneerParams:
         mapin: str = "NONE",
         pdbin: str = "NONE",
         pdbin_mr: str = "NONE",
+        aa_instance_directory: str = "NONE",
         outfile_name: str = "buccaneer_build.pdb",
         xmlout: str = "summary.xml",
         write_pdb: bool = True,
@@ -732,6 +744,7 @@ class BuccaneerParams:
         self.mapin = mapin
         self.pdbin = pdbin
         self.pdbin_mr = pdbin_mr
+        self.aa_instance_positions = aa_instance_positions
         self.verbose = verbose
         self.title = title
         self.ipseq_wrk = seqin
@@ -777,6 +790,7 @@ class BuccaneerParams:
         self.mapin = args.mapin
         self.pdbin = args.model_in
         self.pdbin_mr = args.model_in_mr
+        self.aa_instance_directory = args.aa_instance_directory
         self.verbose = args.verbose
         self.title = args.title
         self.ipseq_wrk = args.seqin

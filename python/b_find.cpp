@@ -52,12 +52,11 @@ void declare_ca_find(py::module &m) {
       //.value( "CENTROIDS", Ca_find::TYPE::CENTROIDS )
       .export_values();
 
-  ca_find
-      .def( py::init<int, double>(), py::arg( "n_find" ) = 500, py::arg( "resol" ) = 1.0 )
-      //.def("__call__", &Ca_find::operator(), py::arg("mol"),
-      //     py::arg("knownstruc"), py::arg("xmap"), py::arg("llktarget"),
-      //     py::arg("type") = Ca_find::TYPE::LIKELIHOOD,
-      //     py::arg("modelindex") = 0, "Find Ca using density.")
+  ca_find.def( py::init<int, double>(), py::arg( "n_find" ) = 500, py::arg( "resol" ) = 1.0 )
+      .def( "__call__", &Ca_find::operator(), py::arg( "mol" ), py::arg( "knownstruc" ),
+            py::arg( "xmap" ), py::arg( "llktarget" ),
+            py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, py::arg( "modelindex" ) = 0,
+            "Find Ca using density." )
       //.def(
       //    "__call__",
       //    []( Ca_find& self, clipper::MiniMol& mol, const KnownStructure& knownstruc,
@@ -68,19 +67,22 @@ void declare_ca_find(py::module &m) {
       //    py::arg( "mol" ), py::arg( "knownstruc" ), py::arg( "xmap" ), py::arg( "llktarget" ),
       //    py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, py::arg( "modelindex" ) = 0,
       //    "Find Ca using density." )
-      .def(
-          "__call__",
-          []( Ca_find& self, clipper::MiniMol& mol, const KnownStructure& knownstruc,
-              const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
-              const std::vector<Coord_orth>& aa_instance, const Ca_find::TYPE type,
-              const int modelindex ) {
-            return self( mol, knownstruc, xmap, llktarget, aa_instance, type, modelindex );
-          },
-          py::arg( "mol" ), py::arg( "knownstruc" ), py::arg( "xmap" ), py::arg( "llktarget" ),
-          py::arg( "centroids" ), py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD,
-          py::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
+      //.def(
+      //    "__call__",
+      //    []( Ca_find& self, clipper::MiniMol& mol, const KnownStructure& knownstruc,
+      //        const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
+      //        const std::vector<Coord_orth>& aa_instance, const Ca_find::TYPE type,
+      //        const int modelindex ) {
+      //      return self( mol, knownstruc, xmap, llktarget, aa_instance, type, modelindex );
+      //    },
+      //    py::arg( "mol" ), py::arg( "knownstruc" ), py::arg( "xmap" ), py::arg( "llktarget" ),
+      //    py::arg( "centroids" ), py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD,
+      //    py::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
       .def_static( "set_cpus", &Ca_find::set_cpus, py::arg( "ncpus" ),
                    "Set number of cpu threads to use." )
+      .def( "set_starting_centroid_coords", &Ca_find::set_starting_centroid_coords,
+            py::arg( "aa_instance" ),
+            "Set starting centroid coordinates from a list of positions of amino acid instances." )
       .def( "__repr__", []( const Ca_find& self ) {
         std::stringstream stream;
         stream << "<buccaneer.Ca_find class>";

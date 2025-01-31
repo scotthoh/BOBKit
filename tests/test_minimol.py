@@ -8,6 +8,7 @@ import pytest
 import math
 import bobkit.clipper as clipper
 import bobkit.buccaneer as buccaneer
+from bobkit.util import read_structure
 
 
 @pytest.fixture
@@ -24,9 +25,7 @@ def cell_instance(cell_descr_instance):
 def read_structure_instance(request, cell_instance):
     testdir = pathlib.Path(request.module.__file__).parent.parent / "test_data"
     mmol = clipper.MiniMol(clipper.Spacegroup.p1(), cell_instance)
-    flag = buccaneer.Util.read_structure(
-        mmol, str(testdir / "pdb5ni1_cryst1.pdb"), False
-    )  # noqa 501
+    flag = read_structure(mmol, str(testdir / "pdb5ni1_cryst1.pdb"), False)  # noqa 501
     return flag, mmol
 
 
@@ -185,6 +184,24 @@ class TestResidue:
         assert res_copy[0].id == "CG2"
         assert res_copy[0].element == "C"
         atm_CG = res_copy.find("CG2")
+        # check if property works with type sequence_data and double
+        val = 1.0000
+        val_list = [1.000, 2.000, 3.000]
+        ca = buccaneer.Ca_group(residue_instance)
+        seqdat = buccaneer.Ca_sequence.Sequence_data(ca, val_list)
+        residue_instance.set_property("SEQPROB", clipper.Property_sequence_data(seqdat))
+        assert residue_instance.exists_property("SEQPROB")
+        seqdat_val = residue_instance.get_property("SEQPROB").value
+        assert math.isclose(ca.coord_c.x, seqdat_val.ca.coord_c.x, rel_tol=1e-6)
+        residue_instance.delete_property("SEQPROB")
+        assert not residue_instance.exists_property("SEQPROB")
+        residue_instance.set_property("DOUBLE", clipper.Property_double(val))
+        assert residue_instance.exists_property("DOUBLE")
+        prop_val = residue_instance.get_property("DOUBLE").value
+        assert math.isclose(prop_val, val, rel_tol=1e-6)
+        residue_instance.delete_property("DOUBLE")
+        assert not residue_instance.exists_property("DOUBLE")
+
         assert atm_CG.name == "CG2"
         res_tmp = clipper.MResidue()
         assert res_tmp.size() == 0
@@ -323,3 +340,32 @@ class TestAtomList:
         assert chna_atoms[-1].pos.x == O1069.x
         assert chna_atoms[-1].pos.y == O1069.y
         assert chna_atoms[-1].pos.z == O1069.z
+
+
+class TestMinimolIteration:
+    def test_modify_property_in_loop(self, read_structure_instance):
+        flag, mmol = read_structure_instance
+        chn1_id = str(mmol[0].id)
+        chn1res1_type = str(mmol[0][0].type)
+        for chn in range(0, mmol.size()):
+            if chn == 0:
+                mmol[chn].id = "Z"
+            for res in range(0, mmol[chn].size()):
+                if res == 0:
+                    mmol[chn][res].type = "UNK"
+                    break
+        assert chn1_id == "A"
+        assert chn1res1_type == "VAL"
+        assert mmol[0].id == "Z"
+        assert mmol[0][0].type == "UNK"
+
+        for c in mmol:
+            if c.id == "Z":
+                c.id = "A"
+            for r in c:
+                if r.type == "UNK":
+                    r.type = "VAL"
+                    break
+
+        assert mmol[0].id == "A"
+        assert mmol[0][0].type == "VAL"

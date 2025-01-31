@@ -68,7 +68,7 @@ void declare_range_sampling(py::module &m) {
       });
 }
 
-void declare_histogram(py::module m) {
+void declare_histogram( py::module& m ) {
   py::class_<Histogram, Range_sampling>(m, "Histogram")
       .def(py::init<>())
       .def(py::init<const Range<ftype> &, const int &>(), py::arg("range"),
@@ -100,10 +100,43 @@ void declare_histogram(py::module m) {
       "storing data or retrieving by interpolation the range is checked.";
 }
 
+void declare_generic_ordinal( py::module& m ) {
+  py::class_<Generic_ordinal>( m, "Generic_ordinal" )
+      .def( py::init<>() )
+      .def( py::init<const Range<ftype>&, const int&>(), py::arg( "range" ), py::arg( "n" ),
+            "Constructor: from range and sampling" )
+      .def(
+          "init",
+          []( Generic_ordinal& self, Range<ftype>& range, const int num_ranges ) {
+            self.init( range, num_ranges );
+          },
+          py::arg( "range" ), py::arg( "num_ranges" ) = 1000 )
+      .def(
+          "init",
+          []( Generic_ordinal& self, std::vector<ftype>& values, const int num_ranges ) {
+            self.init( values, num_ranges );
+          },
+          py::arg( "values" ), py::arg( "num_ranges" ) = 1000 )
+      .def( "ordinal", &Generic_ordinal::ordinal, py::arg( "value" ) )
+      .def(
+          "accumulate",
+          []( Generic_ordinal& self, const ftype& value ) { self.accumulate( value ); },
+          py::arg( "value" ) )
+      .def(
+          "accumulate",
+          []( Generic_ordinal& self, const ftype& value, const ftype& weight ) {
+            self.accumulate( value, weight );
+          },
+          py::arg( "value" ), py::arg( "weight" ) )
+      .def( "prep_ordinal", &Generic_ordinal::prep_ordinal )
+      .def( "invert", &Generic_ordinal::invert );
+}
+
 void init_clipper_stats(py::module &m) {
   declare_range<int>(m, "int");
   declare_range<float>(m, "float");
   declare_range<double>(m, "double");
   declare_range_sampling(m);
   declare_histogram(m);
+  declare_generic_ordinal( m );
 }

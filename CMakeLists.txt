@@ -39,6 +39,7 @@ option(USE_PYTHON "Build Python bindings" ON)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
 option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" ON)
 option(BUCCANEER_PROFILE "Set Buccaneer profiling on/off" ON)
+#option(GENERATE_STUBS "Generate Python type stubs" ON)
 if(SHOW_COMPILE_TIME)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 endif()
@@ -60,10 +61,11 @@ else()
   set(VENV_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
 endif()
 
-if(DEFINED $ENV{SKIP_INSTALL_FFTW3})
-  set(BUILD_OWN_FFTW3 OFF CACHE BOOL "" FORCE)
+if (NOT BUILD_OWN_FFTW3)
+  message(STATUS "Finding FFTW3 package.")
+  #set(BUILD_OWN_FFTW3 OFF CACHE BOOL "" FORCE)
   find_package(PkgConfig REQUIRED)
-  pkg_search_module(FFTW 3.3.4...<3.3.10 REQUIRED fftw3f IMPORTED_TARGET)
+  pkg_search_module(FFTW REQUIRED IMPORTED_TARGET GLOBAL fftw3f>=3.3.4)
   if(FFTW_FOUND)
     message(STATUS "Found FFTW3 - ${FFTW_LINK_LIBRARIES}")
     message(STATUS "FFTW3 include dir - ${FFTW_INCLUDE_DIRS}")
@@ -198,14 +200,14 @@ if (BUILD_SHARED_LIBS)
 else()
  add_library(fftw3::fftw3 STATIC IMPORTED)
 endif()
-set_target_properties(fftw3::fftw3 PROPERTIES
-                      IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
+set_target_properties(fftw3::fftw3 PROPERTIES IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
                       #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif() # if(BUILD_OWN_FFTW3)
 
 # install gemmi
 set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
-set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
+#set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
+set(gemmi_src_path "/home/swh514/Projects/gemmi/gemmi")
 set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
 
 set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
@@ -214,9 +216,9 @@ ExternalProject_add(project_gemmi
                     PREFIX ${gemmi_dep_path}
                     SOURCE_DIR ${gemmi_src_path}
                     BINARY_DIR ${gemmi_bin_path}
-                    GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
-                    GIT_TAG v0.6.4
-                    UPDATE_COMMAND ""
+                    #GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
+                    #GIT_TAG v0.6.4
+                    #UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
                     "${gemmi_src_path}/CMakeLists.txt"
@@ -240,7 +242,8 @@ add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
-set(clipper_src_path "${clipper_dep_path}/src/clipper")
+#set(clipper_src_path "${clipper_dep_path}/src/clipper")
+set(clipper_src_path "/home/swh514/Projects/clipper/git_tmp")
 set(clipper_bin_path "${clipper_dep_path}/src/clipper_ex-build/")
 
 set(lib_clippercore ${lib_prefix}clipper-core${lib_suffix})
@@ -253,9 +256,9 @@ ExternalProject_add(project_clipper
                     PREFIX ${clipper_dep_path}
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
-                    GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    GIT_TAG v3.0.2-dev
-                    UPDATE_COMMAND ""
+                    #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
+                    #GIT_TAG v3.0.2-dev
+                    #UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
                     "${clipper_src_path}/CMakeLists.txt"
@@ -338,7 +341,8 @@ target_link_libraries(buccaneer_lib PRIVATE
 if (Threads_FOUND)
   target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
 endif()
-install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
+message(STATUS "VENV_INSTALL_DIR is ${VENV_INSTALL_DIR}")
+install(TARGETS buccaneer_lib LIBRARY DESTINATION "${VENV_INSTALL_DIR}/lib")
 file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 
 # pybind11 module
@@ -373,12 +377,32 @@ if (Threads_FOUND)
   target_link_libraries(buc_py PRIVATE Threads::Threads)
 endif()
 # install
-set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
+set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit_ext)
+if (CMAKE_CONFIGURATION_TYPES)
+  set(py_dir $<CONFIG>/py)
+else()
+  set(py_dir py)
+endif()
+set_property(TARGET buc_py PROPERTY LIBRARY_OUTPUT_DIRECTORY ${py_dir}/bobkit)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/__init__.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py 
+  BYPRODUCTS ${py_dir}/bobkit/__init__.py
+)
+#if (GENERATE_STUBS and CMAKE_CROSSCOMPILING)
+#  message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
+#elseif(GENERATE_STUBS)
+## here 21Jan
+
 
 if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
-install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+#install(DIRECTORY bobkit/ DESTINATION "${Python_SITEARCH}/bobkit"
+#        FILES_MATCHING PATTERN "*.py" )
+install(TARGETS buc_py DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
 endif()
 #this is for convenience to delete fftw
 #set(INSTALL_SHAREDIR ${FFTW_INSTALL_PATH}/share/fftw3)

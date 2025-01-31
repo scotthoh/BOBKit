@@ -199,10 +199,10 @@ template <class T> void declare_xmap(py::module &m, const std::string &name) {
   std::string PyClass = std::string("Xmap_") + name;
   py::class_<XMClass, Xmap_base> xmap(m, PyClass.c_str(),
                                       py::buffer_protocol());
-  xmap.def(py::init<>())
-      .def(py::init<const Spacegroup &, const Cell &, const Grid_sampling &>())
-      .def("init", &XMClass::init)
-      .def_buffer([=](XMClass &self) -> py::buffer_info {
+  xmap.def( py::init<>() )
+      .def( py::init<const Spacegroup&, const Cell&, const Grid_sampling&>() )
+      .def( "init", &XMClass::init )
+      .def_buffer( [=]( XMClass& self ) -> py::buffer_info {
         return py::buffer_info(
             &self[self.first()],
             {self.grid_sampling().nu(), self.grid_sampling().nv(),
@@ -210,48 +210,39 @@ template <class T> void declare_xmap(py::module &m, const std::string &name) {
             {sizeof(T), sizeof(T) * self.grid_sampling().nu(), // strides
              sizeof(T) * self.grid_sampling().nu() *
                  self.grid_sampling().nv()});
-      })
-      .def("__repr__",
-           [](const XMClass &self) { return display_repr<T>(self); })
-      .def("__str__", [](const XMClass &self) { return display_repr<T>(self); })
-      .def("__getitem__",
-           [](const XMClass &self, const MRI &ix) { return self[ix]; })
-      .def("__setitem__",
-           [](XMClass &self, const MRI &ix, const T &val) { self[ix] = val; })
-      .def("__getitem__",
-           [](const XMClass &self, const MRC &ix) { return self[ix]; })
-      .def("__setitem__",
-           [](XMClass &self, const MRC &ix, const T &val) { self[ix] = val; })
+      } )
+      .def( "__repr__", []( const XMClass& self ) { return display_repr<T>( self ); } )
+      .def( "__str__", []( const XMClass& self ) { return display_repr<T>( self ); } )
+      .def( "__getitem__", []( const XMClass& self, const MRI& ix ) { return self[ix]; } )
+      .def( "__setitem__", []( XMClass& self, const MRI& ix, const T& val ) { self[ix] = val; } )
+      .def( "__getitem__", []( const XMClass& self, const MRC& ix ) { return self[ix]; } )
+      .def( "__setitem__", []( XMClass& self, const MRC& ix, const T& val ) { self[ix] = val; } )
       .def(
           "get_data",
-          [](const XMClass &self, const Coord_grid &pos) {
-            return self.get_data(pos);
-          },
-          py::arg("pos"), "Get data.")
+          []( const XMClass& self, const Coord_grid& pos ) { return self.get_data( pos ); },
+          py::arg( "pos" ), "Get data." )
       .def(
           "set_data",
-          [](XMClass &self, const Coord_grid &pos, const T &val) {
-            self.set_data(pos, val);
-          },
-          py::arg("pos"), py::arg("val"), "Set data.")
+          []( XMClass& self, const Coord_grid& pos, const T& val ) { self.set_data( pos, val ); },
+          py::arg( "pos" ), py::arg( "val" ), "Set data." )
       .def(
-          "fill_map_with", [](XMClass &self, const T &val) { self = val; },
-          py::arg("val"), "Fill map with given value.")
-      .def(py::self += py::self)
-      .def(py::self -= py::self)
+          "fill_map_with", []( XMClass& self, const T& val ) { self = val; }, py::arg( "val" ),
+          "Fill map with given value." )
+      .def( py::self += py::self )
+      .def( py::self -= py::self )
       // because python's gemmi map object's data is float type.
       .def(
           "import_from_gemmi",
-          [](XMClass &self, const gemmi::Ccp4<float> &mapobj) {
+          []( XMClass& self, const gemmi::Ccp4<float>& mapobj ) {
             GEMMI::import_xmap(self, mapobj);
           },
-          py::arg("target"), "Import Xmap from gemmi.Ccp4Map.")
+          py::arg( "target" ), "Import Xmap from gemmi.Ccp4Map." )
       .def(
           "export_to_gemmi",
-          [](const XMClass &self, gemmi::Ccp4<float> &mapobj) {
+          []( const XMClass& self, gemmi::Ccp4<float>& mapobj ) {
             GEMMI::export_xmap(self, mapobj);
           },
-          py::arg("target"), "Export Xmap from gemmi.Ccp4Map.");
+          py::arg( "target" ), "Export Xmap to gemmi.Ccp4Map." );
   // interpolators
   apply_xmap_interpolation_methods<XMClass, T>(xmap);
   // ffts

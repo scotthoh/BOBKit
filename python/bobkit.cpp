@@ -16,6 +16,7 @@ namespace py = pybind11;
 
 void init_clipper_types(py::module &m);
 void init_ramachandran(py::module &m);
+void init_thread_base( py::module& m );
 void init_clipper_memory(py::module &m);
 void init_matomindex(py::module &m);
 void init_minimol(py::module &m);
@@ -38,6 +39,7 @@ void init_minimol_seq(py::module &m);
 void init_clipper_stats(py::module &m);
 void init_map_utils(py::module &m);
 void init_clipper_util(py::module &m);
+void init_resol_fn( py::module& m );
 // void init_ccp4_mtz_io(py::module &m);
 void init_clipper_tests(py::module &m);
 
@@ -61,8 +63,11 @@ void init_buccaneer_util(py::module &m);
 void init_simplex_lib(py::module &m);
 void init_map_simulate(py::module &m);
 void init_proteindb(py::module &m);
+void init_utils( py::module& m );
 
-PYBIND11_MODULE(bobkit, mbk) {
+PYBIND11_MODULE( bobkit_ext, mbk_ ) {
+  ( void )mbk_;
+  py::module_ mbk = py::module_::import( "bobkit" );
   mbk.doc() =
       "Python bindings to Buccaneer and Clipper library for biomacromolecular "
       "model building kit (BOBKIT).";
@@ -79,21 +84,22 @@ PYBIND11_MODULE(bobkit, mbk) {
         PyErr_SetString(PyExc_RuntimeError, e.text().c_str());
       } });
 
-  mbk.def("long_running_func", []() {
+  mbk.def( "_long_running_func", []() {
     for (;;) {
       if (PyErr_CheckSignals() != 0)
         throw py::error_already_set();
       // Long running iteration
     }
-  });
+  } );
 
-  auto mc = mbk.def_submodule("clipper");
-  auto mb = mbk.def_submodule("buccaneer");
-  auto mpdb = mbk.def_submodule("protein_db");
-
+  auto mc = mbk.def_submodule( "clipper" );
+  auto mb = mbk.def_submodule( "buccaneer" );
+  auto mpdb = mbk.def_submodule( "protein_db" );
+  auto mutil = mbk.def_submodule( "util" );
   init_clipper_types(mc);
   init_ramachandran(mc);
   init_clipper_memory(mc);
+  init_thread_base( mc );
   init_cell(mc);
   init_symop(mc);
   init_spacegroup(mc);
@@ -114,6 +120,7 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_map_io(mc);
   init_clipper_stats(mc);
   init_map_utils(mc);
+  init_resol_fn( mc );
   init_clipper_util(mc);
   // init_ccp4_mtz_io(mc);
   init_clipper_tests(mc);
@@ -140,4 +147,6 @@ PYBIND11_MODULE(bobkit, mbk) {
   init_model_tidy(mb);
 
   init_proteindb(mpdb);
+
+  init_utils( mutil );
 }

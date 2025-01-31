@@ -398,8 +398,7 @@ void Ca_find::filter_prior( clipper::Xmap<float>& prior, const int modelindex ) 
 
 bool Ca_find::operator()( clipper::MiniMol& mol, const KnownStructure& knownstruc,
                           const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
-                          const std::vector<clipper::Coord_orth>& aa_instance, const TYPE type,
-                          const int modelindex ) {
+                          const TYPE type, const int modelindex ) {
   typedef clipper::Xmap<float>::Map_reference_index MRI;
   const clipper::Spacegroup&    spgr = xmap.spacegroup();
   const clipper::Cell&          cell = xmap.cell();
@@ -428,12 +427,7 @@ bool Ca_find::operator()( clipper::MiniMol& mol, const KnownStructure& knownstru
 
   // NOW DO THE SEARCH (FIRST CYCLE ONLY)
   if ( results.size() == 0 ) {
-    if ( aa_instance.size() != 0 ) {
-      // make a list of rotation ops to try
-      ops = llktarget.rtop_list( clipper::Spacegroup::p1(), stepss );
-      // do the search
-      results = search_sec( xmap, llktarget, aa_instance );
-    } else if ( type == LIKELIHOOD ) {
+    if ( type == LIKELIHOOD ) {
       // make a list of rotation ops to try
       ops = llktarget.rtop_list( spgr, stepff );
       // do the search
@@ -611,7 +605,10 @@ std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap,
   // prepare target map
   SSfind ssfind;
   ssfind.prep_xmap( xmap, rad );
-  ssfind.prep_search( xmap );
+  if ( has_aa_instance )
+    ssfind.prep_search( xmap, aa_instance_positions );
+  else
+    ssfind.prep_search( xmap );
 
   /*
   // do initial search with itentity op to get stats
@@ -692,126 +689,6 @@ std::vector<SearchResult> Ca_find::search_sec( const clipper::Xmap<float>& xmap,
   clipper::MAtom::null(); maca.set_id( " CA " );  maca.set_element( "C" ); maca.set_u_iso( 0.25 );
   maca.set_occupancy( 1.00 ); maca.set_coord_orth( co + cr ); clipper::MMonomer mmca; mmca.set_type(
   "ALA" ); mmca.set_seqnum( r+1 ); mmca.insert( maca ); mpca.insert( mmca );
-    }
-    mpca.set_id( chainids.substr( i, 1 ) );
-    mol.insert( mpca );
-  }
-  clipper::MMDBfile mfile;
-  mfile.export_minimol( mol );
-  mfile.write_file( "ssfind.pdb" );
-  */
-
-  // remove results where no match was found
-  std::vector<SearchResult> result_trim;
-  for ( int i = 0; i < result.size(); i++ )
-    if ( result[i].rot >= 0 ) result_trim.push_back( result[i] );
-
-  return result_trim;
-}
-
-std::vector<SearchResult> Ca_find::search_sec(
-    const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
-    const std::vector<clipper::Coord_orth>& aa_instance ) const {
-  const clipper::Grid_sampling& grid = xmap.grid_sampling();
-
-  // control params
-  const int sslen = 3;
-  const double rad = 1.9 * sslen + 1.0;
-
-  // get cutoff (for optimisation)
-  clipper::Map_stats stats( xmap );
-  double sigcut = stats.mean() + 1.0 * stats.std_dev();
-
-  // prepare target map
-  SSfind ssfind;
-  ssfind.prep_xmap( xmap, rad );
-  ssfind.prep_search( xmap, aa_instance );
-
-  /*
-  // do initial search with itentity op to get stats
-  clipper::RTop_orth rtid( clipper::RTop_orth::identity() );
-  std::vector<clipper::RTop_orth> opsid( 1, rtid );
-  ssfind.prep_results( xmap, -1.0e20 );
-  ssfind.prep_target( SSfind::ALPHA3, sslen );
-  ssfind.search( opsid, -1.0e20 );
-  ssfind.prep_target( SSfind::BETA3, sslen );
-  ssfind.search( opsid, -1.0e20 );
-  const std::vector<SearchResult> resultz = ssfind.results();
-  double s0(0.0), s1(0.0), s2(0.0);
-  for ( int i = 0; i < resultz.size(); i++ ) {
-    s0 += 1.0;
-    s1 += resultz[i].score;
-    s2 += resultz[i].score * resultz[i].score;
-  }
-  s1 /= s0; s2 /= s0;
-  s2 = sqrt( s2 - s1*s1 );
-  */
-
-  // do full search
-  SSfind::Target targeta( SSfind::ALPHA3, sslen );
-  SSfind::Target targetb( SSfind::BETA3 , sslen );
-  std::vector<SearchResult> resulta, resultb;
-  resulta = ssfind.search( targeta.target_coords(), ops, sigcut, 0.0 );
-  resultb = ssfind.search( targetb.target_coords(), ops, sigcut, 0.0 );
-  std::vector<SearchResult> result( resulta.size() );
-  for ( int i = 0; i < result.size(); i++ ) {
-    if ( resulta[i].score > resultb[i].score ) result[i] = resulta[i];
-    else                                       result[i] = resultb[i];
-  }
-
-  // rescore
-  double s0(0.0), s1(0.0), s2(0.0);
-  int zstep = std::max( int(result.size()/1000), 1 );
-  for ( int i = 0; i < result.size(); i++ ) {
-    clipper::Coord_orth co =
-      xmap.coord_orth( grid.deindex( result[i].trn ).coord_map() );
-    // update score for target
-    if ( result[i].rot >= 0 ) {
-      clipper::RTop_orth rtop( ops[ result[i].rot ].rot(), co );
-      result[i].score = llktarget.llk_approx( xmap, rtop );
-    } else {
-      result[i].score = 1.0e20;
-    }
-    // and accumulate z-score stats
-    if ( i % zstep == 0 ) {
-      clipper::RTop_orth rtid( clipper::Mat33<>::identity(), co );
-      double score = llktarget.llk_approx( xmap, rtid );
-      s0 += 1.0;
-      s1 += score;
-      s2 += score * score;
-    }
-  }
-  s1 /= s0; s2 /= s0;
-  s2 = sqrt( s2 - s1*s1 );
-
-  // convert to Z scores
-  for ( int i = 0; i < result.size(); i++ )
-    result[i].score = ( result[i].score - s1 )/ s2;
-
-  /*
-  // build the result
-  const clipper::Cell& cell = xmap.cell();
-  std::sort( result.begin(), result.end() );
-  clipper::MiniMol mol( xmap.spacegroup(), xmap.cell() );
-  const clipper::String chainids = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  std::vector<clipper::Coord_orth> calphas = ssfind.calpha_coords();
-  clipper::Coord_orth co, cr;
-  for ( int i = 0; i < result.size(); i++ ) {
-    if ( i >= chainids.size() ) break;
-    std::cout << i << " " << result[i].score << " " << result[i].rot << " " << result[i].trn << std::endl;
-    clipper::MPolymer mpca;
-    co = grid.deindex(result[i].trn).coord_frac(grid).coord_orth(cell);
-    for ( int r = 0; r < calphas.size(); r++ ) {
-      cr = ops[result[i].rot].inverse() * calphas[r];
-      clipper::MAtom maca = clipper::MAtom::null();
-      maca.set_id( " CA " );  maca.set_element( "C" );
-      maca.set_u_iso( 0.25 ); maca.set_occupancy( 1.00 ); 
-      maca.set_coord_orth( co + cr );
-      clipper::MMonomer mmca;
-      mmca.set_type( "ALA" );
-      mmca.set_seqnum( r+1 );
-      mmca.insert( maca );
-      mpca.insert( mmca );
     }
     mpca.set_id( chainids.substr( i, 1 ) );
     mol.insert( mpca );

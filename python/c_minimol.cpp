@@ -345,91 +345,84 @@ void init_minimol(py::module &m) {
                "it is a clipper::PropertyManager, refer documented "
                "details in MAtom class.";
 
-  pyModel.def(py::init<>())
-      .def("atom_list", &MModel::atom_list, "Return list of contained atoms")
-      .def("transform", &MModel::transform,
-           "Apply transformation to object.") // maybe can use array/matrix?
-      .def("size", &MModel::size, "Return number of polymers in model.")
-      .def("__len__", &MModel::size)
-      .def("__repr__",
-           [](const MModel &self) {
-             return "<clipper.MModel containing " +
-                    std::to_string(self.size()) + " chain(s)>";
-           })
+  pyModel.def( py::init<>() )
+      .def( "atom_list", &MModel::atom_list, "Return list of contained atoms" )
+      .def( "transform", &MModel::transform,
+            "Apply transformation to object." )  // maybe can use array/matrix?
+      .def( "size", &MModel::size, "Return number of polymers in model." )
+      .def( "__len__", &MModel::size )
+      .def( "__repr__",
+            []( const MModel& self ) {
+              return "<clipper.MModel containing " + std::to_string( self.size() ) + " chain(s)>";
+            } )
       .def(
           "__getitem__",
-          [](MModel &self, const int i) -> const MChain & {
+          []( MModel& self, const int i ) -> const MChain& {
             return self[normalise_index(i, self.size())];
           },
-          py::arg("i")) // py::return_value_policy::reference_internal)
+          py::arg( "i" ), py::return_value_policy::reference_internal )
       .def(
           "__getitem__",
-          [](MModel &self, const std::string &n) -> const MChain & {
-            return self.find(n);
+          []( MModel& self, const std::string& n ) -> const MChain& { return self.find( n ); },
+          py::arg( "n" ), py::return_value_policy::reference_internal )
+      .def(
+          "find",
+          []( const MModel& self, const std::string& n, const MM::MODE mode ) -> const MPolymer& {
+            return self.find( n, mode );
           },
-          py::arg("n")) // py::return_value_policy::reference_internal)
+          py::arg( "n" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+          py::return_value_policy::reference_internal, "Find polymer by id." )
       .def(
           "find",
-          [](const MModel &self, const std::string &n, const MM::MODE mode)
-              -> const MPolymer & { return self.find(n, mode); },
-          py::arg("n"), py::arg("mode") = MM::MODE::UNIQUE,
-          py::return_value_policy::reference_internal, "Find polymer by id.")
-      .def(
-          "find",
-          [](MModel &self, const std::string &n, const MChain &chn,
-             const MM::MODE mode) { self.find(n, mode) = chn; },
-          py::arg("n"), py::arg("chain"), py::arg("mode") = MM::MODE::UNIQUE,
-          "Find and set polymer by id.")
+          []( MModel& self, const std::string& n, const MChain& chn, const MM::MODE mode ) {
+            self.find( n, mode ) = chn;
+          },
+          py::arg( "n" ), py::arg( "chain" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+          "Find and set polymer by id." )
       .def(
           "__setitem__",
-          [](MModel &self, const int i, const MChain chn) {
+          []( MModel& self, const int i, const MChain chn ) {
             self[normalise_index(i, self.size())] = chn;
           },
-          py::return_value_policy::reference_internal)
+          py::return_value_policy::reference_internal )
       .def(
           "__setitem__",
-          [](MModel &self, const std::string &n, const MChain chn) {
-            self.find(n) = chn;
-          },
-          py::return_value_policy::reference_internal)
+          []( MModel& self, const std::string& n, const MChain chn ) { self.find( n ) = chn; },
+          py::return_value_policy::reference_internal )
       .def(
           "__iter__",
-          [](MModel &self) {
-            return py::make_iterator(&self[0], &self[self.size()]);
-          },
-          py::keep_alive<0, 1>())
-      .def("select", &MModel::select, py::arg("selection"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates copy of this model containing only the polymers, "
-           "monomers and atoms described by the selection string. The "
-           "selection string must be of the form \'X/Y/Z\' where X is a "
-           "polymer selection, Y is a monomer selection described "
-           "under MMonomer::select(), and Z is an atom selection "
-           "described under MAtom::select(). The polymer selection must "
-           "contain a polymer ID or a comma separated list of "
-           "polymer IDs, or \"*\" to select all polymers.")
-      .def("select_index", &MModel::select_index, py::arg("selection"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a list of indices of children matching the given "
-           "selection string.")
-      .def("lookup", &MModel::lookup, py::arg("id"), py::arg("mode"),
-           "Lookup polymer by id.")
-      .def("insert", &MModel::insert, py::arg("add"), py::arg("pos") = -1,
-           "Add polymer to given position.")
-      .def(py::self & py::self, "and operator.")
-      .def(py::self | py::self, "or operator.")
-      .def("select_atom_index", &MModel::select_atom_index, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Select and return a list of MAtomIndex.")
-      .def("copy_from", &MModel::copy, py::arg("other"),
-           py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+          []( MModel& self ) { return py::make_iterator( &self[0], &self[self.size()] ); },
+          py::keep_alive<0, 1>() )
+      .def( "select", &MModel::select, py::arg( "selection" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates copy of this model containing only the polymers, "
+            "monomers and atoms described by the selection string. The "
+            "selection string must be of the form \'X/Y/Z\' where X is a "
+            "polymer selection, Y is a monomer selection described "
+            "under MMonomer::select(), and Z is an atom selection "
+            "described under MAtom::select(). The polymer selection must "
+            "contain a polymer ID or a comma separated list of "
+            "polymer IDs, or \"*\" to select all polymers." )
+      .def( "select_index", &MModel::select_index, py::arg( "selection" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a list of indices of children matching the given "
+            "selection string." )
+      .def( "lookup", &MModel::lookup, py::arg( "id" ), py::arg( "mode" ), "Lookup polymer by id." )
+      .def( "insert", &MModel::insert, py::arg( "add" ), py::arg( "pos" ) = -1,
+            "Add polymer to given position." )
+      .def( py::self & py::self, "and operator." )
+      .def( py::self | py::self, "or operator." )
+      .def( "select_atom_index", &MModel::select_atom_index, py::arg( "sel" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE, "Select and return a list of MAtomIndex." )
+      .def( "copy_from", &MModel::copy, py::arg( "other" ), py::arg( "mode" ) = MM::COPY::COPY_C,
+            "Configurable copy function." )
       .def(
-          "copy", [](const MModel &self) { return self; },
+          "copy", []( const MModel& self ) { return self; },
           "Return a copy of object. Use this to make copy because "
-          "assignment operator in Python only create bindings not copy.")
-      .doc() = "MiniMol model object.\nThe MiniMol model object contains "
-               "a list of clipper::MPolymer. It is a clipper::PropertyManager, "
-               "refer documented details in MAtom class.";
+          "assignment operator in Python only create bindings not copy." )
+      .doc() =
+      "MiniMol model object.\nThe MiniMol model object contains "
+      "a list of clipper::MPolymer. It is a clipper::PropertyManager, "
+      "refer documented details in MAtom class.";
 
   py::class_<MiniMol, MModel> minimol(m, "MiniMol");
   minimol.def(py::init<>())
