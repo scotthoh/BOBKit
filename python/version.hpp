@@ -3,6 +3,6 @@
 #ifndef BOBKIT_VERSION_HPP_
 #define BOBKIT_VERSION_HPP_
 
-#define BOBKIT_VERSION "0.9.0-dev"
+#define BOBKIT_VERSION "0.10.0-dev"
 
 #endif
