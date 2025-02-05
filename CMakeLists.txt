@@ -37,9 +37,9 @@ option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(SHOW_COMPILE_TIME "Show compile time" OFF)
 option(USE_PYTHON "Build Python bindings" ON)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
-option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" ON)
+option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" OFF)
 option(BUCCANEER_PROFILE "Set Buccaneer profiling on/off" ON)
-#option(GENERATE_STUBS "Generate Python type stubs" ON)
+#option(GENERATE_STUBS "Generate Python type stubs" OFF)
 if(SHOW_COMPILE_TIME)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 endif()
@@ -172,7 +172,7 @@ ExternalProject_add(project_fftw
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_fftw_name}
                     URL https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz
                     #PREFIX ${CMAKE_CURRENT_BINARY_DIR}/fftw
-                    #BUILD_IN_SOURCE false
+                    BUILD_IN_SOURCE false
                     CONFIGURE_COMMAND <SOURCE_DIR>/configure 
                     --prefix=${VENV_INSTALL_DIR} --enable-float
                     --disable-fortran ${fftwconf_args} "CFLAGS=-fPIC"
@@ -206,8 +206,8 @@ endif() # if(BUILD_OWN_FFTW3)
 
 # install gemmi
 set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
-#set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
-set(gemmi_src_path "/home/swh514/Projects/gemmi/gemmi")
+set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
+#set(gemmi_src_path "/home/swh514/Projects/gemmi/gemmi")
 set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
 
 set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
@@ -216,9 +216,9 @@ ExternalProject_add(project_gemmi
                     PREFIX ${gemmi_dep_path}
                     SOURCE_DIR ${gemmi_src_path}
                     BINARY_DIR ${gemmi_bin_path}
-                    #GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
-                    #GIT_TAG v0.6.4
-                    #UPDATE_COMMAND ""
+                    GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
+                    GIT_TAG v0.6.7
+                    UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
                     "${gemmi_src_path}/CMakeLists.txt"
@@ -392,7 +392,15 @@ add_custom_command(TARGET buc_py PRE_BUILD
 #if (GENERATE_STUBS and CMAKE_CROSSCOMPILING)
 #  message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
 #elseif(GENERATE_STUBS)
-## here 21Jan
+#  set(sep ":")
+#  if (WIN32)
+#    set(setp ";")
+#  endif()
+#  add_custom_command(TARGET buc_py POST_BUILD COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=$<TARGET_FILE_DIR:buc_py>${sep}$ENV{PYTHONPATH}"
+#  ${Python_EXECUTABLE} -m pybind11_stubgen bobkit
+#  --enum-class-locations=Ignore)
+#endif()
+# here 21Jan
 
 
 if (BUILD_SHARED_LIBS)

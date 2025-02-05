@@ -34,9 +34,10 @@ class Ca_sequence {
   static void set_semet( bool semet ) { semet_ = semet; }
   static void set_prior_model( const clipper::MiniMol& mol );
   static void set_cpus( int cpus ) { ncpu = cpus; }
-  static void set_sequence_probability_map( const clipper::Xmap<float>& seq_prob ) {
-    seq_prob_ = &seq_prob;
-  }
+  static void set_use_ml_sequence_probability( bool seqprob ) { seqprob_ = seqprob; }
+  // static void set_sequence_probability_map( const clipper::Xmap<float>& seq_prob ) {
+  //   seq_prob_ = &seq_prob;
+  // }
 
   class Sequence_data {
    public:
@@ -47,13 +48,14 @@ class Ca_sequence {
     std::vector<double> data;
   };
  private:
-  static const clipper::Xmap<float>* seq_prob_;
+  // static const clipper::Xmap<float>* seq_prob_;
   double reliability_;
   int num_seq;
   std::vector<Score_list<clipper::String> > history;
   static int ncpu;
   static bool semet_;
   static clipper::MiniMol molprior;
+  static bool seqprob_;
 };
 
 
@@ -69,9 +71,9 @@ class Sequence_score_threaded : public clipper::Thread_base {
   //! merge results from multiple threads
   void merge( const Sequence_score_threaded& other );
   //! set sequence probability xmap
-  void set_prob_xmap( const clipper::Xmap<float>& seq_prob ) {
-    Ca_sequence::set_sequence_probability_map( seq_prob );
-  }
+  // void set_prob_xmap( const clipper::Xmap<float>& seq_prob ) {
+  //   Ca_sequence::set_sequence_probability_map( seq_prob );
+  // }
 
  private:
   void Run();        //!< the thread 'Run' method

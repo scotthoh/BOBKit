@@ -12,7 +12,8 @@
 int Ca_sequence::ncpu = 0;
 bool Ca_sequence::semet_ = false;
 clipper::MiniMol Ca_sequence::molprior;
-const clipper::Xmap<float>* Ca_sequence::seq_prob_ = nullptr;
+bool Ca_sequence::seqprob_ = false;
+// const clipper::Xmap<float>* Ca_sequence::seq_prob_ = nullptr;
 
 // cumulative normal distribution function
 //double phi(double z)
@@ -53,6 +54,21 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       std::vector<double> scores( ntyp, 0.0 );
       for ( int t = 0; t < ntyp; t++ )
         scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
+      // std::vector<double> seq
+      if ( seqprob_ ) {
+        if ( mm.exists_property( "SEQPROB" ) ) {
+          const Sequence_data& sp =
+              static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQPROB" ) )
+                  .value();
+          for ( int t = 0; t < ntyp; t++ ) {
+            if ( scores[t] < 0 )
+              scores[t] -= sp.data[t];
+            else
+              scores[t] += sp.data[t];
+          }
+        }
+      }
+
       Sequence_data sd( ca, scores );
       mm.set_property( "SEQDAT", clipper::Property<Sequence_data>(sd) );
     }
@@ -359,11 +375,11 @@ Score_list<clipper::String> Ca_sequence::sequence_chain( clipper::MChain& chain,
     if ( chain[res].exists_property( "SEQDAT" ) ) {
       const Sequence_data& sd = static_cast<const clipper::Property<Sequence_data>&>(chain[res].get_property( "SEQDAT" )).value();
       scores[res] = sd.data;
-      std::cout << clipper::String( res ) << ": ";
-      for ( int i = 0; i < sd.data.size(); i++ ) {
-        std::cout << clipper::String( sd.data[i] ) << "; ";
-      }
-      std::cout << "###" << std::endl;
+      // std::cout << clipper::String( res ) << ": ";
+      // for ( int i = 0; i < sd.data.size(); i++ ) {
+      //   std::cout << clipper::String( sd.data[i] ) << "; ";
+      // }
+      // std::cout << "SEQDAT###" << std::endl;
     }
   }
 

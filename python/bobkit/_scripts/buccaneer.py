@@ -155,7 +155,8 @@ def get_coordinates_from_predicted_instance(
             count += 1
         if write_npy:
             np.save("aa_inst_mean.npy", tmp, allow_pickle=False)
-    return aa_instance_coordinates, spacing
+    corrections = [spacing[0], spacing[1], spacing[2], nxs, nys, nzs, ncorrect]
+    return aa_instance_coordinates, corrections  # spacing
 
 
 def sequence_predictions_to_map(
@@ -469,7 +470,7 @@ class Buccaneer:
             )
             cafind.set_starting_centroid_coords(aa_instance_coords)
             aa_pred = np.load(f"{args.aa_instance_directory}/pred.npy")
-            caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, spacing)
+            caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, spacing, correl=args.correl)
 
         # merge multi model results
         if args.merge:
@@ -573,11 +574,17 @@ class Buccaneer:
                 sys.stdout.flush()
                 self.log.log("LINK", mol_wrk, args.verbose > 9)
                 sys.stdout.flush()
+                # util.write_structure(mol_wrk, "linked.pdb", cif_format=False)
 
             if args.seqnc:
                 # caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, corrections)
-                caseq_ml(mol_wrk)
+                if args.aa_instance_directory != "NONE":
+                    caseq_ml(mol_wrk)
+                    if not caseq_ml.check_is_seqprob_set():
+                        print("SEQPROB not set!")
+                buccaneer.Ca_sequence.set_use_ml_sequence_probability(True)
                 caseq = buccaneer.Ca_sequence(args.seq_rel)
+                # caseq.set_use_set_use_ml_sequence_probability(True)
                 caseq(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
                 self._print_steps_Casummaries(
                     "sequenced", caseq.num_sequenced()

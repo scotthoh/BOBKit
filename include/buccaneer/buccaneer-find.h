@@ -32,10 +32,13 @@ class Ca_find {
     aa_instance_positions = aa_instance;
     has_aa_instance = true;
   };
-  // new methods to find Ca from centroids from ML predictions
-  // bool operator()( clipper::MiniMol& aa_instance, const clipper::Xmap<float>& xmap_wrk,
-  //                 const float step = 0.1, bool debug = false,
-  //                 Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL );
+  // void set_starting_centroid_coords( const std::vector<clipper::Coord_map>& aa_instance ) {
+  // aa_
+  // }
+  //  new methods to find Ca from centroids from ML predictions
+  //  bool operator()( clipper::MiniMol& aa_instance, const clipper::Xmap<float>& xmap_wrk,
+  //                  const float step = 0.1, bool debug = false,
+  //                  Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL );
 
  private:
   friend class Search_threaded;

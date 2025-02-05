@@ -240,7 +240,11 @@ class Ca_sequence_ml:
     """Class for sequence Ca chains using density and output predictions from machine learning"""
 
     def __init__(
-        self, sequence_array: _np.ndarray, apix: _List, reliability: float = 1.0
+        self,
+        sequence_array: _np.ndarray,
+        apix: _List,
+        reliability: float = 1.0,
+        correl: bool = False,
     ):
         self.__sequence_array = sequence_array
         self.__reliability = reliability
@@ -248,6 +252,7 @@ class Ca_sequence_ml:
         self.__apix = apix
         self.__mol = None
         self.__done = []
+        self.__correl = correl
 
     # def __init__(self, sequence_array: _np.ndarray, reliability: float = 0.5):
     #    """Initialise class with numpy array containing probability of amino acid sequence from
@@ -271,16 +276,39 @@ class Ca_sequence_ml:
 
     @staticmethod
     def get_probability_value(
-        ind: int, pos: _Coord_orth, seq_array: _np.ndarray, corrections: _List
+        ind: int,
+        pos: _Coord_orth,
+        seq_array: _np.ndarray,
+        corrections: _List,
+        correl: bool = False,
     ):
-        x = int(pos.x // corrections[0]) + int(corrections[3] + corrections[6])
-        y = int(pos.y // corrections[1]) + int(corrections[4] + corrections[6])
-        z = int(pos.z // corrections[2]) + int(corrections[5] + corrections[6])
+        llkval = -1.0
+        x = (
+            int(pos.x // corrections[0]) + int(corrections[3] + corrections[6])
+        ) % seq_array.shape[0]
+        y = (
+            int(pos.y // corrections[1]) + int(corrections[4] + corrections[6])
+        ) % seq_array.shape[1]
+        z = (
+            int(pos.z // corrections[2]) + int(corrections[5] + corrections[6])
+        ) % seq_array.shape[2]
+
         # mapind = [int(pos.x), int(pos.y), int(pos.z)]
-        if ind in [5, 9, 10]:
-            return seq_array[x, y, z] / 2.0
+        probval = seq_array[x, y, z]
+        if correl:
+            if ind in [5, 9, 10]:
+                return probval / 2.0
+            else:
+                return probval
         else:
-            return seq_array[x, y, z]
+            if probval > 0.0:
+                if ind in [5, 9, 10]:
+                    llkval = _np.log10(seq_array[x, y, z] / 2.0)
+                else:
+                    llkval = _np.log10(seq_array[x, y, z])
+            elif probval == 0.0:
+                llkval = -1.0
+            return -llkval
 
     # def get_probability_value(ind: int, mapind: _List, seq_array: _np.ndarray):
     #    if ind in [5, 9, 10]:
@@ -355,6 +383,7 @@ class Ca_sequence_ml:
                     ca.coord_ca,
                     self.__sequence_array[ml_aa_ind],
                     self.__apix,
+                    self.__correl,
                 )
             seqprob_val = Ca_sequence.Sequence_data(ca, scores)
             res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
