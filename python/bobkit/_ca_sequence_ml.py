@@ -57,6 +57,7 @@ from bobkit.clipper import (
     Cell as _Cell,
     Grid_sampling as _Grid_sampling,
     Coord_orth as _Coord_orth,
+    Coord_grid as _Coord_grid,
     MiniMol as _Minimol,
     MChain as _MChain,
     MResidue as _MRes,
@@ -66,11 +67,14 @@ from bobkit.clipper import (
     Thread_base as _Thread_base,
     Property_sequence_data as _Property_sequence_data,
 )
+
+from bobkit.util import write_structure as _write_structure
+from ._util import Corrections as _Corrections
 import numpy as _np
 import gemmi as _gemmi
 from multiprocessing import Process as _Process, Manager as _Manager
 
-
+ProteinTools()
 AA_TO_CH_DICT = {
     "ALA": 0,
     "GLY": 1,
@@ -158,7 +162,7 @@ BUC_TO_MLI_DICT = {
     12: 16,
 }
 
-ProteinTools()
+
 # const char ProteinTools::rtype3[21][4] =
 # {"ALA","ARG","ASN","ASP","CYS","GLN","GLU","GLY","HIS","ILE",
 #  "LEU","LYS","MET","PHE","PRO","SER","THR","TRP","TYR","VAL",
@@ -242,17 +246,27 @@ class Ca_sequence_ml:
     def __init__(
         self,
         sequence_array: _np.ndarray,
-        apix: _List,
+        corrections: _Corrections,
         reliability: float = 1.0,
-        correl: bool = False,
+        correl: bool = False,  # , fix_axis_positions: bool = False,
     ):
-        self.__sequence_array = sequence_array
+        # for arr in sequence_array:
+        #    print(arr.shape)
+        self.__sequence_array = (
+            sequence_array  # self.process_sequence_array(sequence_array, corrections)
+        )
+        # for arr in self.__sequence_array:
+        #    print(arr.shape)
+
+        # self.__sequence_array = sequence_array
         self.__reliability = reliability
         self.__ncpu = 1
-        self.__apix = apix
+        self.__corrections = corrections
         self.__mol = None
         self.__done = []
         self.__correl = correl
+
+        # self.__fix_axis_positions = fix_axis_positions
 
     # def __init__(self, sequence_array: _np.ndarray, reliability: float = 0.5):
     #    """Initialise class with numpy array containing probability of amino acid sequence from
@@ -267,6 +281,16 @@ class Ca_sequence_ml:
     #    self.__ncpu = 1
     #    self.__semet = False
     @staticmethod
+    def process_sequence_array(sequence_array, corrections):
+        arraylist = []
+        if corrections.fix_axis_positions:
+            for arr in sequence_array:
+                arr = _np.swapaxes(arr, 0, 2)
+                arraylist.append(arr)
+                print(arr.shape)
+        return arraylist
+
+    @staticmethod
     def ml_aa2bucindex(ml_aa_ind: int):
         return MLI_TO_BUC_DICT[ml_aa_ind]
 
@@ -275,26 +299,55 @@ class Ca_sequence_ml:
         return BUC_TO_MLI_DICT[buc_aa_ind]
 
     @staticmethod
+    def mlindex2res(ml_aa_ind: int):
+        return CH_TO_AA_DICT[ml_aa_ind]
+
+    @staticmethod
+    def bucindex2mlres(ml_aa_ind: int):
+        return CH_TO_AA_DICT[Ca_sequence_ml.buc_aa2mlindex(ml_aa_ind)]
+
+    @staticmethod
     def get_probability_value(
         ind: int,
         pos: _Coord_orth,
         seq_array: _np.ndarray,
-        corrections: _List,
+        corrections: _Corrections,
+        cell: _Cell,
+        grid: _Grid_sampling,
         correl: bool = False,
+        shiftback: bool = False,
+        grid_index: int = -1,
     ):
         llkval = -1.0
-        x = (
-            int(pos.x // corrections[0]) + int(corrections[3] + corrections[6])
-        ) % seq_array.shape[0]
-        y = (
-            int(pos.y // corrections[1]) + int(corrections[4] + corrections[6])
-        ) % seq_array.shape[1]
-        z = (
-            int(pos.z // corrections[2]) + int(corrections[5] + corrections[6])
-        ) % seq_array.shape[2]
-
+        coords = _Coord_orth(pos)
+        if shiftback:
+            coords = coords + corrections.shiftback
+        if corrections.fix_origin:
+            coords = coords - _Coord_orth(corrections.origin)
+        # if corrections.fix_axis_positions:
+        #    coords = _Coord_orth(pos.z,pos.y,pos.x)
+        # else:
+        #    coords = _Coord_orth(pos.x,pos.y,pos.z)
+        # cannot use the line below because the grid
+        # cg1 = coords.coord_frac(corrections.cell).coord_grid(grid).unit(grid)
+        if grid_index != -1:
+            cg = corrections.grid_asu.deindex(grid_index)
+        else:
+            cg = (
+                coords.coord_frac(cell)
+                .coord_grid(corrections.grid_asu)
+                .unit(corrections.grid_asu)
+            )
+        # print(f"{cg}")
+        # if corrections.fix_origin:
+        #    cg = cg - _Coord_grid(corrections.origin[0] + corrections.ncorrect, corrections.origin[1] + corrections.ncorrect, corrections.origin[2] + corrections.ncorrect)
+        # print(f"DEBUG : {pos}, {cg}")
         # mapind = [int(pos.x), int(pos.y), int(pos.z)]
-        probval = seq_array[x, y, z]
+
+        probval = seq_array[cg.u, cg.v, cg.w]
+        print(f"{probval}, ", end="")
+        # probval = seq_array[cg.u%seq_array.shape[0], cg.v%seq_array.shape[1], cg.w%seq_array.shape[2]]
+        # print(f"{coords} || {cg.u%seq_array.shape[0], cg.v%seq_array.shape[1], cg.w%seq_array.shape[2]} || {probval}")
         if correl:
             if ind in [5, 9, 10]:
                 return probval / 2.0
@@ -303,12 +356,134 @@ class Ca_sequence_ml:
         else:
             if probval > 0.0:
                 if ind in [5, 9, 10]:
-                    llkval = _np.log10(seq_array[x, y, z] / 2.0)
+                    llkval = _np.log10(probval / 2.0)
                 else:
-                    llkval = _np.log10(seq_array[x, y, z])
+                    llkval = _np.log10(probval)
             elif probval == 0.0:
-                llkval = -1.0
-            return -llkval
+                llkval = -6.0
+
+            return llkval
+
+    @staticmethod
+    def shift_model(mol: _Minimol, corrections: _Corrections, grid: _Grid_sampling):
+        for chn in range(0, mol.size()):
+            for r in range(0, mol[chn].size()):
+                for a in range(0, mol[chn][r].size()):
+                    coords = mol[chn][r][a].pos
+                    cg = coords.coord_frac(corrections.cell).coord_grid(
+                        grid
+                    )  # corrections.grid)
+                    if corrections.fix_origin:
+                        cg = cg - _Coord_grid(
+                            corrections.origin[0],
+                            corrections.origin[1],
+                            corrections.origin[2],
+                        )
+                    coords2 = cg.coord_frac(grid).coord_orth(corrections.cell)
+                    mol[chn][r][a].pos = coords2
+                    # print(cg)
+            #    break
+            # break
+
+    def apply_ml_sequence(
+        self,
+        mol: _Minimol,
+        cell: _Cell,
+        grid: _Grid_sampling,
+        ntype: int = 20,
+        shiftback: bool = False,
+    ):
+        done = [False] * mol.size()
+        for chn in range(0, mol.size()):
+            for r in range(0, mol[chn].size()):
+                scores = [0.0] * ntype
+                ind = -1
+                if mol[chn][r]["CA"].exists_property("INDEX"):
+                    ind = int(mol[chn][r]["CA"].get_property("INDEX").value)
+                    # cg= self.__corrections.grid_asu.deindex(ind)
+                for t in range(0, ntype):
+                    ml_aa_ind = self.buc_aa2mlindex(t)
+                    scores[t] = self.get_probability_value(
+                        ml_aa_ind,
+                        mol[chn][r]["CA"].pos,
+                        self.__sequence_array[ml_aa_ind],
+                        self.__corrections,
+                        cell,
+                        grid,
+                        self.__correl,
+                        shiftback,
+                        ind,
+                    )
+                # if _np.argmax(scores) == 0:
+                #    if scores[0] > 0.:
+                #        print(f"{cg}")
+                #        print(f"DEBUG: ALA, {scores}")
+                #    continue
+                # if not _np.all(scores):
+                #    mol[chn][r].type = "UNK"
+                #    print(f"DEBUG: UNK , {scores}")
+                #    continue
+                print("")
+                ires = _np.argmax(scores)
+                if ires in [2, 3, 5, 6, 16, 19]:
+                    mol[chn][r].type = "UNK"
+                    print(f"DEBUG: {ires}, {scores}")
+                else:
+                    mol[chn][r].type = ProteinTools.residue_code_3(ires)
+                    print(f"DEBUG: {ires}, {scores}")
+            done[chn] = True
+
+        for i in done:
+            if not i:
+                print("Did not manage to fully assign sequence from ML probability!")
+        print("done")
+
+    def apply_ml_sequence_symmcheck(
+        self,
+        mol: _Minimol,
+        grid: _Grid_sampling,
+        aa_instance: _List,
+        ntype: int = 20,
+        shiftback: bool = False,
+    ):
+        done = [False] * mol.size()
+        for chn in range(0, mol.size()):
+            for r in range(0, mol[chn].size()):
+                scores = [0.0] * ntype
+                pos = mol[chn][r]["CA"].pos
+                # if shiftback:
+                #    pos = pos - self.__corrections.shiftback
+                if mol[chn][r].exists_property("INDEX"):
+                    ind = int(mol[chn][r].get_property("INDEX").value)
+                    pos = aa_instance[ind]
+                    ### cotinue 25feb
+                for t in range(0, ntype):
+                    ml_aa_ind = self.buc_aa2mlindex(t)
+                    scores[t] = self.get_probability_value(
+                        ml_aa_ind,
+                        pos,  # mol[chn][r]['CA'].pos,
+                        self.__sequence_array[ml_aa_ind],
+                        self.__corrections,
+                        grid,
+                        self.__correl,
+                        shiftback,
+                    )
+                if not _np.all(scores):
+                    mol[chn][r].type = "UNK"
+                    print(f"DEBUG: UNK , {scores}")
+                    continue
+                ires = _np.argmax(scores)
+                if ires in [2, 3, 5, 6, 16, 19]:
+                    mol[chn][r].type = "UNK"
+                    print(f"DEBUG: {ires}, {scores}")
+                else:
+                    mol[chn][r].type = ProteinTools.residue_code_3(ires)
+                    print(f"DEBUG: {ires}, {scores}")
+            done[chn] = True
+
+        for i in done:
+            if not i:
+                print("Did not manage to fully assign sequence from ML probability!")
 
     # def get_probability_value(ind: int, mapind: _List, seq_array: _np.ndarray):
     #    if ind in [5, 9, 10]:
@@ -316,7 +491,9 @@ class Ca_sequence_ml:
     #    else:
     #        return seq_array[mapind[0], mapind[1], mapind[2]]
 
-    def __call__(self, mol: _Minimol):  # , llktargets: LLK_TargetList):
+    def __call__(
+        self, mol: _Minimol, grid: _Grid_sampling, shiftback: bool = False
+    ):  # , llktargets: LLK_TargetList):
         """Run sequence
 
         Args:
@@ -340,7 +517,10 @@ class Ca_sequence_ml:
                 end_chn = start_chn + chunk_size
                 if i == self.__ncpu - 1:
                     end_chn = mol.size()
-                p = _Process(target=self.prepare_scores, args=(start_chn, end_chn, 20))
+                p = _Process(
+                    target=self.prepare_scores,
+                    args=(start_chn, end_chn, 20, grid, shiftback),
+                )
                 processes.append(p)
                 p.start()
             # wait
@@ -348,7 +528,7 @@ class Ca_sequence_ml:
                 p.join()
         else:
             self.__done = [False] * self.__mol.size()
-            self.prepare_scores(0, self.__mol.size(), 20)
+            self.prepare_scores(0, self.__mol.size(), 20, grid, shiftback)
             for i in self.__done:
                 if not i:
                     print("Did not manage to fully assign sequence probability!")
@@ -358,7 +538,13 @@ class Ca_sequence_ml:
         # for t in range(0, len(llkcls)):
         #    llksample[t] = llkcls[t].sampled()
 
-    def prepare_score(self, res: _MRes, llktargets_size: int):  # LLK_TargetList):
+    def prepare_score(
+        self,
+        res: _MRes,
+        llktargets_size: int,
+        grid: _Grid_sampling,
+        shiftback: bool = False,
+    ):  # LLK_TargetList):
         cached = False
         # should this method be called every cycle or just at the start?
         ca = Ca_group(res)
@@ -382,19 +568,45 @@ class Ca_sequence_ml:
                     ml_aa_ind,
                     ca.coord_ca,
                     self.__sequence_array[ml_aa_ind],
-                    self.__apix,
+                    self.__corrections,
+                    grid,
                     self.__correl,
+                    shiftback,
+                    # self.__fix_axis_positions,
                 )
+            self.print_debug(res, scores)
             seqprob_val = Ca_sequence.Sequence_data(ca, scores)
             res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
 
     def prepare_scores(
-        self, ichain_start: int, ichain_end: int, llktargets_size: int  # LLK_TargetList
+        self,
+        ichain_start: int,
+        ichain_end: int,
+        llktargets_size: int,
+        grid: _Grid_sampling,
+        shiftback: bool = False,  # LLK_TargetList
     ):
         for chn in range(ichain_start, ichain_end):
             for r in range(0, self.__mol[chn].size()):
-                self.prepare_score(self.__mol[chn][r], llktargets_size)
+                self.prepare_score(self.__mol[chn][r], llktargets_size, grid, shiftback)
             self.__done[chn] = True
+
+    def write_out_model_with_seq(self, mol: _Minimol = None, outfile: str = "NONE"):
+        tmpmol = self.__mol.copy()
+        if mol is not None:
+            print("use mol!\n")
+            tmpmol = mol.copy()
+
+        for chn in tmpmol:
+            for res in chn:
+                if res.exists_property("SEQPROB"):
+                    seqprob = res.get_property("SEQPROB").value
+                    seqindex = _np.argmax(seqprob.data)
+                    res.type = str(ProteinTools.residue_code_3(seqindex))
+        if outfile != "NONE":
+            _write_structure(tmpmol, outfile, True)
+        else:
+            _write_structure(tmpmol, "model_with_seqprob.pdb", True)
 
     def check_is_seqprob_set(self):
         is_set = True
@@ -403,6 +615,9 @@ class Ca_sequence_ml:
                 if not res.exists_property("SEQPROB"):
                     is_set = False
         return is_set
+
+    def print_debug(self, res: _MRes, scores: _List):
+        print(f"DEBUG: {res}, {scores}")
 
 
 #

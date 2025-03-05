@@ -110,144 +110,119 @@ void init_minimol(py::module &m) {
       "`-` \"CID\" The original CID of this atom in an MMDB heirarchy. "
       "The id() is the unique key which identifies an atom.";
 
-  pyResidue.def(py::init<>())
-      .def_property("id", &MResidue::id, &MResidue::set_id,
-                    "Get/set monomer ID.")
-      .def_property("type", &MResidue::type, &MResidue::set_type,
-                    "Get/set monomer type, e.g. LYS, VAL, G.")
+  pyResidue.def( py::init<>() )
+      .def_property( "id", &MResidue::id, &MResidue::set_id, "Get/set monomer ID." )
+      .def_property( "type", &MResidue::type, &MResidue::set_type,
+                     "Get/set monomer type, e.g. LYS, VAL, G." )
       //.def("set_type", &MResidue::set_type)
-      .def("seqnum", &MResidue::seqnum, "Get monomer sequence number.")
-      .def("set_seqnum", &MResidue::set_seqnum, py::arg("s"),
-           py::arg("inscode") = "", "Set full sequence id.")
-      .def("atom_list", &MResidue::atom_list,
-           "Return a list of contained atoms.")
-      .def("transform", &MResidue::transform, py::arg("rtop"),
-           "Apply transformation to object.")
-      .def("size", &MResidue::size, "Return number of atoms in monomer.")
-      .def("__len__", &MResidue::size)
-      .def("__repr__",
-           [](const MResidue& self) {
-             std::stringstream stream;
-             stream << "<clipper.MResidue ";
-             stream << self.id().trim() << "(" << self.type()
-                    << ") containing ";
-             stream << self.size() << " atom(s)>";
-             return stream.str();
-           })
+      .def( "seqnum", &MResidue::seqnum, "Get monomer sequence number." )
+      .def( "set_seqnum", &MResidue::set_seqnum, py::arg( "s" ), py::arg( "inscode" ) = "",
+            "Set full sequence id." )
+      .def( "atom_list", &MResidue::atom_list, "Return a list of contained atoms." )
+      .def( "transform", &MResidue::transform, py::arg( "rtop" ),
+            "Apply transformation to object." )
+      .def( "size", &MResidue::size, "Return number of atoms in monomer." )
+      .def( "__len__", &MResidue::size )
+      .def( "__repr__",
+            []( const MResidue& self ) {
+              std::stringstream stream;
+              stream << "<clipper.MResidue ";
+              stream << self.id().trim() << "(" << self.type() << ") containing ";
+              stream << self.size() << " atom(s)>";
+              return stream.str();
+            } )
       .def(
           "__getitem__",
-          [](MResidue& self, const int i) -> const MAtom& {
+          []( MResidue& self, const int i ) -> const MAtom& {
             return self[normalise_index(i, self.size())];
           },
-          py::arg("i"), py::return_value_policy::reference_internal,
-          "Get atom.")
+          py::arg( "i" ), py::return_value_policy::reference_internal, "Get atom." )
       .def(
           "__getitem__",
-          [](MResidue& self, const std::string& n) -> const MAtom& {
-            return self.find(n);
-          },
-          py::arg("id"), py::return_value_policy::reference_internal,
-          "Set atom.")
+          []( MResidue& self, const std::string& n ) -> const MAtom& { return self.find( n ); },
+          py::arg( "id" ), py::return_value_policy::reference_internal, "Get atom." )
       .def(
           "find",
-          [](const MResidue& self, const std::string& n, const MM::MODE mode)
-              -> const MAtom& { return self.find(n, mode); },
-          py::arg("id"), py::arg("mode") = MM::MODE::UNIQUE,
+          []( const MResidue& self, const std::string& n, const MM::MODE mode ) -> const MAtom& {
+            return self.find( n, mode );
+          },
+          py::arg( "id" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
           py::return_value_policy::reference_internal,
           "Lookup by id. If mode=UNIQUE, the alternate conformation code must "
-          "match, otherwise the first atom with the same name is returned.")
+          "match, otherwise the first atom with the same name is returned." )
       .def(
           "find",
-          [](MResidue& self, const std::string& n, const MAtom& atm,
-             const MM::MODE mode) -> MAtom& {
-            return self.find(n, mode) = atm;
-          },
+          []( MResidue& self, const std::string& n, const MAtom& atm,
+              const MM::MODE mode ) -> MAtom& { return self.find( n, mode ) = atm; },
           "Set atom by looking up id. If mode=UNIQUE, the alternate "
           "conformation code must match, otherwise the first atom with "
-          "the same name is returned.")
+          "the same name is returned." )
       .def(
           "__setitem__",
-          [](MResidue& self, const int i, const MAtom atm) {
+          []( MResidue& self, const int i, const MAtom atm ) {
             self[normalise_index(i, self.size())] = atm;
           },
-          py::arg("i"), py::arg("atom"),
-          py::return_value_policy::reference_internal)
+          py::arg( "i" ), py::arg( "atom" ), py::return_value_policy::reference_internal )
       .def(
           "__setitem__",
-          [](MResidue& self, const std::string& n, const MAtom atm) {
-            self.find(n) = atm;
-          },
-          py::arg("id"), py::arg("atom"),
-          py::return_value_policy::reference_internal)
-      .def("select", &MResidue::select, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a copy of this monomet containing only atoms described by "
-           "selection string. The atom selection must contain an atom ID or "
-           "a comma separated list of atom IDs, or \"*\" to select all atoms.")
-      .def("select_index", &MResidue::select_index, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a list of inidices of children matching the given "
-           "selection string.")
-      .def("insert", &MResidue::insert, py::arg("add"), py::arg("pos") = -1,
-           "Add atom to given position.")
-      .def("lookup", &MResidue::lookup, py::arg("id"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Lookup atom by ID and return the index position.")
-      .def(py::self & py::self)
-      .def(py::self | py::self)
-      .def("copy_from", &MResidue::copy, py::arg("other"),
-           py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+          []( MResidue& self, const std::string& n, const MAtom atm ) { self.find( n ) = atm; },
+          py::arg( "id" ), py::arg( "atom" ), py::return_value_policy::reference_internal )
+      .def( "select", &MResidue::select, py::arg( "sel" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a copy of this monomet containing only atoms described by "
+            "selection string. The atom selection must contain an atom ID or "
+            "a comma separated list of atom IDs, or \"*\" to select all atoms." )
+      .def( "select_index", &MResidue::select_index, py::arg( "sel" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a list of inidices of children matching the given "
+            "selection string." )
+      .def( "insert", &MResidue::insert, py::arg( "add" ), py::arg( "pos" ) = -1,
+            "Add atom to given position." )
+      .def( "lookup", &MResidue::lookup, py::arg( "id" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Lookup atom by ID and return the index position." )
+      .def( py::self & py::self )
+      .def( py::self | py::self )
+      .def( "copy_from", &MResidue::copy, py::arg( "other" ), py::arg( "mode" ) = MM::COPY::COPY_C,
+            "Configurable copy function." )
       .def(
-          "copy", [](const MResidue& self) { return self; },
+          "copy", []( const MResidue& self ) { return self; },
           "Return a copy of object. Use this to make copy because "
-          "assignment operator in Python only create bindings not copy.")
-      .def_static("id_match", &MResidue::id_match, py::arg("id1"),
-                  py::arg("id2"), py::arg("mode"), "Compare two IDs.")
-      .def_static("id_tidy", &MResidue::id_tidy, py::arg("id"),
-                  "Convert ID to standard format.")
+          "assignment operator in Python only create bindings not copy." )
+      .def_static( "id_match", &MResidue::id_match, py::arg( "id1" ), py::arg( "id2" ),
+                   py::arg( "mode" ), "Compare two IDs." )
+      .def_static( "id_tidy", &MResidue::id_tidy, py::arg( "id" ),
+                   "Convert ID to standard format." )
       // UTILITY
-      .def("build_carbonyl_oxygen",
-           (void(MResidue::*)(const MResidue&)) &
-               MResidue::protein_mainchain_build_carbonyl_oxygen,
-           py::arg("next"),
-           "Build carbonyl oxygen, given next residue in chain.")
-      .def("build_carbonyl_oxygen",
-           (void(MResidue::*)()) &
-               MResidue::protein_mainchain_build_carbonyl_oxygen,
-           "Build carbonyl oxygen, without next residue in chain.")
-      .def("number_of_rotamers",
-           (int(MResidue::*)(MResidue::TYPE) const) &
-               MResidue::protein_sidechain_number_of_rotamers,
-           py::arg("t"),
-           "Get number of rotamers for protein sidechain, given a rotamer "
-           "library type.")
-      .def("number_of_rotamers",
-           (int(MResidue::*)() const) &
-               MResidue::protein_sidechain_number_of_rotomers,
-           "Get number of rotamers for protein sidechain from Richardson "
-           "rotamer library.")
-      .def("build_sidechain_numbered_rotamer",
-           (ftype(MResidue::*)(const int&, MResidue::TYPE)) &
-               MResidue::protein_sidechain_build_rotamer,
-           py::arg("n"), py::arg("t"),
-           "Build numbered rotamer for protein sidechain.")
-      .def("build_sidechain_numbered_rotamer",
-           (ftype(MResidue::*)(const int&)) &
-               MResidue::protein_sidechain_build_rotomer,
-           py::arg("n"), "Build numbered rotamer for protein sidechain.")
-      .def_static("protein_peptide_bond", &MResidue::protein_peptide_bond,
-                  py::arg("m1"), py::arg("m2"), py::arg("r") = 1.5,
-                  "Test if two peptide are adjacent.")
-      .def_static("protein_ramachandran_phi",
-                  &MResidue::protein_ramachandran_phi, py::arg("m1"),
-                  py::arg("m2"),
-                  "Return Ramachandran phi, or NaN if atoms missing.")
-      .def_static("protein_ramachandran_psi",
-                  &MResidue::protein_ramachandran_psi, py::arg("m1"),
-                  py::arg("m2"),
-                  "Return Ramachandran psi, or NaN if atoms missing.")
-      .def_static("default_type", &MResidue::default_type,
-                  "Return default rotamer library type.")
+      .def( "build_carbonyl_oxygen",
+            ( void( MResidue::* )( const MResidue& ) ) &
+                MResidue::protein_mainchain_build_carbonyl_oxygen,
+            py::arg( "next" ), "Build carbonyl oxygen, given next residue in chain." )
+      .def( "build_carbonyl_oxygen",
+            ( void( MResidue::* )() ) & MResidue::protein_mainchain_build_carbonyl_oxygen,
+            "Build carbonyl oxygen, without next residue in chain." )
+      .def( "number_of_rotamers",
+            ( int( MResidue::* )( MResidue::TYPE ) const ) &
+                MResidue::protein_sidechain_number_of_rotamers,
+            py::arg( "t" ),
+            "Get number of rotamers for protein sidechain, given a rotamer "
+            "library type." )
+      .def( "number_of_rotamers",
+            ( int( MResidue::* )() const ) & MResidue::protein_sidechain_number_of_rotomers,
+            "Get number of rotamers for protein sidechain from Richardson "
+            "rotamer library." )
+      .def( "build_sidechain_numbered_rotamer",
+            ( ftype( MResidue::* )( const int&,
+                                    MResidue::TYPE ) )&MResidue::protein_sidechain_build_rotamer,
+            py::arg( "n" ), py::arg( "t" ), "Build numbered rotamer for protein sidechain." )
+      .def( "build_sidechain_numbered_rotamer",
+            ( ftype( MResidue::* )( const int& ) )&MResidue::protein_sidechain_build_rotomer,
+            py::arg( "n" ), "Build numbered rotamer for protein sidechain." )
+      .def_static( "protein_peptide_bond", &MResidue::protein_peptide_bond, py::arg( "m1" ),
+                   py::arg( "m2" ), py::arg( "r" ) = 1.5, "Test if two peptide are adjacent." )
+      .def_static( "protein_ramachandran_phi", &MResidue::protein_ramachandran_phi, py::arg( "m1" ),
+                   py::arg( "m2" ), "Return Ramachandran phi, or NaN if atoms missing." )
+      .def_static( "protein_ramachandran_psi", &MResidue::protein_ramachandran_psi, py::arg( "m1" ),
+                   py::arg( "m2" ), "Return Ramachandran psi, or NaN if atoms missing." )
+      .def_static( "default_type", &MResidue::default_type, "Return default rotamer library type." )
       .doc() =
       "MiniMol monomer (e.g. residue) object.\nThe MiniMol "
       "monomer object contains a list of clipper::MAtom. "

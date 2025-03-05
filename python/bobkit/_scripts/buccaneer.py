@@ -43,6 +43,7 @@ def get_coordinates_from_predicted_instance(
     datapath: str,
     cell: clipper.Cell,
     grid_sampling: clipper.Grid_sampling,
+    corrections: util.Corrections,
     fix_axis_positions=False,
     fix_origin=True,
     mapin_path="NONE",
@@ -54,6 +55,7 @@ def get_coordinates_from_predicted_instance(
     nxs = 0
     nys = 0
     nzs = 0
+    ncorrect = 0
     if mapin_path != "NONE":
         gmap = gemmi.read_ccp4_map(mapin_path)
         if fix_axis_positions and (gmap.grid.axis_order != gemmi.AxisOrder.XYZ):
@@ -107,29 +109,49 @@ def get_coordinates_from_predicted_instance(
     print(f"density shape : {density.shape}")
     print(f"grid sampling : {grid_sampling.format()}")
     print(f"spacing: {spacing}")
-    if not return_map_index:
-        for i in (0, 1, 2):
-            offsets[i] = offsets[i] * spacing[i]
-            xyz[i] = xyz[i] * spacing[i]
+
+    corrections.set_asu_grid(grid_sampling.nu, grid_sampling.nv, grid_sampling.nw)
+    corrections.set_grid(gmap.header_i32(8), gmap.header_i32(9), gmap.header_i32(10))
+    corrections.set_cell_gemmi(gmap.grid.unit_cell)
+    corrections.set_spacing(spacing[0], spacing[1], spacing[2])
+    corrections.set_origin(nxs, nys, nzs)
+    corrections.ncorrect = ncorrect
+    corrections.fix_origin = fix_origin
+    for i in (0, 1, 2):
+        offsets[i] = offsets[i] * spacing[i]
+        xyz[i] = xyz[i] * spacing[i]
     points = (xyz + offsets) * (density > 0)
     points = points[:, density > 0].T
-    points_int = np.floor(points).astype(int)
+    points_int = np.round(points).astype(int)
+    # np.round()
     uniq, indices, count = np.unique(
         points_int, return_inverse=True, return_counts=True, axis=0
     )
+    print(f"uniq points : {len(uniq)}\n")
     counts = count[indices]
     aa_instance_coordinates = []
     if return_map_index:
         if write_npy:
             np.save("aa_inst_mean.npy", uniq, allow_pickle=False)
         for point_ind in uniq:
-            aa_instance_coordinates.append(clipper.Coord_map(point_ind))
+            cg = (
+                clipper.Coord_orth(point_ind.astype(float))
+                .coord_frac(cell)
+                .coord_grid(grid_sampling)
+            )
+            aa_instance_coordinates.append(cg)
+            # aa_instance_coordinates.append(clipper.Coord_map(float(point_ind[0]), float(point_ind[1]), float(point_ind[2])))
     else:
         counts = count[indices]
         # use dbscan to group nearby points together
-        db = DBSCAN(eps=np.max(np.sqrt(3 * (spacing * spacing))), min_samples=10).fit(
-            points
-        )
+        db = DBSCAN(
+            eps=np.sqrt(np.sum(spacing * spacing)),
+            min_samples=10,
+            algorithm="ball_tree",
+        ).fit(points)
+        # db = DBSCAN(eps=np.max(np.sqrt(3 * (spacing * spacing))), min_samples=10).fit(
+        #    points
+        # )
         labels = db.labels_
         groups = {}
         weights = {}
@@ -152,11 +174,15 @@ def get_coordinates_from_predicted_instance(
                 w += p[1]
             tmp[count] = np.array([sum_x / w, sum_y / w, sum_z / w])
             aa_instance_coordinates.append(clipper.Coord_orth(tmp[count]))
+            #    .coord_frac(cell)
+            #    .coord_grid(grid_sampling)
+            # )
             count += 1
         if write_npy:
             np.save("aa_inst_mean.npy", tmp, allow_pickle=False)
-    corrections = [spacing[0], spacing[1], spacing[2], nxs, nys, nzs, ncorrect]
-    return aa_instance_coordinates, corrections  # spacing
+
+    # corrections = [spacing[0], spacing[1], spacing[2], nxs, nys, nzs, ncorrect]
+    return aa_instance_coordinates  # , corrections  # spacing
 
 
 def sequence_predictions_to_map(
@@ -359,6 +385,12 @@ class Buccaneer:
         gfile_ref.import_minimol(mol_ref)
         if args.pdbin != "NONE":
             util.read_structure(mol_wrk, args.pdbin)
+            # if args.model_filter:
+            #    for c in mol_wrk:
+
+            # gfile = clipper.GEMMIfile()
+            # gfile.read_file(args.pdbin)
+            # gfile.import_minimol(mol_wrk)
         if mol_seq.size() > 0:
             buccaneer.Ca_sequence.set_prior_model(mol_seq)
         mol_wrk_in = mol_wrk.copy()  # store a copy of the input model
@@ -446,32 +478,71 @@ class Buccaneer:
             ccp4.update_ccp4_header()
             xwrk.export_to_gemmi(ccp4)
             ccp4.write_ccp4_map(args.mapout)
-        # initial number of fragments/residues to find
-        vol = xwrk.cell.volume / float(xwrk.spacegroup.num_symops())
 
-        nres = int(vol / 320.0)  # 320A^3/residue on average (inc solvent)
-        args.nfrag = min(args.nfrag, int((args.nfragr * nres) / 100))
-        sys.stdout.flush()
         # generate llk distribution of target values for cutoff
         llktgt.prep_llk_distribution(xwrk)
         buccaneer.ProteinTools.split_chains_at_gap(mol_wrk)
         sys.stdout.flush()
-        # prepare search target
-        cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
-        if args.aa_instance_directory != "NONE":
-            aa_instance_coords, spacing = get_coordinates_from_predicted_instance(
-                args.aa_instance_directory,
-                xwrk.cell,
-                xwrk.grid_sampling,
-                fix_axis_positions=True,
-                mapin_path=args.mapin,
-                write_npy=True,
-                return_map_index=False,
-            )
-            cafind.set_starting_centroid_coords(aa_instance_coords)
-            aa_pred = np.load(f"{args.aa_instance_directory}/pred.npy")
-            caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, spacing, correl=args.correl)
 
+        # initial number of fragments/residues to find
+        vol = xwrk.cell.volume / float(xwrk.spacegroup.num_symops())
+        nres = int(vol / 320.0)  # 320A^3/residue on average (inc solvent)
+        args.nfrag = min(args.nfrag, int((args.nfragr * nres) / 100))
+        sys.stdout.flush()
+        use_ml_seq = False
+        return_map_index = False
+        if args.aa_instance_directory != "NONE":
+            print("Using amino acid instance!\n")
+            osaka = util.Osaka(datapath=args.aa_instance_directory, cell=wrkcell)
+            osaka.grid_spacing_from_map(
+                args.mapin, fix_axis_positions=True, fix_origin=True
+            )
+            aa_instance_coords = osaka.get_map_coords_from_predicted_instance(
+                osaka.corrections.cell,
+                osaka.corrections.grid,
+                mapin_path=args.mapin,
+                fix_origin=True,
+                write_npy=True,
+                return_map_index=return_map_index,
+            )
+
+            # corrections = util.Corrections()
+            # aa_instance_coords = get_coordinates_from_predicted_instance(
+            #    args.aa_instance_directory,
+            #    xwrk.cell,
+            #    xwrk.grid_sampling,
+            #    corrections,
+            #    fix_axis_positions=True,
+            #    mapin_path=args.mapin,
+            #    write_npy=True,
+            #    return_map_index=return_map_index,
+            # )
+            aa_pred = np.load(f"{args.aa_instance_directory}/pred.npy")
+            # osaka = util.Osaka()
+            # osaka.map_coords_to_ca_atom(aa_instance_coords, mol_wrk)#, spacing)
+            print(f"mol wrk size : {mol_wrk.size()}")
+            # exit()
+            # osaka.map_grid_to_ca_atom(aa_instance_coords, mol_wrk, xwrk.cell, xwrk.grid_sampling)#, spacing)
+            print(f"xwrk grid sampling : {xwrk.grid_sampling}")
+            # print("writing mapcoord_to_atoms\n")
+            # util.write_structure(mol_wrk, "mapcoord_to_atoms.cif", True)
+            if len(aa_instance_coords) > args.nfrag:
+                cafind = buccaneer.Ca_find(len(aa_instance_coords), resol.limit())
+            else:
+                cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
+            # cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
+            if return_map_index:
+                cafind.set_starting_instance_coords(aa_instance_coords)
+            else:
+                cafind.set_starting_instance_coords(aa_instance_coords, xwrk)
+            caseq_ml = buccaneer.Ca_sequence_ml(
+                aa_pred, osaka.corrections, correl=args.correl
+            )
+            ### caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, spacing, correl=args.correl, fix_axis_positions=True)
+            ##use_ml_seq = True
+        else:
+            # prepare search target
+            cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
         # merge multi model results
         if args.merge:
             camerge = buccaneer.Ca_merge(args.seq_rel)
@@ -495,7 +566,7 @@ class Buccaneer:
                 "before model_filter",
                 mol_wrk.select("*/*/CA").atom_list().size(),
             )
-            buccaneer.Ca_filter(mol_wrk, xwrk, args.model_filter_sig)
+            buccaneer.Ca_filter.filter(mol_wrk, xwrk, args.model_filter_sig)
             self._print_steps_Casummaries(
                 "after model filter",
                 mol_wrk.select("*/*/CA").atom_list().size(),
@@ -544,6 +615,7 @@ class Buccaneer:
                 sys.stdout.flush()
                 self.log.log("FIND", mol_wrk, args.verbose > 9)
                 sys.stdout.flush()
+                util.write_structure(mol_wrk, "find.pdb", cif_format=False)
 
             if args.grow:
                 cagrow = buccaneer.Ca_grow(25)
@@ -574,15 +646,15 @@ class Buccaneer:
                 sys.stdout.flush()
                 self.log.log("LINK", mol_wrk, args.verbose > 9)
                 sys.stdout.flush()
-                # util.write_structure(mol_wrk, "linked.pdb", cif_format=False)
+                util.write_structure(mol_wrk, "linked.pdb", cif_format=False)
 
             if args.seqnc:
                 # caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, corrections)
                 if args.aa_instance_directory != "NONE":
-                    caseq_ml(mol_wrk)
+                    caseq_ml(mol_wrk, osaka.corrections.grid)
                     if not caseq_ml.check_is_seqprob_set():
                         print("SEQPROB not set!")
-                buccaneer.Ca_sequence.set_use_ml_sequence_probability(True)
+                buccaneer.Ca_sequence.set_use_ml_sequence_probability(use_ml_seq)
                 caseq = buccaneer.Ca_sequence(args.seq_rel)
                 # caseq.set_use_set_use_ml_sequence_probability(True)
                 caseq(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
@@ -729,7 +801,7 @@ class Buccaneer:
 
 def main(args=None):
     """Example buccaneer run script"""
-    print(f"\n### Script started : {datetime.datetime.now()} ###\n")
+    print(f"\n### Job started : {datetime.datetime.now()} ###\n")
     raw_args = args or sys.argv[1:]
     parser = BucArgParse(sys.argv[0])
     parsed_args = parser.parse_args(raw_args)
@@ -752,7 +824,7 @@ def main(args=None):
     print(f"pdbin : {buc_params.pdbin}")
     print(f"seqin : {buc_params.ipseq_wrk}\n")
     buc.run()
-    print(f"\n### Script ended : {datetime.datetime.now()} ###\n")
+    print(f"\n### Job ended : {datetime.datetime.now()} ###\n")
 
 
 if __name__ == "__main__":

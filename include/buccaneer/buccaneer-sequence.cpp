@@ -54,23 +54,20 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       std::vector<double> scores( ntyp, 0.0 );
       for ( int t = 0; t < ntyp; t++ )
         scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
-      // std::vector<double> seq
       if ( seqprob_ ) {
         if ( mm.exists_property( "SEQPROB" ) ) {
           const Sequence_data& sp =
               static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQPROB" ) )
                   .value();
           for ( int t = 0; t < ntyp; t++ ) {
-            if ( scores[t] < 0 )
-              scores[t] -= sp.data[t];
-            else
-              scores[t] += sp.data[t];
+            scores[t] += sp.data[t];
           }
         }
       }
+      // std::vector<double> seq
 
       Sequence_data sd( ca, scores );
-      mm.set_property( "SEQDAT", clipper::Property<Sequence_data>(sd) );
+      mm.set_property( "SEQDAT", clipper::Property<Sequence_data>( sd ) );
     }
     // check
     // const Sequence_data& sd =

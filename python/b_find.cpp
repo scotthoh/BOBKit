@@ -80,9 +80,18 @@ void declare_ca_find(py::module &m) {
       //    py::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
       .def_static( "set_cpus", &Ca_find::set_cpus, py::arg( "ncpus" ),
                    "Set number of cpu threads to use." )
-      .def( "set_starting_centroid_coords", &Ca_find::set_starting_centroid_coords,
+      .def( "set_starting_instance_coords",
+            ( void( Ca_find::* )( const std::vector<clipper::Coord_orth>&, const Xmap<float>& ) ) &
+                Ca_find::set_starting_instance_coords,
+            py::arg( "aa_instance" ), py::arg( "xmap" ),
+            "Set starting instance coordinates from a list of orthogonal coordinates of amino acid "
+            "instances." )
+      .def( "set_starting_instance_coords",
+            ( void( Ca_find::* )( const std::vector<clipper::Coord_grid>& ) ) &
+                Ca_find::set_starting_instance_coords,
             py::arg( "aa_instance" ),
-            "Set starting centroid coordinates from a list of positions of amino acid instances." )
+            "Set starting instance coordinates from a list of grid coordinates of amino acid "
+            "instances." )
       .def( "__repr__", []( const Ca_find& self ) {
         std::stringstream stream;
         stream << "<buccaneer.Ca_find class>";
@@ -146,7 +155,7 @@ void declare_ssfind(py::module &m) {
             "Prepare search with given map, density and radius cutoff, centre "
             "coordinates." )
       .def( "prep_search",
-            ( void( SSfind::* )( const Xmap<float>&, const std::vector<clipper::Coord_orth>& ) ) &
+            ( void( SSfind::* )( const Xmap<float>&, const std::vector<clipper::Coord_grid>& ) ) &
                 SSfind::prep_search,
             py::arg( "xmap" ), py::arg( "centroids" ),
             "Prepare search with given map, density and radius cutoff, centre "

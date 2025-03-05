@@ -207,7 +207,6 @@ endif() # if(BUILD_OWN_FFTW3)
 # install gemmi
 set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
 set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
-#set(gemmi_src_path "/home/swh514/Projects/gemmi/gemmi")
 set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
 
 set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
@@ -242,8 +241,7 @@ add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
-#set(clipper_src_path "${clipper_dep_path}/src/clipper")
-set(clipper_src_path "/home/swh514/Projects/clipper/git_tmp")
+set(clipper_src_path "${clipper_dep_path}/src/clipper")
 set(clipper_bin_path "${clipper_dep_path}/src/clipper_ex-build/")
 
 set(lib_clippercore ${lib_prefix}clipper-core${lib_suffix})
@@ -256,9 +254,9 @@ ExternalProject_add(project_clipper
                     PREFIX ${clipper_dep_path}
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
-                    #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    #GIT_TAG v3.0.2-dev
-                    #UPDATE_COMMAND ""
+                    GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
+                    GIT_TAG v3.0.3-dev
+                    UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
                     "${clipper_src_path}/CMakeLists.txt"
