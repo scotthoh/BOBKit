@@ -34,7 +34,7 @@ class Ca_sequence {
   static void set_semet( bool semet ) { semet_ = semet; }
   static void set_prior_model( const clipper::MiniMol& mol );
   static void set_cpus( int cpus ) { ncpu = cpus; }
-  static void set_use_ml_sequence_probability( bool seqprob ) { seqprob_ = seqprob; }
+  static void set_use_ml_sequence_probability( bool seqprob, bool hybrid = false ) { seqprob_ = seqprob; hybrid_ = hybrid; }
   // static void set_sequence_probability_map( const clipper::Xmap<float>& seq_prob ) {
   //   seq_prob_ = &seq_prob;
   // }
@@ -56,6 +56,7 @@ class Ca_sequence {
   static bool semet_;
   static clipper::MiniMol molprior;
   static bool seqprob_;
+  static bool hybrid_;
 };
 
 

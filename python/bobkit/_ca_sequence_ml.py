@@ -55,6 +55,7 @@ __all__ = [
 # )
 from bobkit.clipper import (
     Cell as _Cell,
+    Spacegroup as _Spacegroup,
     Grid_sampling as _Grid_sampling,
     Coord_orth as _Coord_orth,
     Coord_grid as _Coord_grid,
@@ -69,12 +70,13 @@ from bobkit.clipper import (
 )
 
 from bobkit.util import write_structure as _write_structure
-from ._util import Corrections as _Corrections
+from ._util import MapParameters as _MapParameters
 import numpy as _np
 import gemmi as _gemmi
 from multiprocessing import Process as _Process, Manager as _Manager
 
 ProteinTools()
+
 AA_TO_CH_DICT = {
     "ALA": 0,
     "GLY": 1,
@@ -119,134 +121,59 @@ CH_TO_AA_DICT = {
 }
 
 MLI_TO_BUC_DICT = {
-    0: 0,
-    1: 7,
-    2: 9,
-    3: 10,
-    4: 14,
-    5: [16, 19],
-    6: 13,
-    7: 17,
-    8: 18,
-    9: [2, 3],
-    10: [5, 6],
-    11: 1,
-    12: 8,
-    13: 11,
-    14: 15,
-    15: 4,
-    16: 12,
+    0: 0,   # ALA
+    1: 7,   # GLY
+    2: 9,   # ILE
+    3: 10,  # LEU
+    4: 14,  # PRO
+    5: [16, 19], # VAL/THR
+    6: 13,  # PHE
+    7: 17,  # TRP
+    8: 18,  # TYR
+    9: [2, 3],   # ASP/ASN
+    10: [5, 6],  # GLU/GLN
+    11: 1,  # ARG
+    12: 8,  # HIS
+    13: 11, # LYS
+    14: 15, # SER
+    15: 4,  # CYS
+    16: 12, # MET
 }
 
 BUC_TO_MLI_DICT = {
-    0: 0,
-    1: 11,
-    2: 9,
-    3: 9,
-    4: 15,
-    5: 14,
-    6: 10,
-    7: 1,
-    8: 12,
-    9: 2,
-    10: 3,
-    11: 13,
-    12: 16,
-    13: 6,
-    14: 4,
-    15: 14,
-    16: 5,
-    17: 7,
-    18: 8,
-    19: 5,
-    12: 16,
+    0: 0,   # ALA
+    1: 11,  # ARG
+    2: 9,   # ASN
+    3: 9,   # ASP
+    4: 15,  # CYS
+    5: 10,  # GLN
+    6: 10,  # GLU
+    7: 1,   # GLY
+    8: 12,  # HIS
+    9: 2,   # ILE
+    10: 3,  # LEU
+    11: 13, # LYS
+    12: 16, # MET
+    13: 6,  # PHE
+    14: 4,  # PRO
+    15: 14, # SER
+    16: 5,  # THR
+    17: 7,  # TRP
+    18: 8,  # TYR
+    19: 5,  # VAL
+    12: 16, # MSE
 }
 
 
-# const char ProteinTools::rtype3[21][4] =
-# {"ALA","ARG","ASN","ASP","CYS","GLN","GLU","GLY","HIS","ILE",
-#  "LEU","LYS","MET","PHE","PRO","SER","THR","TRP","TYR","VAL",
-#  "MSE"};
-# const int ProteinTools::tindex[21] =
-# {    0,    1,    2,    3,    4,    5,    6,    7,    8,    9,
-#     10,   11,   12,   13,   14,   15,   16,   17,   18,   19,
-#     12};
-
-
-class Cathread(_Thread_base):
-    """Derive class
-
-    Args:
-        _Thread_base (_type_): _description_
+class Ca_sequence_ml:
+    """Class for sequence Ca chains using density and output predictions from machine learning.
+    This is based on the 
     """
 
     def __init__(
         self,
-        data: _List[int] = None,
-        chain: _MChain = None,
-        xmap: _Xmap = None,
-        sequence_array: _np.ndarray = None,
-        llksample: _List[LLK_map_target.Sampled] = None,
-    ):
-        super().__init__()
-        self._chain = chain
-        self._xmap = xmap
-        self._seq_array = sequence_array
-        self._llksample = llksample
-        self.count = 0
-        self.sum = 0
-        self.data = data.copy()
-
-    def __call__(self, nthread=0):
-        thr = True if nthread > 0 else False
-        if thr:
-            threads = [Cathread] * (nthread - 1)
-            self.run()
-            for i in range(0, len(threads)):
-                threads[i].run()
-            self.join()
-            for i in range(0, len(threads)):
-                threads[i].join()
-            # if self.count >= len(threads):
-            #    for i in range(0, len(threads)):
-            #        self.merge(threads[i])
-            # else:
-            #    thr = False
-        else:
-            for i in range(0, len(self.data)):
-                self.sum += self.data[i]
-
-    def sequence_score(self):
-        pass
-
-    def result(self):
-        print(f"sum = {self.sum}")
-
-    # def merge(self, other: Cathread = None):
-    #    for i in range(0, len(self.data)):
-    #
-    #    pass
-
-    def Run(self):
-        self.sum = 0
-        while 1:
-            self.lock()
-            c = self.count + 1
-            self.unlock()
-            if c >= 100:
-                break
-            self.sum += self.data[c]
-
-        # print("hello")
-
-
-class Ca_sequence_ml:
-    """Class for sequence Ca chains using density and output predictions from machine learning"""
-
-    def __init__(
-        self,
-        sequence_array: _np.ndarray,
-        corrections: _Corrections,
+        sequence_array: _np.ndarray = _np.full((1, 1), None, dtype=object),
+        corrections: _MapParameters = _MapParameters(),
         reliability: float = 1.0,
         correl: bool = False,  # , fix_axis_positions: bool = False,
     ):
@@ -259,13 +186,23 @@ class Ca_sequence_ml:
         #    print(arr.shape)
 
         # self.__sequence_array = sequence_array
-        self.__reliability = reliability
+        #self.__reliability = reliability
         self.__ncpu = 1
         self.__corrections = corrections
         self.__mol = None
         self.__done = []
         self.__correl = correl
-
+        ## how to utilise this p1 and sg maps to map the grid coords to the array.
+        ##self.__xlookp1 = _Xmap(_Spacegroup.p1(), corrections.workcell, corrections.)
+        ##clipper::Xmap<int> xlookp1( clipper::Spacegroup::p1(), cell, grid );
+        ##int lresult = 0;
+        ##{
+        ##  clipper::Xmap<int> xlooksg( spgr, cell, grid );
+        ##  for ( MRI ix = xlooksg.first(); !ix.last(); ix.next() )
+        ##    xlooksg[ix] = lresult++;
+        ##  for ( MRI ix = xlookp1.first(); !ix.last(); ix.next() )
+        ##    xlookp1[ix] = xlooksg.get_data(ix.coord());
+        ##}
         # self.__fix_axis_positions = fix_axis_positions
 
     # def __init__(self, sequence_array: _np.ndarray, reliability: float = 0.5):
@@ -291,6 +228,15 @@ class Ca_sequence_ml:
         return arraylist
 
     @staticmethod
+    def pad_sequence_array(sequence_array, corrections):
+        arraylist = []
+        grid = _np.array(corrections.grid[0], corrections.grid[1],corrections.grid[2])
+        arrayshape = sequence_array[0].shape
+        if (not _np.array_equal(grid,arrayshape)):
+            diff = [grid[i]-arrayshape[i] for i in range(0,3)]
+            #newarray = 
+
+    @staticmethod
     def ml_aa2bucindex(ml_aa_ind: int):
         return MLI_TO_BUC_DICT[ml_aa_ind]
 
@@ -311,7 +257,7 @@ class Ca_sequence_ml:
         ind: int,
         pos: _Coord_orth,
         seq_array: _np.ndarray,
-        corrections: _Corrections,
+        corrections: _MapParameters,
         cell: _Cell,
         grid: _Grid_sampling,
         correl: bool = False,
@@ -322,8 +268,9 @@ class Ca_sequence_ml:
         coords = _Coord_orth(pos)
         if shiftback:
             coords = coords + corrections.shiftback
-        if corrections.fix_origin:
-            coords = coords - _Coord_orth(corrections.origin)
+    
+        #if corrections.fix_origin:
+        #    coords = coords - _Coord_orth(corrections.origin)
         # if corrections.fix_axis_positions:
         #    coords = _Coord_orth(pos.z,pos.y,pos.x)
         # else:
@@ -333,39 +280,46 @@ class Ca_sequence_ml:
         if grid_index != -1:
             cg = corrections.grid_asu.deindex(grid_index)
         else:
-            cg = (
-                coords.coord_frac(cell)
-                .coord_grid(corrections.grid_asu)
-                .unit(corrections.grid_asu)
-            )
+            #cg = _Coord_grid(int(coords.x/corrections.spacing[0]), int(coords.y/corrections.spacing[1]), int(coords.y/corrections.spacing[2]))
+            cg = coords.coord_frac(cell).coord_grid(grid)
+            #if ind == 0:
+            #    print(f"DEBUG : {coords.format()}, {cg.format()}", end=",")
+            if corrections.fix_origin:
+                cg = cg - _Coord_grid(corrections.origin[0], corrections.origin[1], corrections.origin[2])
+            cg = cg.unit(_Grid_sampling(corrections.grid_asu[0], corrections.grid_asu[1], corrections.grid_asu[2]))
+            #if ind == 0:
+            #    print(f" {cg.format()}, {corrections.origin}" )
         # print(f"{cg}")
         # if corrections.fix_origin:
         #    cg = cg - _Coord_grid(corrections.origin[0] + corrections.ncorrect, corrections.origin[1] + corrections.ncorrect, corrections.origin[2] + corrections.ncorrect)
         # print(f"DEBUG : {pos}, {cg}")
         # mapind = [int(pos.x), int(pos.y), int(pos.z)]
-
+        #try:
         probval = seq_array[cg.u, cg.v, cg.w]
-        print(f"{probval}, ", end="")
+        ##except IndexError:
+        ##    cg = cg.unit(corrections.grid_asu)
+        ##    probval = seq_array[cg.u, cg.v, cg.w]
+        #print(f"{probval}, ", end="")
         # probval = seq_array[cg.u%seq_array.shape[0], cg.v%seq_array.shape[1], cg.w%seq_array.shape[2]]
         # print(f"{coords} || {cg.u%seq_array.shape[0], cg.v%seq_array.shape[1], cg.w%seq_array.shape[2]} || {probval}")
-        if correl:
-            if ind in [5, 9, 10]:
-                return probval / 2.0
-            else:
-                return probval
+        #if correl:
+        if ind in [5, 9, 10]:
+            return -probval / 2.0
         else:
-            if probval > 0.0:
-                if ind in [5, 9, 10]:
-                    llkval = _np.log10(probval / 2.0)
-                else:
-                    llkval = _np.log10(probval)
-            elif probval == 0.0:
-                llkval = -6.0
-
-            return llkval
+            return -probval
+        #else:
+        #    if probval > 0.0:
+        #        if ind in [5, 9, 10]:
+        #            llkval = _np.log10(probval / 2.0)
+        #        else:
+        #            llkval = _np.log10(probval)
+        #    elif probval == 0.0:
+        #        llkval = 0.0
+        #
+        #    return llkval
 
     @staticmethod
-    def shift_model(mol: _Minimol, corrections: _Corrections, grid: _Grid_sampling):
+    def shift_model(mol: _Minimol, corrections: _MapParameters, grid: _Grid_sampling):
         for chn in range(0, mol.size()):
             for r in range(0, mol[chn].size()):
                 for a in range(0, mol[chn][r].size()):
@@ -423,14 +377,14 @@ class Ca_sequence_ml:
                 #    mol[chn][r].type = "UNK"
                 #    print(f"DEBUG: UNK , {scores}")
                 #    continue
-                print("")
+                print(f"DEBUG: SCORES : {scores}")
                 ires = _np.argmax(scores)
-                if ires in [2, 3, 5, 6, 16, 19]:
-                    mol[chn][r].type = "UNK"
-                    print(f"DEBUG: {ires}, {scores}")
-                else:
-                    mol[chn][r].type = ProteinTools.residue_code_3(ires)
-                    print(f"DEBUG: {ires}, {scores}")
+                #if ires in [2, 3, 5, 6, 16, 19]:
+                #    mol[chn][r].type = "UNK"
+                #    print(f"DEBUG: {ires}, {scores}")
+                #else:
+                #    mol[chn][r].type = ProteinTools.residue_code_3(ires)
+                #    print(f"DEBUG: {ires}, {scores}")
             done[chn] = True
 
         for i in done:
@@ -468,17 +422,17 @@ class Ca_sequence_ml:
                         self.__correl,
                         shiftback,
                     )
-                if not _np.all(scores):
-                    mol[chn][r].type = "UNK"
-                    print(f"DEBUG: UNK , {scores}")
-                    continue
-                ires = _np.argmax(scores)
-                if ires in [2, 3, 5, 6, 16, 19]:
-                    mol[chn][r].type = "UNK"
-                    print(f"DEBUG: {ires}, {scores}")
-                else:
-                    mol[chn][r].type = ProteinTools.residue_code_3(ires)
-                    print(f"DEBUG: {ires}, {scores}")
+                #if not _np.all(scores):
+                #    mol[chn][r].type = "UNK"
+                #    print(f"DEBUG: UNK , {scores}")
+                #    continue
+                #ires = _np.argmax(scores)
+                #if ires in [2, 3, 5, 6, 16, 19]:
+                #    mol[chn][r].type = "UNK"
+                #    print(f"DEBUG: {ires}, {scores}")
+                #else:
+                #    mol[chn][r].type = ProteinTools.residue_code_3(ires)
+                #    print(f"DEBUG: {ires}, {scores}")
             done[chn] = True
 
         for i in done:
@@ -492,7 +446,7 @@ class Ca_sequence_ml:
     #        return seq_array[mapind[0], mapind[1], mapind[2]]
 
     def __call__(
-        self, mol: _Minimol, grid: _Grid_sampling, shiftback: bool = False
+        self, mol: _Minimol, grid: _np.ndarray, shiftback: bool = False
     ):  # , llktargets: LLK_TargetList):
         """Run sequence
 
@@ -503,6 +457,10 @@ class Ca_sequence_ml:
             seq (_MMolSeq): _description_
         """
         self.__mol = mol
+        print(f"grid {self.__corrections.grid}")
+        print(f"asu grid {self.__corrections.grid_asu}")
+        print(f"function in grid {grid}")
+        grid_samp = _Grid_sampling(grid[0], grid[1], grid[2])
         if self.__ncpu > 1:
             processes = []
             self.__done = [False] * self.__mol.size()
@@ -519,7 +477,7 @@ class Ca_sequence_ml:
                     end_chn = mol.size()
                 p = _Process(
                     target=self.prepare_scores,
-                    args=(start_chn, end_chn, 20, grid, shiftback),
+                    args=(start_chn, end_chn, 20, grid_samp, shiftback),
                 )
                 processes.append(p)
                 p.start()
@@ -528,7 +486,7 @@ class Ca_sequence_ml:
                 p.join()
         else:
             self.__done = [False] * self.__mol.size()
-            self.prepare_scores(0, self.__mol.size(), 20, grid, shiftback)
+            self.prepare_scores(0, self.__mol.size(), 20, grid_samp, shiftback)
             for i in self.__done:
                 if not i:
                     print("Did not manage to fully assign sequence probability!")
@@ -548,6 +506,7 @@ class Ca_sequence_ml:
         cached = False
         # should this method be called every cycle or just at the start?
         ca = Ca_group(res)
+        cell = _Cell(self.__corrections.cell)
         if not ca.is_null():
             if res.exists_property("SEQPROB"):
                 seqprob_val = res.get_property("SEQPROB").value
@@ -569,12 +528,13 @@ class Ca_sequence_ml:
                     ca.coord_ca,
                     self.__sequence_array[ml_aa_ind],
                     self.__corrections,
+                    cell,
                     grid,
                     self.__correl,
                     shiftback,
                     # self.__fix_axis_positions,
                 )
-            self.print_debug(res, scores)
+            #self.print_debug(res, scores)
             seqprob_val = Ca_sequence.Sequence_data(ca, scores)
             res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
 
@@ -619,6 +579,19 @@ class Ca_sequence_ml:
     def print_debug(self, res: _MRes, scores: _List):
         print(f"DEBUG: {res}, {scores}")
 
+    def sequence_array_to_map(self, gmap):
+        if (gmap.grid.axis_order != _gemmi.AxisOrder.XYZ):
+            gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
+        for i in range(0, self.__sequence_array.shape[0]-1):
+            a = self.__sequence_array[i]
+            gmap.grid = _gemmi.FloatGrid(_np.array(a, dtype=_np.float32))
+            gmap.grid.set_unit_cell(gmap.grid.unit_cell)
+            gmap.grid.spacegroup = gmap.grid.spacegroup
+            if i in [5, 9, 10]:
+                name = str(CH_TO_AA_DICT[i]).replace("/","")
+                gmap.write_ccp4_map(f"channel_{str(name)}_pred.ccp4")
+            else:
+                gmap.write_ccp4_map(f"channel_{str(CH_TO_AA_DICT[i])}_pred.ccp4")
 
 #
 ## split into separate chains

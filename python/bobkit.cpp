@@ -14,32 +14,32 @@
 
 namespace py = pybind11;
 
-void init_clipper_types(py::module &m);
-void init_ramachandran(py::module &m);
-void init_thread_base( py::module& m );
-void init_clipper_memory(py::module &m);
+void init_clipper_types(py::module &m); //1
+void init_ramachandran(py::module &m); //1
+void init_thread_base( py::module& m ); 
+void init_clipper_memory(py::module &m); //1
 void init_matomindex(py::module &m);
 void init_minimol(py::module &m);
 void init_ca_join(py::module &m);
-void init_cell(py::module &m);
-void init_coord_orth(py::module &m);
+void init_cell(py::module &m); //1
+void init_coord_orth(py::module &m); //1
 void init_atomlist(py::module &m);
-void init_spacegroup(py::module &m);
-void init_hklinfo(py::module &m);
-void init_hkl_data(py::module &m);
-void init_hkl_datatypes(py::module &m);
+void init_spacegroup(py::module &m); //1
+void init_hklinfo(py::module &m); //1
+void init_hkl_data(py::module &m); //1
+void init_hkl_datatypes(py::module &m); //1
 void init_sfscale(py::module &m);
-void init_containers(py::module &m);
+void init_containers(py::module &m); //1
 void init_maps(py::module &m);
 void init_nxmap(py::module &m);
 void init_map_io(py::module &m);
-void init_symop(py::module &m);
+void init_symop(py::module &m); //1
 void init_gemmi_structure(py::module &m);
 void init_minimol_seq(py::module &m);
-void init_clipper_stats(py::module &m);
+void init_clipper_stats(py::module &m); //1
 void init_map_utils(py::module &m);
 void init_clipper_util(py::module &m);
-void init_resol_fn( py::module& m );
+void init_resol_fn( py::module& m ); //1
 // void init_ccp4_mtz_io(py::module &m);
 void init_clipper_tests(py::module &m);
 
@@ -66,7 +66,7 @@ void init_proteindb(py::module &m);
 void init_utils( py::module& m );
 
 PYBIND11_MODULE( bobkit_ext, mbk_ ) {
-  ( void )mbk_;
+  ( void ) mbk_;
   py::module_ mbk = py::module_::import( "bobkit" );
   mbk.doc() =
       "Python bindings to Buccaneer and Clipper library for biomacromolecular "

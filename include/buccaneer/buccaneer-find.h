@@ -151,25 +151,25 @@ public:
 };
 
 //! class for refining Ca positions from centroids
-class Target_fn_refine_calpha : Target_fn_order_zero {
- public:
-  Target_fn_refine_calpha() {}
-  Target_fn_refine_calpha( const clipper::Xmap<float>& xmap, float step = 0.1,
-                           bool debug_mode = false,
-                           Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL )
-      : xmap_( &xmap ), step_( step ), debug_mode_( debug_mode ), opt_type_( type ) {};
-  ~Target_fn_refine_calpha() {}
-  int num_params() const { return 3; }
-
-  double operator()( const std::vector<double>& args ) const;
-  //! refine positions
-  clipper::Coord_orth refine( const clipper::Coord_orth& coord );
-
- private:
-  const clipper::Xmap<float>* xmap_;
-  double step_;
-  bool debug_mode_;
-  Optimiser_simplex::TYPE opt_type_;
-};
+//class Target_fn_refine_calpha : Target_fn_order_zero {
+// public:
+//  Target_fn_refine_calpha() {}
+//  Target_fn_refine_calpha( const clipper::Xmap<float>& xmap, float step = 0.1,
+//                           bool debug_mode = false,
+//                           Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL )
+//      : xmap_( &xmap ), step_( step ), debug_mode_( debug_mode ), opt_type_( type ) {};
+//  ~Target_fn_refine_calpha() {}
+//  int num_params() const { return 3; }
+//
+//  double operator()( const std::vector<double>& args ) const;
+//  //! refine positions
+//  clipper::Coord_orth refine( const clipper::Coord_orth& coord );
+//
+// private:
+//  const clipper::Xmap<float>* xmap_;
+//  double step_;
+//  bool debug_mode_;
+//  Optimiser_simplex::TYPE opt_type_;
+//};
 
 #endif

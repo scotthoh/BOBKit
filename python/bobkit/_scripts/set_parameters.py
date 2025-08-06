@@ -165,6 +165,14 @@ class BucArgParse:
             help="Input molecular replacement model.",
         )
         _GROUP.add_argument(
+            "--model-in-seq",
+            dest="model_in_seq",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help="Input model with prior sequence."
+        )
+        _GROUP.add_argument(
             "--output-model",
             dest="model_out",
             type=str,
@@ -380,6 +388,28 @@ class BucArgParse:
             # default="False",
             # metavar="Build MSE",
             help="Build Selenmethionine instead of methionine.",
+        )
+        _GROUP.add_argument(
+            "--use-ml-find",
+            dest="use_ml_find",
+            action="store_true",
+            help="Will use machine learning outputs given in finding step"
+        )
+        _GROUP.add_argument(
+            "--sequence-method",
+            dest="sequence_method",
+            default="default",
+            choices=["default", "mlinput", "hybrid"],
+            metavar="all | mlinput | hybrid",
+            help=("Specify sequencing method. Default is Buccaneer's default method."
+                  "mlinput is to use machine learning outputs. hybrid is a mixture of both.")
+        )
+        _GROUP.add_argument(
+            "--apply-shiftback-mlfind",
+            dest="shiftback",
+            action="store_true",
+            help=("Look for and apply shifts in cutout.pdb output from PHENIX "
+                  "mapcut when making P1 maps.")
         )
         _GROUP.add_argument(
             "--anisotropy-correction",
@@ -663,6 +693,7 @@ class BuccaneerParams:
     pdbin_ref: str
     mtzin_ref: str
     pdbin_mr: str
+    pdbin_seq: str
     aa_instance_directory: str
     # columns
     title: str
@@ -699,9 +730,12 @@ class BuccaneerParams:
     prune: bool  # = True  # False  #
     build: bool  # = True  # False  #
     semet: bool  # further options
+    use_ml_find: bool
+    sequence_method: str
+    shiftback: bool
     optemp: bool  # false
     # fast mode Ca_find.TYPE.SECSTRUC else Ca_find.TYPE.LIKELIHOOD
-    findtype: bool
+    findtype: Ca_find.TYPE
     correl: bool
     tidy: bool  # = True
     fixpos: bool  # = False
@@ -733,7 +767,11 @@ class BuccaneerParams:
         mapin: str = "NONE",
         pdbin: str = "NONE",
         pdbin_mr: str = "NONE",
+        pdbin_seq: str = "NONE",
         aa_instance_directory: str = "NONE",
+        use_ml_find: bool = False,
+        sequence_method: str = "default",
+        shifback: bool = False,
         outfile_name: str = "buccaneer_build.pdb",
         xmlout: str = "summary.xml",
         write_pdb: bool = True,
@@ -744,7 +782,11 @@ class BuccaneerParams:
         self.mapin = mapin
         self.pdbin = pdbin
         self.pdbin_mr = pdbin_mr
-        self.aa_instance_positions = aa_instance_positions
+        self.pdbin_seq = pdbin_seq
+        self.aa_instance_directory = aa_instance_directory
+        self.use_ml_find = use_ml_find
+        self.sequence_method = sequence_method
+        self.shiftback = shifback
         self.verbose = verbose
         self.title = title
         self.ipseq_wrk = seqin
@@ -790,7 +832,11 @@ class BuccaneerParams:
         self.mapin = args.mapin
         self.pdbin = args.model_in
         self.pdbin_mr = args.model_in_mr
+        self.pdbin_seq = args.model_in_seq
         self.aa_instance_directory = args.aa_instance_directory
+        self.use_ml_find = args.use_ml_find
+        self.sequence_method = args.sequence_method
+        self.shiftback = args.shiftback
         self.verbose = args.verbose
         self.title = args.title
         self.ipseq_wrk = args.seqin

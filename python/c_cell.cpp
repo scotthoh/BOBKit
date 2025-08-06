@@ -95,7 +95,13 @@ void declare_cell(py::module &m) {
   cell.def(py::init<>(), "Null constructor, must initialise later.")
       .def(py::init<const Cell_descr &>(), py::arg("Cell_description"),
            "Constructor from Cell descriptor")
-      //.def("init", 8&Cell::init, py::arg("Cell_description"))
+      .def(py::init([](const py::array_t<ftype> &params) {
+        return std::unique_ptr<Cell>(
+            new Cell(Cell_descr(params.at(0), params.at(1), params.at(2),
+                           params.at(3), params.at(4), params.at(5))));
+      }),
+      "Constructor from cell parameters (list/numpy array).")
+      .def("init", &Cell::init, py::arg("Cell_description"))
       .def(
           "init", [](Cell &self, const Cell_descr &cd) { self.init(cd); },
           py::arg("Cell_description"), "Initialise with Cell descriptor.")

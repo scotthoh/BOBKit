@@ -75,7 +75,7 @@ void declare_ca_sequence(py::module &m) {
       .def_static( "set_cpus", &Ca_sequence::set_cpus, py::arg( "ncpu" ),
                    "Set number of cpu threads to use." )
       .def_static( "set_use_ml_sequence_probability", &Ca_sequence::set_use_ml_sequence_probability,
-                   py::arg( "flag" ), "Set flag to use machine learning sequence probability." )
+                   py::arg( "flag" ), py::arg( "hybrid" ) = false, "Set flag to use machine learning sequence probability." )
       .def( "__repr__",
             []( const Ca_sequence& self ) { return "<buccaneer.Ca_sequence class.>"; } );
 

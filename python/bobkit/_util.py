@@ -1,6 +1,9 @@
 from __future__ import annotations
 from typing import List as _List
 from bobkit.util import *
+import scipy.spatial as _spatial
+import itertools as _IT
+
 __all__ = [
     "test_array",
     "read_structure",
@@ -31,32 +34,39 @@ from bobkit.clipper import (
 import numpy as _np
 import gemmi as _gemmi
 from sklearn.cluster import DBSCAN as _DBSCAN
-
+from sklearn.cluster import KMeans as _KMeans
+from typing import Sequence, Union, Literal
 from os import path as _path
 from dataclasses import dataclass as _dataclass
 import re
 
+_ProteinTools()
 
 @_dataclass
-class Corrections:
-    """Class for keeping the spacing, origin and correction value"""
-
-    workcell: _Cell = _Cell()
-    cell: _Cell = _Cell()  # _np.ndarray = _np.array([0.,0.,0.])
-    grid: _Grid_sampling = None
-    grid_asu: _Grid_sampling = None
+class MapParameters:
+    """Class for keeping the map used in ML spacing, origin and correction
+    value
+    """
+    workcell: _np.ndarray = _np.array([1.0, 1.0, 1.0, 90.0, 90.0, 90.0])
+    cell: _np.ndarray = _np.array([1.0, 1.0, 1.0, 90.0, 90.0, 90.0])
+    grid: _np.ndarray = _np.array([1, 1, 1])
+    grid_asu: _np.ndarray = _np.array([1, 1, 1])
     origin: _np.ndarray = _np.array([0, 0, 0])
     spacing: _np.ndarray = _np.array([1.0, 1.0, 1.0])
     ncorrect: int = 0
     fix_origin: bool = False
     fix_axis_positions: bool = False
-    shiftback: _Coord_orth = _Coord_orth(0.0, 0.0, 0.0)
+    shiftback: _np.ndarray = _np.array([0.0, 0.0, 0.0])
 
     def set_grid(self, nu: int, nv: int, nw: int):
-        self.grid = _Grid_sampling(nu, nv, nw)
+        self.grid[0] = nu
+        self.grid[1] = nv
+        self.grid[2] = nw
 
     def set_grid_asu(self, nu: int, nv: int, nw: int):
-        self.grid_asu = _Grid_sampling(nu, nv, nw)
+        self.grid_asu[0] = nu
+        self.grid_asu[1] = nv
+        self.grid_asu[2] = nw
 
     def set_origin(self, x: int, y: int, z: int):
         self.origin[0] = x
@@ -69,100 +79,137 @@ class Corrections:
         self.spacing[2] = z
 
     def set_shiftback(self, x: float, y: float, z: float):
-        self.shiftback = _Coord_orth(x, y, z)
+        self.shiftback[0] = x
+        self.shiftback[1] = y
+        self.shiftback[2] = z
 
 
-class Osaka:
-    """Class with methods and static methods to process the outputs from
-    machine learning to predict amino acid instance and sequence from map segmentation
-    by Osaka group.
+class HelperMTStackNetOsaka:
+    """Helper class with methods and static methods to process the outputs from
+    single shot CNN to predict amino acid instance and sequence from map
+    segmentation by Osaka group.
     """
     def __init__(
-        self, datapath: str = None, workcell: type[_Cell | _gemmi.UnitCell] = None
+        self, datapath: str = None,
+        workcell: Union[Sequence[float], _np.ndarray] = None,
     ):
-        if datapath is not None:
-            self.datapath = datapath
-        else:
-            self.datapath = None
-        self.corrections = Corrections()
-        self.corrections.workcell.init(workcell)
+        """Initialise object
 
-    def grid_spacing_from_map(
+        Args:
+            datapath (str, optional): Path to ML output. Defaults to None.
+            workcell (Union[Sequence[float], _np.ndarray], optional): Work cell parameters. Defaults to None.
+
+        Raises:
+            ValueError: Workcell array is expected to have 6 elements
+        """  # noqa: E501
+        self.datapath = datapath
+        self.map_params = MapParameters()
+        if workcell is not None:
+            tmp = _np.asarray(workcell, dtype=float)
+            if tmp.shape != (6,):
+                raise ValueError("Expected array with 6 elements")
+            self.map_params.workcell = tmp
+
+    def _debug(self, msg: str):
+        """Prints debug message
+
+        Args:
+            msg (str): Debug message
+        """
+        print(f"DEBUG>> {msg}")
+
+    def _debug_triple(self, msg: str, data: Union[Sequence, _np.ndarray]):
+        """Prints debug message with data
+
+        Args:
+            msg (str): Debug message
+            data (Union[Sequence, _np.ndarray]): Data values
+        """
+        print(f"DEBUG>> {msg} : ", end="")
+        for v in data:
+            print(f"{v}, ", end="")
+        print("\n")
+
+    def set_map_parameters(
         self,
         mapin_path: str,
         fix_axis_positions=False,
         fix_origin=False,
-        shiftback=True,
+        shiftback=False,
     ):
-        """Get grid spacing from map
+        """Set map parameters
 
         Args:
-            cell (clipper.Cell): clipper Cell object
             mapin_path (str): Path to map file
             fix_axis_positions (bool, optional): Flag to fix axis positions to XYZ. Defaults to False.
-        """
+            fix_origin (bool, optional): Flag to set origin. Defaults to False.
+            shiftback (bool, optional): Flag to set shiftback translation parameters. Defaults to False.
+        """  # noqa: E501
         gmap = _gemmi.read_ccp4_map(mapin_path)
-        if fix_axis_positions and (gmap.grid.axis_order != _gemmi.AxisOrder.XYZ):
+        if fix_axis_positions and (gmap.grid.axis_order != _gemmi.AxisOrder.XYZ):  # fmt: skip  # noqa: E501
+            self._debug(f"origin before {gmap.header_i32(5)}, {gmap.header_i32(6)}, {gmap.header_i32(7)}")  # fmt: skip  # noqa: E501
             gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
-            self.corrections.fix_axis_positions = fix_axis_positions
-        spacing = _np.array(
+            self._debug(f"origin after {gmap.header_i32(5)}, {gmap.header_i32(6)}, {gmap.header_i32(7)}")  # fmt: skip  # noqa: E501
+            self.map_params.fix_axis_positions = fix_axis_positions
+        self.map_params.spacing = _np.array(
             [
                 gmap.grid.unit_cell.a / gmap.header_i32(8),
                 gmap.grid.unit_cell.b / gmap.header_i32(9),
                 gmap.grid.unit_cell.c / gmap.header_i32(10),
             ]
         )
-        self.corrections.set_grid_asu(gmap.grid.nu, gmap.grid.nv, gmap.grid.nw)
-        self.corrections.set_grid(
-            gmap.header_i32(8), gmap.header_i32(9), gmap.header_i32(10)
-        )
-        self.corrections.cell.init(gmap.grid.unit_cell)
-        self.corrections.set_spacing(spacing[0], spacing[1], spacing[2])
+        self.map_params.grid_asu = _np.array([gmap.grid.nu, gmap.grid.nv, gmap.grid.nw])  # noqa: E501
+        self.map_params.grid = _np.array([gmap.header_i32(8), gmap.header_i32(9), gmap.header_i32(10)])  # noqa: E501
+        self.map_params.cell = _np.asarray(gmap.grid.unit_cell.parameters)
+        # self.corrections.spacing = _np.asarray(spacing)
         if fix_origin:
-            self.corrections.set_origin(
-                gmap.header_i32(5), gmap.header_i32(6), gmap.header_i32(7)
-            )
+            self.map_params.origin = _np.array([gmap.header_i32(5), gmap.header_i32(6), gmap.header_i32(7)])  # noqa: E501
+            self._debug_triple("origin", self.map_params.origin)
             self.ncorrect = 0
-            self.corrections.fix_origin = fix_origin
+            self.map_params.fix_origin = fix_origin
         if shiftback:
             tr = self.get_translation_from_cutout()
-            self.corrections.set_shiftback(tr[0], tr[1], tr[2])
-        # return spacing
+            self.map_params.shiftback = _np.asarray(tr)
 
-    def get_spacing_from_array(
-        self, cell: _Cell, fix_axis_positions=False, fix_origin=False
+
+    def set_map_parameters_from_array(
+        self,
+        cell: Union[Sequence[float], _np.ndarray],
+        fix_axis_positions: bool = False,
+        fix_origin: bool = False,
     ):
-        """Get grid spacing from density array
+        """Set map parameters from density array
 
         Args:
-            cell (clipper.Cell): clipper Cell object
+            cell (Union[Sequence[float], _np.ndarray]): cell parameters
             fix_axis_positions (bool, optional): Flag to fix axis positions to XYZ. Defaults to False.
-
-        Returns:
-            _type_: _description_
-        """
+            fix_origin (bool, optional): Flag to set origin. Defaults to False.
+        """  # noqa: E501
         density = _np.load(f"{self.datapath}/density.npy")
-        if fix_axis_positions:  # will swap the x and z axes from the ML npy output
+        if fix_axis_positions:  # will swap the 1st and 3rd axes of the array
             density = _np.swapaxes(density, 0, 2)
-        spacing = _np.array(
+        self.map_params.spacing = _np.array(
             [
-                cell.a / density.shape[0],
-                cell.b / density.shape[1],
-                cell.c / density.shape[2],
+                cell[0] / density.shape[0],
+                cell[1] / density.shape[1],
+                cell[2] / density.shape[2],
             ]
         )
-        self.corrections.set_cell(cell.a, cell.b, cell.c)
-        self.corrections.set_spacing(spacing[0], spacing[1], spacing[2])
+        self.map_params.cell = _np.asarray(cell)
         if fix_origin:
             nxs = -density.shape[0] // 2
             nys = -density.shape[1] // 2
             nzs = -density.shape[2] // 2
-            self.corrections.set_origin(nxs, nys, nzs)
-            self.corrections.ncorrect = 1
-        # return spacing
+            self.map_params.origin = _np.array(nxs, nys, nzs)
+            self.map_params.ncorrect = 1
 
     def get_translation_from_cutout(self):
-        xyz = [0.0] * 3
+        """Get translation coordinates from model cut out used for machine learning
+
+        Returns:
+            numpy.ndarray : Array of translation coordinates
+        """
+        xyz = _np.array([0.0, 0.0, 0.0])
         with open(_path.join(self.datapath, "cutout.pdb"), "r") as fopen:
             for line in fopen:
                 if "TRANSLATED BY" in line:
@@ -170,175 +217,16 @@ class Osaka:
                     match = re.search(pattern, line)
                     if match:
                         xyz[0], xyz[1], xyz[2] = map(float, match.groups())
-        return _np.array(xyz)  # _Coord_orth(xyz[0],xyz[1],xyz[2])
+        return xyz  # _Coord_orth(xyz[0],xyz[1],xyz[2])
 
-    def write_aa_instance_file(
-        self,
-        cell: _Cell,
-        grid_sampling: _Grid_sampling,
-        fix_axis_positions=False,
-        fix_origin=False,
-        mapin_path: str = None,
-    ):
-
-        offsets = _np.load(f"{self.datapath}/inst_pred.npy")
-        density = _np.load(f"{self.datapath}/density.npy")
-        nxs = 0
-        nys = 0
-        nzs = 0
-        if mapin_path != "NONE":
-            gmap = _gemmi.read_ccp4_map(mapin_path)
-            if fix_axis_positions and (gmap.grid.axis_order != _gemmi.AxisOrder.XYZ):
-                axis_pos = _np.array(gmap.axis_positions())
-                offsets = _np.swapaxes(
-                    offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0]
-                )
-                offsets = _np.swapaxes(
-                    offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0]
-                )
-                density = _np.swapaxes(
-                    density, axis_pos[0], _np.where(axis_pos == 0)[0][0]
-                )
-                density = _np.swapaxes(
-                    density, axis_pos[1], _np.where(axis_pos == 1)[0][0]
-                )
-                gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
-            if fix_origin:
-                nxs = gmap.header_i32(5)
-                nys = gmap.header_i32(6)
-                nzs = gmap.header_i32(7)
-                ncorrect = 0
-        else:
-            if fix_axis_positions:  # will swap the x and z axes from the ML npy output
-                offsets = _np.swapaxes(offsets, 1, 3)
-                density = _np.swapaxes(density, 0, 2)
-            if fix_origin:
-                nxs = -density.shape[0] // 2
-                nys = -density.shape[1] // 2
-                nzs = -density.shape[2] // 2
-                ncorrect = 1
-
-        if fix_origin:
-            xyz = _np.mgrid[
-                nxs : density.shape[0] + (nxs + ncorrect),
-                nys : density.shape[1] + (nys + ncorrect),
-                nzs : density.shape[2] + (nzs + ncorrect),
-            ].astype(_np.float64)
-        else:
-            xyz = _np.mgrid[
-                nxs : density.shape[0], nys : density.shape[1], nzs : density.shape[2]
-            ].astype(_np.float64)
-
-        xyz0 = _np.mgrid[
-            0 : density.shape[0], 0 : density.shape[1], 0 : density.shape[2]
-        ].astype(_np.float64)
-        print(f"xyz shape : {xyz.shape}")
-        print(f"offsets shape : {offsets.shape}")
-        print(f"density shape : {density.shape}")
-        print(f"grid sampling : {grid_sampling}")
-
-        points = (xyz + offsets) * (density > 0)
-        points0 = (xyz0 + offsets) * (density > 0)
-        # grid map equivalent
-        points = points[:, density > 0].T
-        points0 = points0[:, density > 0].T
-        points_int = _np.round(points).astype(int)
-        uniq, indices, count = _np.unique(
-            points_int, return_inverse=True, return_counts=True, axis=0
-        )
-        aa_instance_coordinates = []
-        aa_instance_grid_indices = []
-        aa_cg = []
-        counts = count[indices]
-        # use dbscan to group nearby points together
-        db = _DBSCAN(
-            eps=1.0,
-            min_samples=10,
-            algorithm="ball_tree",
-        ).fit(points)
-        # db = _DBSCAN(eps=_np.max(_np.sqrt(3 * (spacing * spacing))), min_samples=10).fit(
-        #    points
-        # )
-        labels = db.labels_
-        groups = {}
-        groups0 = {}
-        weights = {}
-        for label in _np.unique(labels):
-            if label != -1:
-                groups[label] = points[labels == label]
-                groups0[label] = points0[labels == label]
-                weights[label] = counts[labels == label]
-        tmp = _np.zeros((len(groups), 3))
-        count = 0
-        # for label, group in groups.items():
-        for i in zip(groups.items(), groups0.items()):
-            label = i[0][0]
-            group = i[0][1]
-            label0 = i[1][0]
-            group0 = i[1][1]
-            sum_x = 0.0
-            sum_y = 0.0
-            sum_z = 0.0
-            w = 0.0
-            sum_x0 = 0.0
-            sum_y0 = 0.0
-            sum_z0 = 0.0
-            w0 = 0.0
-            for p in zip(group, weights[label]):
-                sum_x += p[0][0] * p[1]
-                sum_y += p[0][1] * p[1]
-                sum_z += p[0][2] * p[1]
-                w += p[1]
-            for p in zip(group0, weights[label0]):
-                sum_x0 += p[0][0] * p[1]
-                sum_y0 += p[0][1] * p[1]
-                sum_z0 += p[0][2] * p[1]
-                w0 += p[1]
-            tmp[count] = _np.array([sum_x / w, sum_y / w, sum_z / w])
-            cm0 = _Coord_map(_Vec3_double([sum_x0 / w0, sum_y0 / w0, sum_z0 / w0]))
-            cm = _Coord_map(_Vec3_double(tmp[count]))
-            co = cm.coord_frac(grid_sampling).coord_orth(cell)
-            print(f"{cm0[0]:10.6f}, {cm0[1]:10.6f}, {cm0[2]:10.6f}")
-            print(
-                f"{count:>4}, [ {tmp[count][0]:10.6f}, {tmp[count][1]:10.6f}, {tmp[count][2]:10.6f} ] || {co} || ",
-                end="",
-            )
-            aa_instance_coordinates.append(co)
-            # check if points are in density
-            cg = _Coord_map(
-                _Vec3_double(tmp[count] - _np.array([nxs, nys, nzs]))
-            ).coord_grid()
-            # cg =cm.coord_grid()
-            density_grid = _Grid_sampling(
-                density.shape[0], density.shape[1], density.shape[2]
-            )
-            aa_instance_grid_indices.append(cg.unit(density_grid).index(density_grid))
-            aa_cg.append([cg.u, cg.v, cg.w])
-            print(f"{cg} | {cg.unit(density_grid)}")
-            # if density[cg.u, cg.v, cg.w] <= 0.:
-            #    print(f"{cg} is not in density!")
-            # else:
-            #   print(f"{cg} : {density[cg.u, cg.v, cg.w]}")
-            # aa_instance_coordinates.append(_Coord_orth(tmp[count]))
-            count += 1
-
-        _np.save("cg_inst.npy", aa_cg, allow_pickle=False)
-        # if write_npy:
-        #    _np.save("aa_inst_mean.npy", tmp, allow_pickle=False)
-        # self.corrections.set_cell(spacing[0], spacing[1], spacing[2])
-        # self.corrections.set_origin(nxs, nys, nzs)
-        # self.corrections.ncorrect = ncorrect
-        return aa_instance_coordinates, aa_instance_grid_indices
-
+    ClusterMode = Literal["dbscan", "kmeans"]
     def get_map_coords_from_predicted_instance(
         self,
-        cell: _Cell,
-        grid_sampling: _Grid_sampling,
-        fix_axis_positions=False,
-        fix_origin=True,
-        mapin_path: str = None,
-        write_npy=False,
-        return_map_index=False,
+        mode: ClusterMode = "dbscan",
+        fix_origin: bool =True,
+        mapin_path: str = "NONE",
+        write_npy: bool = False,
+        seqlen: int = 0,
         verbose: int = 0,
         # shiftback=True,
     ):
@@ -354,86 +242,102 @@ class Osaka:
             verbose (int, optional): Verbosity. Defaults to 0
         Returns:
             List: list containing the orthogonal coordinates or map indices of amino acid instances
-        """
+        """  # noqa: E501
         offsets = _np.load(f"{self.datapath}/inst_pred.npy")
         density = _np.load(f"{self.datapath}/density.npy")
-        nxs = 0
-        nys = 0
-        nzs = 0
-        ncorrect = 0
+        mp = self.map_params
+        # nxs = 0
+        # nys = 0
+        # nzs = 0
+        # ncorrect = 0
         if mapin_path != "NONE":
+            # assuming the same map is used in the NN to predict
+            # amino acid segmentations and instances output
             gmap = _gemmi.read_ccp4_map(mapin_path)
-            if fix_axis_positions and (gmap.grid.axis_order != _gemmi.AxisOrder.XYZ):
+            if mp.fix_axis_positions:
                 axis_pos = _np.array(gmap.axis_positions())
-                offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])
-                offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])
-                density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])
-                density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])
+                offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
+                offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
+                density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
+                density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
                 gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
-            if fix_origin:
-                nxs = gmap.header_i32(5)
-                nys = gmap.header_i32(6)
-                nzs = gmap.header_i32(7)
-                ncorrect = 0
-            spacing = _np.array(
-                [
-                    cell.a / gmap.header_i32(8),
-                    cell.b / gmap.header_i32(9),
-                    cell.c / gmap.header_i32(10),
-                ]
-            )
+            #if fix_origin:
+            #    nxs = gmap.header_i32(5)
+            #    nys = gmap.header_i32(6)
+            #    nzs = gmap.header_i32(7)
+            #    ncorrect = 0
+            #spacing = _np.array(
+            #    [
+            #        self.map_params.cell.a / gmap.header_i32(8),
+            #        self.map_params.cell.b / gmap.header_i32(9),
+            #        self.map_params.cell.c / gmap.header_i32(10),
+            #    ]
+            #)
         else:
-            if fix_axis_positions:  # will swap the x and z axes from the ML npy output
+            if mp.fix_axis_positions:  # will swap the x and z axes from the ML npy output
+                # offset array is of shape (3,nu,nv,nw)
                 offsets = _np.swapaxes(offsets, 1, 3)
                 density = _np.swapaxes(density, 0, 2)
-            if fix_origin:
-                nxs = -density.shape[0] // 2
-                nys = -density.shape[1] // 2
-                nzs = -density.shape[2] // 2
-                ncorrect = 1
-            spacing = _np.array(
-                [
-                    cell.a / float(density.shape[0]),
-                    cell.b / float(density.shape[1]),
-                    cell.c / float(density.shape[2]),
-                ]
-            )
+            #if fix_origin:
+            #    nxs = -density.shape[0] // 2
+            #    nys = -density.shape[1] // 2
+            #    nzs = -density.shape[2] // 2
+            #    ncorrect = 1
+            #spacing = _np.array(
+            #    [
+            #        cell.a / float(density.shape[0]),
+            #        cell.b / float(density.shape[1]),
+            #        cell.c / float(density.shape[2]),
+            #    ]
+            #)
         if fix_origin:
             xyz = _np.mgrid[
-                nxs : density.shape[0] + (nxs + ncorrect),
-                nys : density.shape[1] + (nys + ncorrect),
-                nzs : density.shape[2] + (nzs + ncorrect),
+                mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
+                mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
+                mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
             ].astype(_np.float64)
         else:
             xyz = _np.mgrid[
-                nxs : density.shape[0], nys : density.shape[1], nzs : density.shape[2]
+                mp.origin[0] : density.shape[0],  # fmt: skip  # noqa: E203
+                mp.origin[1] : density.shape[1],  # fmt: skip  # noqa: E203
+                mp.origin[2] : density.shape[2],  # fmt: skip  # noqa: E203
             ].astype(_np.float64)
         if verbose > 5:
-            print(f"xyz shape : {xyz.shape}")
-            print(f"offsets shape : {offsets.shape}")
-            print(f"density shape : {density.shape}")
-            print(f"spacing: {spacing}")
+            self._debug(f"xyz shape : {xyz.shape}")
+            self._debug(f"offsets shape : {offsets.shape}")
+            self._debug(f"density shape : {density.shape}")
+            self._debug_triple("spacing", mp.spacing)
 
         for i in (0, 1, 2):
-            offsets[i] = offsets[i] * spacing[i]
-            xyz[i] = xyz[i] * spacing[i]
+            offsets[i] = offsets[i] * mp.spacing[i]
+            xyz[i] = xyz[i] * mp.spacing[i]
         points = (xyz + offsets) * (density > 0)
         points = points[:, density > 0].T
         # if shiftback:
         #    points -= self.corrections.shiftback
         # tr = self.get_translation_from_cutout()
         # points -= tr
+        aa_instance_coordinates = []
+        if mode == "kmeans":
+            if seqlen == 0:
+                raise ValueError("Please provide total number of sequence 'seqlen=' for KMeans clustering.")
+            aa_instance_coordinates = self._kmeans_clustering(points, seqlen, write_npy)
+        else:  # dbscan
+            aa_instance_coordinates = self._dbscan_clustering(points, 10, write_npy)
 
+        return aa_instance_coordinates
+
+    def _dbscan_clustering(self, points: _np.ndarray, min_samples: int = 10, write_npy: bool = False):
         points_int = _np.round(points).astype(int)
         uniq, indices, count = _np.unique(
             points_int, return_inverse=True, return_counts=True, axis=0
         )
+        mp = self.map_params
         aa_instance_coordinates = []
         counts = count[indices]
-        # use dbscan to group nearby points together
         db = _DBSCAN(
-            eps=_np.sqrt(_np.sum(spacing * spacing)),
-            min_samples=10,
+            eps=_np.sqrt(_np.sum(mp.spacing * mp.spacing)),
+            min_samples=min_samples,
             algorithm="ball_tree",
         ).fit(points)
         # db = _DBSCAN(eps=_np.max(_np.sqrt(3 * (spacing * spacing))), min_samples=10).fit(
@@ -446,9 +350,9 @@ class Osaka:
             if label != -1:
                 groups[label] = points[labels == label]
                 weights[label] = counts[labels == label]
-
+        # calculate center of the points with weights
         tmp = _np.zeros((len(groups), 3))
-        count = 0
+        ind = 0
         for label, group in groups.items():
             sum_x = 0.0
             sum_y = 0.0
@@ -459,76 +363,57 @@ class Osaka:
                 sum_y += p[0][1] * p[1]
                 sum_z += p[0][2] * p[1]
                 w += p[1]
-            tmp[count] = _np.array([sum_x / w, sum_y / w, sum_z / w])
-            # aa_instance_coordinates.append(_Coord_orth(tmp[count]).coord_frac(cell).coord_grid(grid_sampling))
-            if return_map_index:
-                aa_instance_coordinates.append(
-                    (_Coord_orth(tmp[count]) - self.corrections.shiftback)
-                    .coord_frac(cell)
-                    .coord_grid(grid_sampling)
-                )
-            else:
-                aa_instance_coordinates.append(
-                    (_Coord_orth(tmp[count]) - self.corrections.shiftback)
-                )
-            count += 1
+            tmp[ind] = _np.array([sum_x / w, sum_y / w, sum_z / w]) - mp.shiftback
+            aa_instance_coordinates.append(_Coord_orth(tmp[ind]))
+            ind += 1
         if write_npy:
-            _np.save("aa_inst_mean.npy", tmp, allow_pickle=False)
-        # if return_map_index:
-        #    db = _DBSCAN(eps=2., min_samples=10, algorithm='ball_tree').fit(points)
-        #    if write_npy:
-        #        _np.save("aa_inst_mean.npy", uniq, allow_pickle=False)
-        #    labels = db.labels_
-        #    groups = {}
-        #    weights = {}
-        #    for label in _np.unique(labels):
-        #        if label != -1:
-        #            groups[label] = points_int[labels == label]
-        #            weights[label] = counts[labels == label]
-        #
-        #    tmp = _np.zeros((len(groups), 3))
-        #    count = 0
-        #    for label, group in groups.items():
-        #        sum_x = 0
-        #        sum_y = 0
-        #        sum_z = 0
-        #        w = 0
-        #        for p in zip(group, weights[label]):
-        #            sum_x += p[0][0] * p[1]
-        #            sum_y += p[0][1] * p[1]
-        #            sum_z += p[0][2] * p[1]
-        #            w += p[1]
-        #        tmp[count] = _np.array([sum_x / w, sum_y / w, sum_z / w])
-        #        #aa_instance_coordinates.append(_Coord_orth(tmp[count]).coord_frac(cell).coord_grid(grid_sampling))
-        #        aa_instance_coordinates.append(_Coord_orth(tmp[count]))
-        #        count += 1
-        #    for point_ind in uniq:
-        #        cg = _Coord_orth(point_ind.astype(float)).coord_frac(cell).coord_grid(grid_sampling)
-        #        aa_instance_coordinates.append(cg)
-        #        #aa_instance_coordinates.append(_Coord_map(point_ind))
-        # else:
+            _np.save("aa_inst_dbscan_mean.npy", tmp, allow_pickle=False)
+        return aa_instance_coordinates
+    
+    def _kmeans_clustering(self, points: _np.ndarray, seqlen: int, write_npy: bool = False):
+        kmeans = _KMeans(n_clusters=seqlen, init="k-means++", random_state=1).fit(points)
+        cluster = kmeans.cluster_centers_
 
-        self.corrections.set_spacing(spacing[0], spacing[1], spacing[2])
-        self.corrections.set_origin(nxs, nys, nzs)
-        self.corrections.ncorrect = ncorrect
+        aa_instance_coordinates = []
+        tmp = _np.zeros((len(cluster), 3))
+        for i in range(0, len(cluster)):
+            co = _np.array([cluster[i][0],cluster[i][1],cluster[i][2]])
+            tmp[i] = co - self.map_params.shiftback
+            aa_instance_coordinates.append(_Coord_orth(tmp[i]))
+        
+        if write_npy:
+            _np.save("aa_inst_kmeans_mean.npy", tmp, allow_pickle=False)
         return aa_instance_coordinates
 
-    # @staticmethod
+
+    @staticmethod
+    def iterative_cluster(points: _List): # n: int):
+        points_int = _np.round(points).astype(int)
+        uniq = _np.unique(points_int, axis=0)
+
+        tmp = _np.zeros((len(uniq),3))
+        for u in range(0, len(uniq)):
+            pts = points[_np.all(points_int == uniq[u], axis=1)]
+            sumpts = _np.sum(pts,axis=0)
+            co = [sumpts[0]/len(pts), sumpts[1]/len(pts), sumpts[2]/len(pts)]
+            tmp[u] = _np.array(co)
+        return tmp
+
+    @staticmethod
+    def group_within_distance(uniq: _List, cutoff: float = 2.0):
+        indices = _np.where(_spatial.distance.cdist(uniq,uniq,'euclidean') <= cutoff)[0]
+        indices = _np.unique(indices)
+        return indices
+
     def map_coords_to_ca_atom(
         self,
         aa_instance_coordinates: _List,
         mol: _MiniMol,
         aa_instance_indices: _List = [],
     ):  # , correction: Corrections):
-        _ProteinTools()
-        # mmodel = mol.model()
-        # correction = _np.array([1.,1.,1.])
-        # if correction.spacing is not None:
-        #    correction = _np.array([spacing[0],spacing[1],spacing[2]])
         mmodel = _MModel()
         have_index = True if len(aa_instance_indices) > 0 else False
         for i in range(0, len(aa_instance_coordinates)):
-            # for co in aa_instance_coordinates:
             chn = _MChain()
             res = _MRes()
             res.set_seqnum(1)
@@ -537,17 +422,14 @@ class Osaka:
             matom = _MAtom(atm)
             matom.element = "C"
             matom.set_id("CA")
-            # matom.set_name("CA")
             matom.b_iso = 40.0
             matom.occupancy = 1.0
             matom.pos = _Coord_orth(aa_instance_coordinates[i])  # *correction.spacing))
             if have_index:
                 matom.set_property("INDEX", _Property_int(aa_instance_indices[i]))
-            # print(matom)
             res.insert(matom, -1)
             chn.insert(res, -1)
             mmodel.insert(chn, -1)
-            # print("len model ", len(mmodel))
         mol.set_model(mmodel)
         _ProteinTools.chain_label(mol, True)
 
@@ -580,12 +462,7 @@ class Osaka:
         mol: _MiniMol,
         cell: _Cell,
         grid: _Grid_sampling,
-    ):  # , spacing: _List = None):
-        _ProteinTools()
-        # mmodel = mol.model()
-        # correction = _np.array([1.,1.,1.])
-        # if spacing is not None:
-        #    correction = _np.array([spacing[0],spacing[1],spacing[2]])
+    ):  
         mmodel = _MModel()
         for co in aa_instance_coordinates:
             chn = _MChain()
@@ -609,20 +486,7 @@ class Osaka:
         mol.set_model(mmodel)
         _ProteinTools.chain_label(mol, True)
 
-    def orth_to_map(self, aa_instance_coordinates: _List, xmap: _Xmap_float):
-        """Convert orthogonal coordinates to map coordinates
-
-        Args:
-            aa_instance_coordinates (_List): List of orthogonal coordinates
-            xmap (_Xmap_float): Xmap object
-        """
-        cm_list = []
-        for co in aa_instance_coordinates:
-            cm = xmap.coord_map(co)
-            print(f"{co} || {cm}")
-            cm_list.append(cm)
-
-        return cm_list
+    
 
 
 # del _Ca_group, _Cell, _Grid_sampling, _Coord_orth, _Coord_map

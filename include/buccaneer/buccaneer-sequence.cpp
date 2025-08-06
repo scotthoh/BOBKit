@@ -13,7 +13,7 @@ int Ca_sequence::ncpu = 0;
 bool Ca_sequence::semet_ = false;
 clipper::MiniMol Ca_sequence::molprior;
 bool Ca_sequence::seqprob_ = false;
-// const clipper::Xmap<float>* Ca_sequence::seq_prob_ = nullptr;
+bool Ca_sequence::hybrid_ = false;
 
 // cumulative normal distribution function
 //double phi(double z)
@@ -52,17 +52,25 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       if ( mm.exists_property("SEQDAT") ) mm.delete_property("SEQDAT");
       const int ntyp = llksample.size();
       std::vector<double> scores( ntyp, 0.0 );
-      for ( int t = 0; t < ntyp; t++ )
-        scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
+      
       if ( seqprob_ ) {
         if ( mm.exists_property( "SEQPROB" ) ) {
           const Sequence_data& sp =
               static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQPROB" ) )
                   .value();
           for ( int t = 0; t < ntyp; t++ ) {
-            scores[t] += sp.data[t];
+            scores[t] = sp.data[t];
+          }
+          if ( hybrid_ ) {
+            for ( int t = 0; t < ntyp; t++ ) {
+              scores[t] += llksample[t].target( xmap, ca.rtop_beta_carbon() );
+            }
           }
         }
+      }
+      else {
+        for ( int t = 0; t < ntyp; t++ )
+          scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
       }
       // std::vector<double> seq
 
@@ -282,15 +290,15 @@ std::vector<clipper::String> Ca_sequence::sequence_align( const std::vector<std:
       }
 
   // diagnostics
-  Score_list<clipper::String> scrs( 3 );
-  for ( int i = 0; i < result.size(); i++ ) {
-    std::pair<double,std::pair<int,int> > scr;
-    scr = sequence_score( scores, result[i] );
-    scrs.add( scr.first, result[i] );
-  }
-  std::cout << "DEBUG " << result.size() << " " << scrs.size() << std::endl;
-  for ( int i = 0; i < std::min(int(scrs.size()),3); i++ )
-    std::cout << i << "\t" << scrs.score( i ) << "\t" << scrs[i] << std::endl;
+  // Score_list<clipper::String> scrs( 3 );
+  // for ( int i = 0; i < result.size(); i++ ) {
+  //   std::pair<double,std::pair<int,int> > scr;
+  //   scr = sequence_score( scores, result[i] );
+  //   scrs.add( scr.first, result[i] );
+  // }
+  // std::cout << "DEBUG " << result.size() << " " << scrs.size() << std::endl;
+  // for ( int i = 0; i < std::min(int(scrs.size()),3); i++ )
+  //   std::cout << i << "\t" << scrs.score( i ) << "\t" << scrs[i] << std::endl;
 
   // return the sequences for scoring
   return result;

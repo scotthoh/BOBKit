@@ -1,49 +1,66 @@
-# Python script to store python outputs to file
+# Python script to store python outputs to file and terminal
 # Author: S.W.Hoh, University of York, 2024
 
 import sys
-import logging
+from typing import Literal
+
+Mode = Literal['w', 'w+', 'a']
 
 
-class log2file(object):
+class log2file():
     """
     Logs to console and file using the python logging module
 
     Usage:
-    >>> logging.basicConfig(level=logging.DEBUG,
-                            filename="testout.log",
-                            filemode="a",
-                            format="%(message)s")
-    >>> log = logging.getLogger(__name__)
-    >>> sys.stdout = log2file(log, logging.INFO, orig_stdout)
-    >>> sys.stderr = log2file(log, logging.INFO, orig_stdout)
+    >>> log = log2file("output.log", "w", shell=True)
+    >>> sys.stdout = sys.stderr = log
     >>> print("stuff")
-
     """
+    def __init__(self, filename: str, mode: Mode = 'w', shell: bool = True):
+        """Set up logger
 
-    def __init__(self, logger, level, stream):
+        Args:
+            filename (str): Log file path
+            mode (Mode, optional): Write mode, 'w', 'w+', 'a'. Defaults to 'w'.
+            shell (bool, optional): Output to shell/terminal. Defaults to True.
         """
-        Set up things
-        """
-        self.logger = logger
-        self.level = level
-        self.linebuf = ""
-        self.stream = stream
+        #self.level = level
+        #self.linebuf = ""
+        #self.stream = stream
+        self.to_term = shell
+        self.file = open(filename, mode)
+        self.stdout = sys.__stdout__
+        self.stderr = sys.__stderr__
 
-    def write(self, data):
-        """
-        writes output
-        """
-        for line in data.rstrip().splitlines():
-            self.logger.log(self.level, line.rstrip())
+    def write(self, message):
+        """Writes output to file and terminal if log2file(..., shell=True)
 
-        self.stream.write(data)
+        Args:
+            message (str): Message to be written
+        """
+        if self.to_term:
+            self.stdout.write(message)
+        self.file.write(message)
 
     def flush(self):
-        pass
+        """Flush std output or error
+        """
+        if self.to_term:
+            self.stdout.flush()
+            self.stderr.flush()
+        self.file.flush()
+        
+    def close(self):
+        """Close file
+        """
+        self.file.close()
+    
+    @staticmethod
+    def reset_stdouterr_to_sys():
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
 
-
-def set_logger(
+'''def set_logger(
     filename: str = "output_log.txt",
     filemode: str = "a",
     stdout_level: int = 1,
@@ -75,8 +92,17 @@ def set_logger(
         filemode=filemode,
         format="%(message)s",
     )
-    log = logging.getLogger(__name__)
+    logger = logging.getLogger(filename)
+    handler = logging.FileHandler(filename)
+    logger.addHandler(handler)
     stdout_level *= 10
     stderr_level *= 10
-    sys.stdout = log2file(log, stdout_level, orig_stdout)
-    sys.stderr = log2file(log, stderr_level, orig_stderr)
+    sys.stdout = log2file(logger, stdout_level, orig_stdout) 
+    sys.stderr = log2file(logger, stderr_level, orig_stderr) 
+    
+    #log = logging.getLogger(__name__)
+    #stdout_level *= 10
+    #stderr_level *= 10
+    #sys.stdout = log2file(log, stdout_level, orig_stdout)
+    #sys.stderr = log2file(log, stderr_level, orig_stderr)
+'''

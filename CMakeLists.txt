@@ -45,7 +45,7 @@ if(SHOW_COMPILE_TIME)
 endif()
 
 # C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if(BUCCANEER_PROFILE)
@@ -219,13 +219,13 @@ ExternalProject_add(project_gemmi
                     GIT_TAG v0.6.7
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
-                    PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
-                    "${gemmi_src_path}/CMakeLists.txt"
+                    #PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
+                    #"${gemmi_src_path}/CMakeLists.txt"
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} --prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
-                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
+                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DUSE_PYTHON=ON)
 
 if(BUILD_SHARED_LIBS)
 add_library(gemmi::gemmi_cpp SHARED IMPORTED)
@@ -387,6 +387,21 @@ add_custom_command(TARGET buc_py PRE_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py 
   BYPRODUCTS ${py_dir}/bobkit/__init__.py
 )
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/_ca_sequence_ml.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_ca_sequence_ml.py" ${py_dir}/bobkit/_ca_sequence_ml.py 
+  BYPRODUCTS ${py_dir}/bobkit/_ca_sequence_ml.py
+)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/_util.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_util.py" ${py_dir}/bobkit/_util.py 
+  BYPRODUCTS ${py_dir}/bobkit/_util.py
+)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/_scripts"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_scripts" ${py_dir}/bobkit/_scripts 
+  BYPRODUCTS ${py_dir}/bobkit/_scripts
+)
 #if (GENERATE_STUBS and CMAKE_CROSSCOMPILING)
 #  message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
 #elseif(GENERATE_STUBS)
@@ -405,8 +420,11 @@ if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
-#install(DIRECTORY bobkit/ DESTINATION "${Python_SITEARCH}/bobkit"
-#        FILES_MATCHING PATTERN "*.py" )
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_ca_sequence_ml.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_scripts" DESTINATION "${Python_SITEARCH}/bobkit"
+        FILES_MATCHING PATTERN "*.py" )
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 
 endif()

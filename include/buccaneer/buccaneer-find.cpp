@@ -9,36 +9,36 @@ int Ca_find::ncpu = 0;
 
 // new methods for refinement of calpha positions from starting centroid
 
-double Target_fn_refine_calpha::operator()( const std::vector<double>& args ) const {
-  clipper::Coord_orth coord( args[0], args[1], args[2] );
-  return -xmap_->interp<clipper::Interp_cubic>( coord.coord_frac( xmap_->cell() ) );
-}
-
-clipper::Coord_orth Target_fn_refine_calpha::refine( const clipper::Coord_orth& coord ) {
-  std::vector<double> args{ coord.x(), coord.y(), coord.z() };
-  std::vector< std::vector<double> > args_init;
-
-  args_init.push_back( args );
-  args[0] = coord.x() + step_;
-  args[1] = coord.y();
-  args[2] = coord.z();
-  args_init.push_back( args );
-  args[0] = coord.x();
-  args[1] = coord.y() + step_;
-  args[2] = coord.z();
-  args_init.push_back( args );
-  args[0] = coord.x();
-  args[1] = coord.y();
-  args[2] = coord.z() + step_;
-  args_init.push_back( args );
-
-  double tol = 0.005 * ( *this )( args_init[0] );
-  Optimiser_simplex opt_simp( tol, 100, opt_type_ );
-  if ( debug_mode_ ) opt_simp.debug();
-  std::vector< double > args_refined = opt_simp( *this, args_init );
-
-  return clipper::Coord_orth( args_refined[0], args_refined[1], args_refined[2] );
-}
+//double Target_fn_refine_calpha::operator()( const std::vector<double>& args ) const {
+//  clipper::Coord_orth coord( args[0], args[1], args[2] );
+//  return -xmap_->interp<clipper::Interp_cubic>( coord.coord_frac( xmap_->cell() ) );
+//}
+//
+//clipper::Coord_orth Target_fn_refine_calpha::refine( const clipper::Coord_orth& coord ) {
+//  std::vector<double> args{ coord.x(), coord.y(), coord.z() };
+//  std::vector< std::vector<double> > args_init;
+//
+//  args_init.push_back( args );
+//  args[0] = coord.x() + step_;
+//  args[1] = coord.y();
+//  args[2] = coord.z();
+//  args_init.push_back( args );
+//  args[0] = coord.x();
+//  args[1] = coord.y() + step_;
+//  args[2] = coord.z();
+//  args_init.push_back( args );
+//  args[0] = coord.x();
+//  args[1] = coord.y();
+//  args[2] = coord.z() + step_;
+//  args_init.push_back( args );
+//
+//  double tol = 0.005 * ( *this )( args_init[0] );
+//  Optimiser_simplex opt_simp( tol, 100, opt_type_ );
+//  if ( debug_mode_ ) opt_simp.debug();
+//  std::vector< double > args_refined = opt_simp( *this, args_init );
+//
+//  return clipper::Coord_orth( args_refined[0], args_refined[1], args_refined[2] );
+//}
 
 Target_fn_refine_llk_map_target::Target_fn_refine_llk_map_target( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const double& rot_step, const double& trn_step )
 {
