@@ -349,6 +349,18 @@ void declare_mat33sym(py::module m, const std::string &name) {
       .def_property_readonly("m01", &SMatClass::mat01, "Return element (0,1).")
       .def_property_readonly("m02", &SMatClass::mat02, "Return element (0,2).")
       .def_property_readonly("m12", &SMatClass::mat12, "Return element (1,2).")
+      .def(py::pickle(
+        [](const SMatClass &m) { // __getstate__
+          return py::make_tuple(m.mat00(), m.mat11(), m.mat22(), m.mat01(), m.mat02(), m.mat12());
+        },
+        [](py::tuple t) { // __setstate__
+          if (t.size() != 6)
+            throw std::runtime_error("Invalid state!");
+          
+          Mat33sym<T> m(t[0].cast<T>(), t[1].cast<T>(), t[2].cast<T>(), t[3].cast<T>(), t[4].cast<T>(), t[5].cast<T>());
+          return m;
+        }
+      ))
       .def(
           "get",
           [](const SMatClass &self, const int &i, const int &j) {

@@ -80,17 +80,13 @@ void declare_ca_find(py::module &m) {
       //    py::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
       .def_static( "set_cpus", &Ca_find::set_cpus, py::arg( "ncpus" ),
                    "Set number of cpu threads to use." )
-      .def( "set_starting_instance_coords",
-            ( void( Ca_find::* )( const std::vector<clipper::Coord_orth>&, const Xmap<float>& ) ) &
-                Ca_find::set_starting_instance_coords,
-            py::arg( "aa_instance" ), py::arg( "xmap" ),
+      .def( "set_starting_instance_coords", &Ca_find::set_starting_instance_coords,
+            //( void( Ca_find::* )( const std::vector<clipper::Coord_orth>&, const Xmap<float>&,
+            //      const LLK_map_target& llktgt, const Ca_find::TYPE type ) ) &
+            //    Ca_find::set_starting_instance_coords,
+            py::arg( "aa_instance" ), py::arg( "xmap" ), py::arg("llktarget"),
+            py::arg("type") = Ca_find::TYPE::LIKELIHOOD, py::arg("refine_coords") = false,
             "Set starting instance coordinates from a list of orthogonal coordinates of amino acid "
-            "instances." )
-      .def( "set_starting_instance_coords",
-            ( void( Ca_find::* )( const std::vector<clipper::Coord_grid>& ) ) &
-                Ca_find::set_starting_instance_coords,
-            py::arg( "aa_instance" ),
-            "Set starting instance coordinates from a list of grid coordinates of amino acid "
             "instances." )
       .def( "__repr__", []( const Ca_find& self ) {
         std::stringstream stream;
@@ -187,6 +183,35 @@ void declare_ssfind(py::module &m) {
       });
 }
 
+void declare_search_op_aa_instance( py::module &m ){
+  py::class_<Search_op_aa_instance_threaded>(m, "Search_op_aa_instance_threaded",
+                              "Class for searching RTop for Ca positions from centroids.")
+      .def(py::init<>())
+      .def(py::init<const Xmap<float> &, const std::vector<Coord_grid>&,
+                    const FFFear_fft<float> &, const LLK_map_target &,
+                    const std::vector<RTop_orth> &, const int>(),
+           py::arg("xmap"), py::arg("aa_instances"), py::arg("srch"), py::arg("llktarget"),
+           py::arg("RToperators"), py::arg("lresult"))
+      .def("set_range", &Search_op_aa_instance_threaded::set_range, py::arg("n1"),
+           py::arg("n2"), "Set search range.")
+      .def("search_op", &Search_op_aa_instance_threaded::search_op, py::arg("op"),
+           "Search RTop for amino acid instances.")
+      .def_property_readonly("results", &Search_op_aa_instance_threaded::results,
+                             "Return search results.")
+      .def("__call__", &Search_op_aa_instance_threaded::operator(), py::arg("nthread") = 0,
+           "Run single or multi-threaded.")
+      .def("merge", &Search_op_aa_instance_threaded::merge, py::arg("other"),
+           "Merge results from multiple threads.")
+      .def("__repr__",
+           [](const Search_op_aa_instance_threaded &self) {
+             std::stringstream stream;
+             stream << "<buccaneer.Search_op_aa_instance_threaded class>";
+             return stream.str();
+           })
+      // inherited function/property
+      .def_property_readonly("id", &Search_op_aa_instance_threaded::id, "Return thread id.");
+}
+
 // Target_fn_refine_llk_map_target defined in b_simplex.cpp
 // to be within same scope as Target_fn_zero_order trampoline definition
 
@@ -195,5 +220,5 @@ void init_ca_find(py::module &m) {
   declare_ca_find(m);
   declare_search_threaded(m);
   declare_ssfind(m); // weird Target(ALPHA2, 4) results.
-                     // declare_target_fn_refine_llk_map_target(m);
+  declare_search_op_aa_instance(m);
 }

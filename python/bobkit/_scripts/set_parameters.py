@@ -189,6 +189,14 @@ class BucArgParse:
             help="Output filename used for simulated map.",
         )
         _GROUP.add_argument(
+            "--output-sim-refmap",
+            dest="sim_refmapout",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help="Output filename used for simulated reference map."
+        )
+        _GROUP.add_argument(
             "--xmlout",
             dest="xmlout",
             type=str,
@@ -400,7 +408,7 @@ class BucArgParse:
             dest="sequence_method",
             default="default",
             choices=["default", "mlinput", "hybrid"],
-            metavar="all | mlinput | hybrid",
+            metavar="default | mlinput | hybrid",
             help=("Specify sequencing method. Default is Buccaneer's default method."
                   "mlinput is to use machine learning outputs. hybrid is a mixture of both.")
         )
@@ -687,6 +695,7 @@ class BuccaneerParams:
     outfile_name: str
     xmlout: str  # = "output.xml"
     mapout: str  # output simulated map, what buccaneer sees
+    refmapout: str  # output simulated reference map
     pdbin: str
     mtzin: str
     mapin: str
@@ -798,7 +807,7 @@ class BuccaneerParams:
         self.write_cif = write_cif
         self.set_outfile(outfile_name)
         self.set_xmlout(xmlout)
-        self.set_write_simulated_map("NONE")
+        self.set_write_simulated_map("NONE", "NONE")
         self.set_resolution(res_in)
         self.set_nfrag()
         self.set_nfragr()
@@ -859,7 +868,7 @@ class BuccaneerParams:
         self.write_cif = not args.no_write_cif
         self.set_outfile(args.model_out)
         self.set_xmlout(args.xmlout)
-        self.set_write_simulated_map(args.sim_mapout)
+        self.set_write_simulated_map(args.sim_mapout, args.sim_refmapout)
         self.set_resolution(args.resolution)
         self.set_nfrag(args.fragments)
         self.set_nfragr(args.fragments_per_100_residues)
@@ -908,8 +917,9 @@ class BuccaneerParams:
     def set_outfile(self, outfile_name: str = "buccaneer_build"):
         self.outfile_name = outfile_name
 
-    def set_write_simulated_map(self, mapout: str = "NONE"):
+    def set_write_simulated_map(self, mapout: str = "NONE", refmapout: str = "NONE"):
         self.mapout = mapout
+        self.refmapout = refmapout
 
     def set_xmlout(self, xmlout: str = "NONE"):
         self.xmlout = xmlout

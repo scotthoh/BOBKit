@@ -29,11 +29,8 @@ class Ca_find {
                    const TYPE type = LIKELIHOOD, const int modelindex = 0 );
   static void set_cpus( int cpus ) { ncpu = cpus; }
   void set_starting_instance_coords( const std::vector<clipper::Coord_orth>& aa_instance,
-                                     const clipper::Xmap<float>& xmap );
-  void set_starting_instance_coords( const std::vector<clipper::Coord_grid>& aa_instance ) {
-    aa_instance_positions = aa_instance;
-    has_aa_instance = true;
-  };
+                                     const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
+                                     const TYPE type = LIKELIHOOD, const bool refine_coords = false );
   // void set_starting_centroid_coords( const std::vector<clipper::Coord_map>& aa_instance ) {
   // aa_
   // }
@@ -44,6 +41,7 @@ class Ca_find {
 
  private:
   friend class Search_threaded;
+  friend class Search_op_aa_instance_threaded; 
   // convenient analytial approximate distance funtion
   static double prob_dist( double x ) { return 0.999*exp(-75.0*pow(x-3.50,2.0)*pow(x,-2.5))+0.001; }
   // perform a single search from a list
@@ -53,6 +51,7 @@ class Ca_find {
   // SSfind map search function
   std::vector<SearchResult> search_sec( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget ) const;
   // ML aa instance map search function
+  static void search_op_aa_instance( std::vector<SearchResult>& results, clipper::Xmap<float> xmap1, const clipper::FFFear_fft<float>& srch, const LLK_map_target& llktarget, const std::vector<clipper::RTop_orth>& ops, int op, const std::vector<clipper::Coord_grid>& aa_instance_pos );
   // std::vector<SearchResult> search_ml( const clipper::Xmap<float>& xmap, const LLK_map_target&
   // llktarget ) const;
 
@@ -150,26 +149,32 @@ public:
   clipper::RTop_orth rtop_;
 };
 
-//! class for refining Ca positions from centroids
-//class Target_fn_refine_calpha : Target_fn_order_zero {
-// public:
-//  Target_fn_refine_calpha() {}
-//  Target_fn_refine_calpha( const clipper::Xmap<float>& xmap, float step = 0.1,
-//                           bool debug_mode = false,
-//                           Optimiser_simplex::TYPE type = Optimiser_simplex::NORMAL )
-//      : xmap_( &xmap ), step_( step ), debug_mode_( debug_mode ), opt_type_( type ) {};
-//  ~Target_fn_refine_calpha() {}
-//  int num_params() const { return 3; }
-//
-//  double operator()( const std::vector<double>& args ) const;
-//  //! refine positions
-//  clipper::Coord_orth refine( const clipper::Coord_orth& coord );
-//
-// private:
-//  const clipper::Xmap<float>* xmap_;
-//  double step_;
-//  bool debug_mode_;
-//  Optimiser_simplex::TYPE opt_type_;
-//};
+//! class for searching RTop for Ca positions from centroids
+class Search_op_aa_instance_threaded : public clipper::Thread_base {
+ public:
+  Search_op_aa_instance_threaded() {}
+  Search_op_aa_instance_threaded( const clipper::Xmap<float>& xmap, const std::vector<clipper::Coord_grid>& aa_inst,
+                   const clipper::FFFear_fft<float>& srch, const LLK_map_target& llktarget,
+                   const std::vector<clipper::RTop_orth>& ops, const int lresult );
+  void set_range( int n1, int n2 ) { n1_ = n1; n2_ = n2; }
+  void search_op( const int& op );
+  const std::vector<SearchResult>& results() const { return results_; }
+  //! run single or multi-threaded
+  bool operator() ( int nthread = 0 );
+  //! merge results from multiple threads
+  void merge( const Search_op_aa_instance_threaded& other );
+ private:
+  void Run();        //!< the thread 'Run' method
+  // all data required for calculation is stored in the class
+  std::vector<SearchResult> results_;
+  clipper::Xmap<float> xmap1_;
+  const clipper::Xmap<int>* xlookp1_;
+  const std::vector<clipper::Coord_grid> aa_instance_positions_;
+  const clipper::FFFear_fft<float>* srch_;
+  const LLK_map_target* llktarget_;
+  const std::vector<clipper::RTop_orth> ops_;
+  int n1_, n2_;
+  bool done;
+};
 
 #endif

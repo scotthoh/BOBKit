@@ -225,7 +225,7 @@ ExternalProject_add(project_gemmi
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} --prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
-                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DUSE_PYTHON=ON)
+                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=ON)
 
 if(BUILD_SHARED_LIBS)
 add_library(gemmi::gemmi_cpp SHARED IMPORTED)
@@ -241,7 +241,8 @@ add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
-set(clipper_src_path "${clipper_dep_path}/src/clipper")
+#set(clipper_src_path "${clipper_dep_path}/src/clipper")
+set(clipper_src_path "/Users/swh514/Work/development/clipper/clipper_bobkit_303")
 set(clipper_bin_path "${clipper_dep_path}/src/clipper_ex-build/")
 
 set(lib_clippercore ${lib_prefix}clipper-core${lib_suffix})
@@ -254,8 +255,8 @@ ExternalProject_add(project_clipper
                     PREFIX ${clipper_dep_path}
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
-                    GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    GIT_TAG v3.0.3-dev
+                    #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
+                    #GIT_TAG v3.0.3-dev
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
@@ -388,9 +389,9 @@ add_custom_command(TARGET buc_py PRE_BUILD
   BYPRODUCTS ${py_dir}/bobkit/__init__.py
 )
 add_custom_command(TARGET buc_py PRE_BUILD
-  COMMENT "Copying bobkit/_ca_sequence_ml.py"
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_ca_sequence_ml.py" ${py_dir}/bobkit/_ca_sequence_ml.py 
-  BYPRODUCTS ${py_dir}/bobkit/_ca_sequence_ml.py
+  COMMENT "Copying bobkit/_buccaneer.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_buccaneer.py" ${py_dir}/bobkit/_buccaneer.py 
+  BYPRODUCTS ${py_dir}/bobkit/_buccaneer.py
 )
 add_custom_command(TARGET buc_py PRE_BUILD
   COMMENT "Copying bobkit/_util.py"
@@ -420,7 +421,7 @@ if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_ca_sequence_ml.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_scripts" DESTINATION "${Python_SITEARCH}/bobkit"

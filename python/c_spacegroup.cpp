@@ -7,7 +7,7 @@
 #include "helper_functions.h"
 #include "type_conversions.h"
 #include <clipper/clipper-gemmi.h>
-#include <clipper/core/spacegroup.h>
+#include <clipper/clipper.h>
 #include <gemmi/symmetry.hpp>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>

@@ -382,6 +382,18 @@ void init_coord_orth(py::module &m) {
       .def_static("torsion", &Coord_orth::torsion, py::arg("x1"), py::arg("x2"),
                   py::arg("x3"), py::arg("x4"),
                   "Return torsion betwee four orthogonal coordinates.")
+     .def(py::pickle(
+        [](const Coord_orth &c) { // __getstate__
+          return py::make_tuple(c.x(), c.y(), c.z());
+        },
+        [](py::tuple t) { // __setstate__
+          if (t.size() != 3)
+            throw std::runtime_error("Invalid state!");
+          
+          Coord_orth m(t[0].cast<ftype>(), t[1].cast<ftype>(), t[2].cast<ftype>());
+          return m;
+        }
+      ))
       .def(
           "__neg__", [](const Coord_orth &self) { return -self; },
           py::is_operator())
@@ -516,6 +528,18 @@ void init_coord_orth(py::module &m) {
            "Orthogonal-fractional conversion.")
       .def("transform", &U_aniso_orth::transform, py::arg("op"),
            "Return transformed U_aniso.")
+      .def(py::pickle(
+        [](const U_aniso_orth &m) { // __getstate__
+          return py::make_tuple(m.mat00(), m.mat11(), m.mat22(), m.mat01(), m.mat02(), m.mat12());
+        },
+        [](py::tuple t) { // __setstate__
+          if (t.size() != 6)
+            throw std::runtime_error("Invalid state!");
+          
+          U_aniso_orth m(t[0].cast<ftype>(), t[1].cast<ftype>(), t[2].cast<ftype>(), t[3].cast<ftype>(), t[4].cast<ftype>(), t[5].cast<ftype>());
+          return m;
+        }
+      ))
       .def(
           "__neg__", [](const U_aniso_orth &self) { return -self; },
           py::is_operator())

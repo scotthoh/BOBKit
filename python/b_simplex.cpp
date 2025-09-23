@@ -6,6 +6,7 @@
 
 #include "buccaneer/buccaneer-find.h"
 #include "buccaneer/buccaneer-grow.h"
+#include "buccaneer/buccaneer-build.h"
 #include "buccaneer/simplex-lib.h"
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -96,6 +97,21 @@ void declare_target_functions(py::module &m) {
              return "<buccaneer.Target_fn_refine_llk_map_target class.>";
            })
       .doc() = "Class for refining Ca groups.";
+
+  using refine_fragment = Target_fn_refine_amino_acid_fragment;
+  py::class_<refine_fragment>(m, "Target_fn_refine_amino_acid_fragment", clsBase)
+      .def(py::init<>())
+      .def(py::init<const Xmap<float> &, const double &, const double &>(),
+           py::arg("xmap"), py::arg("rot_step"), py::arg("trn_step"))
+      .def("num_params", &refine_fragment::num_params,
+           "Return number of parameters.")
+      .def("__call__", &refine_fragment::operator(), py::arg("args"))
+      .def("rtop_orth", &refine_fragment::rtop_orth, py::arg("args"))
+      .def("refine", &refine_fragment::refine, py::arg("residue"))
+      .def("__repr__", [](const refine_fragment &self) {
+        return "<buccaneer.Target_fn_refine_amino_acid_fragment class.>";
+      })
+      .doc() = "Class for refining built amino acid fragment";
 }
 
 void declare_optimiser_simplex(py::module &m) {

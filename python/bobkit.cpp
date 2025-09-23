@@ -40,6 +40,9 @@ void init_clipper_stats(py::module &m); //1
 void init_map_utils(py::module &m);
 void init_clipper_util(py::module &m);
 void init_resol_fn( py::module& m ); //1
+void init_nxmap_operator( py::module& m );
+void init_fffear( py::module& m );
+void init_edcalc( py::module& m );
 // void init_ccp4_mtz_io(py::module &m);
 void init_clipper_tests(py::module &m);
 
@@ -122,6 +125,9 @@ PYBIND11_MODULE( bobkit_ext, mbk_ ) {
   init_map_utils(mc);
   init_resol_fn( mc );
   init_clipper_util(mc);
+  init_nxmap_operator(mc);
+  init_fffear(mc);
+  init_edcalc(mc);
   // init_ccp4_mtz_io(mc);
   init_clipper_tests(mc);
 

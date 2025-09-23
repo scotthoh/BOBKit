@@ -142,6 +142,19 @@ void declare_cell(py::module &m) {
                              "Return real space metric tensor.")
       .def_property_readonly("metric_reci", &Cell::metric_reci,
                              "Return reciprocal space metric tensor.")
+      .def(py::pickle(
+          [](const Cell &c) { // __getstate__
+            return py::make_tuple(c.a(), c.b(), c.c(), c.alpha(), c.beta(), c.gamma());  
+          },
+          [](py::tuple t) { // __setstate__
+            if (t.size() < 6)
+              throw std::runtime_error("Invalid state, must have 4 elements!");
+            
+            Cell c(Cell_descr(t[0].cast<ftype>(), t[1].cast<ftype>(), t[2].cast<ftype>(),
+                              t[3].cast<ftype>(), t[4].cast<ftype>(), t[5].cast<ftype>()));
+            return c;
+          }
+      ))
       .doc() = "Cell object.\n"
                "The Cell class is the fully functional description of the unit "
                "cell. In addition to the cell parameters, it stores derived "
