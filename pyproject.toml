@@ -11,7 +11,7 @@ authors = [
 ]
 description = "BOBKit: Python Modules for Building Biomacromolecular Models"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
 "Development Status :: 1 - Planning",
 "Intended Audience :: Developers",
@@ -37,9 +37,9 @@ cmake.version = ">=3.20"
 ninja.version = ">=1.11"
 # Setuptools style build caching in a local directory
 build-dir = "build/{wheel_tag}"
-#wheel.install-dir = "/data"
-# Build stable ABI wheels for CPython 3.12+
-#wheel.py-api = "cp312"
+wheel.install-dir = "/data"
+# Build stable ABI wheels for CPython 3.11+
+#wheel.py-api = "cp311"
 
 
 wheel.packages = []
@@ -58,11 +58,13 @@ sdist.include = [
 cmake.build-type ="Release"
 cmake.verbose = true
 
+[project.scripts]
+pybuccaneer = "bobkit._scripts.buccaneer:main"
+
 [tool.scikit-build.cmake.define]
-USE_PYTHON = "ON"
 BUCCANEER_PROFILE = "ON"
 BUILD_OWN_FFTW3 = "ON"
-BUILD_SHARED_LIBS = "OFF"
+# GENERATE_STUBS = "ON"
 
 # Get version from python/version.hpp file
 [tool.scikit-build.metadata.version]

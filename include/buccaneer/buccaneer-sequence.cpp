@@ -12,7 +12,8 @@
 int Ca_sequence::ncpu = 0;
 bool Ca_sequence::semet_ = false;
 clipper::MiniMol Ca_sequence::molprior;
-
+bool Ca_sequence::seqprob_ = false;
+bool Ca_sequence::hybrid_ = false;
 
 // cumulative normal distribution function
 //double phi(double z)
@@ -51,11 +52,37 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       if ( mm.exists_property("SEQDAT") ) mm.delete_property("SEQDAT");
       const int ntyp = llksample.size();
       std::vector<double> scores( ntyp, 0.0 );
-      for ( int t = 0; t < ntyp; t++ )
-        scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
+      
+      if ( seqprob_ ) {
+        if ( mm.exists_property( "SEQPROB" ) ) {
+          const Sequence_data& sp =
+              static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQPROB" ) )
+                  .value();
+          for ( int t = 0; t < ntyp; t++ ) {
+            scores[t] = sp.data[t];
+          }
+          if ( hybrid_ ) {
+            for ( int t = 0; t < ntyp; t++ ) {
+              scores[t] += llksample[t].target( xmap, ca.rtop_beta_carbon() );
+            }
+          }
+        }
+      }
+      else {
+        for ( int t = 0; t < ntyp; t++ )
+          scores[t] = llksample[t].target( xmap, ca.rtop_beta_carbon() );
+      }
+      // std::vector<double> seq
+
       Sequence_data sd( ca, scores );
-      mm.set_property( "SEQDAT", clipper::Property<Sequence_data>(sd) );
+      mm.set_property( "SEQDAT", clipper::Property<Sequence_data>( sd ) );
     }
+    // check
+    // const Sequence_data& sd =
+    //    static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQDAT" )
+    //    ).value();
+    // for ( int i = 0; i < sd.data.size(); i++ ) std::cout << clipper::String( sd.data[i] ) << ",
+    // "; std::cout << std::endl;
   }
 }
 
@@ -262,18 +289,16 @@ std::vector<clipper::String> Ca_sequence::sequence_align( const std::vector<std:
         result.push_back( seqs );
       }
 
-  /*
   // diagnostics
-  Score_list<clipper::String> scrs( 3 );
-  for ( int i = 0; i < result.size(); i++ ) {
-    std::pair<double,std::pair<int,int> > scr;
-    scr = sequence_score( scores, result[i] );
-    scrs.add( scr.first, result[i] );
-  }
-  std::cout << "DEBUG " << result.size() << " " << scrs.size() << std::endl;
-  for ( int i = 0; i < std::min(int(scrs.size()),3); i++ )
-    std::cout << i << "\t" << scrs.score(i) << "\t" << scrs[i] << std::endl;
-  */
+  // Score_list<clipper::String> scrs( 3 );
+  // for ( int i = 0; i < result.size(); i++ ) {
+  //   std::pair<double,std::pair<int,int> > scr;
+  //   scr = sequence_score( scores, result[i] );
+  //   scrs.add( scr.first, result[i] );
+  // }
+  // std::cout << "DEBUG " << result.size() << " " << scrs.size() << std::endl;
+  // for ( int i = 0; i < std::min(int(scrs.size()),3); i++ )
+  //   std::cout << i << "\t" << scrs.score( i ) << "\t" << scrs[i] << std::endl;
 
   // return the sequences for scoring
   return result;
@@ -355,6 +380,11 @@ Score_list<clipper::String> Ca_sequence::sequence_chain( clipper::MChain& chain,
     if ( chain[res].exists_property( "SEQDAT" ) ) {
       const Sequence_data& sd = static_cast<const clipper::Property<Sequence_data>&>(chain[res].get_property( "SEQDAT" )).value();
       scores[res] = sd.data;
+      // std::cout << clipper::String( res ) << ": ";
+      // for ( int i = 0; i < sd.data.size(); i++ ) {
+      //   std::cout << clipper::String( sd.data[i] ) << "; ";
+      // }
+      // std::cout << "SEQDAT###" << std::endl;
     }
   }
 
@@ -656,8 +686,10 @@ void Ca_sequence::set_prior_model( const clipper::MiniMol& mol )
 
 int Sequence_score_threaded::count = 0;
 
-Sequence_score_threaded::Sequence_score_threaded( clipper::MPolymer& mp, const clipper::Xmap<float>& xmap, const std::vector<LLK_map_target::Sampled>& llksample ) : mp_(mp), xmap_(&xmap), llksample_(&llksample)
-{
+Sequence_score_threaded::Sequence_score_threaded(
+    clipper::MPolymer& mp, const clipper::Xmap<float>& xmap,
+    const std::vector<LLK_map_target::Sampled>& llksample )
+    : mp_( mp ), xmap_( &xmap ), llksample_( &llksample ) {
   // flag which chains were grown
   done = std::vector<bool>( mp_.size(), false );
 

@@ -37,14 +37,15 @@ option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(SHOW_COMPILE_TIME "Show compile time" OFF)
 option(USE_PYTHON "Build Python bindings" ON)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
-option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" ON)
+option(BUILD_OWN_FFTW3 "Build own version of fftw3 ignoring the one found on system" OFF)
 option(BUCCANEER_PROFILE "Set Buccaneer profiling on/off" ON)
+#option(GENERATE_STUBS "Generate Python type stubs" OFF)
 if(SHOW_COMPILE_TIME)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "\"${CMAKE_COMMAND}\" -E time")
 endif()
 
 # C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if(BUCCANEER_PROFILE)
@@ -60,10 +61,11 @@ else()
   set(VENV_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
 endif()
 
-if(DEFINED $ENV{SKIP_INSTALL_FFTW3})
-  set(BUILD_OWN_FFTW3 OFF CACHE BOOL "" FORCE)
+if (NOT BUILD_OWN_FFTW3)
+  message(STATUS "Finding FFTW3 package.")
+  #set(BUILD_OWN_FFTW3 OFF CACHE BOOL "" FORCE)
   find_package(PkgConfig REQUIRED)
-  pkg_search_module(FFTW 3.3.4...<3.3.10 REQUIRED fftw3f IMPORTED_TARGET)
+  pkg_search_module(FFTW REQUIRED IMPORTED_TARGET GLOBAL fftw3f>=3.3.4)
   if(FFTW_FOUND)
     message(STATUS "Found FFTW3 - ${FFTW_LINK_LIBRARIES}")
     message(STATUS "FFTW3 include dir - ${FFTW_INCLUDE_DIRS}")
@@ -170,7 +172,7 @@ ExternalProject_add(project_fftw
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_fftw_name}
                     URL https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz
                     #PREFIX ${CMAKE_CURRENT_BINARY_DIR}/fftw
-                    #BUILD_IN_SOURCE false
+                    BUILD_IN_SOURCE false
                     CONFIGURE_COMMAND <SOURCE_DIR>/configure 
                     --prefix=${VENV_INSTALL_DIR} --enable-float
                     --disable-fortran ${fftwconf_args} "CFLAGS=-fPIC"
@@ -198,8 +200,7 @@ if (BUILD_SHARED_LIBS)
 else()
  add_library(fftw3::fftw3 STATIC IMPORTED)
 endif()
-set_target_properties(fftw3::fftw3 PROPERTIES
-                      IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
+set_target_properties(fftw3::fftw3 PROPERTIES IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
                       #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif() # if(BUILD_OWN_FFTW3)
 
@@ -215,16 +216,16 @@ ExternalProject_add(project_gemmi
                     SOURCE_DIR ${gemmi_src_path}
                     BINARY_DIR ${gemmi_bin_path}
                     GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
-                    GIT_TAG v0.6.4
+                    GIT_TAG v0.6.7
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
-                    PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
-                    "${gemmi_src_path}/CMakeLists.txt"
+                    #PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
+                    #"${gemmi_src_path}/CMakeLists.txt"
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
                     INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} --prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
-                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
+                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=ON)
 
 if(BUILD_SHARED_LIBS)
 add_library(gemmi::gemmi_cpp SHARED IMPORTED)
@@ -254,7 +255,7 @@ ExternalProject_add(project_clipper
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
                     GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    GIT_TAG v3.0.2-dev
+                    GIT_TAG v3.0.3-dev
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
@@ -338,7 +339,8 @@ target_link_libraries(buccaneer_lib PRIVATE
 if (Threads_FOUND)
   target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
 endif()
-install(TARGETS buccaneer_lib LIBRARY DESTINATION ${VENV_INSTALL_DIR}/lib )
+message(STATUS "VENV_INSTALL_DIR is ${VENV_INSTALL_DIR}")
+install(TARGETS buccaneer_lib LIBRARY DESTINATION "${VENV_INSTALL_DIR}/lib")
 file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 
 # pybind11 module
@@ -373,12 +375,58 @@ if (Threads_FOUND)
   target_link_libraries(buc_py PRIVATE Threads::Threads)
 endif()
 # install
-set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit)
+set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit_ext)
+if (CMAKE_CONFIGURATION_TYPES)
+  set(py_dir $<CONFIG>/py)
+else()
+  set(py_dir py)
+endif()
+set_property(TARGET buc_py PROPERTY LIBRARY_OUTPUT_DIRECTORY ${py_dir}/bobkit)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/__init__.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py 
+  BYPRODUCTS ${py_dir}/bobkit/__init__.py
+)
+#add_custom_command(TARGET buc_py PRE_BUILD
+#  COMMENT "Copying bobkit/_buccaneer.py"
+#  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_buccaneer.py" ${py_dir}/bobkit/_buccaneer.py 
+#  BYPRODUCTS ${py_dir}/bobkit/_buccaneer.py
+#)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/_util.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_util.py" ${py_dir}/bobkit/_util.py 
+  BYPRODUCTS ${py_dir}/bobkit/_util.py
+)
+add_custom_command(TARGET buc_py PRE_BUILD
+  COMMENT "Copying bobkit/_scripts"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_scripts" ${py_dir}/bobkit/_scripts 
+  BYPRODUCTS ${py_dir}/bobkit/_scripts
+)
+#if (GENERATE_STUBS and CMAKE_CROSSCOMPILING)
+#  message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
+#elseif(GENERATE_STUBS)
+#  set(sep ":")
+#  if (WIN32)
+#    set(setp ";")
+#  endif()
+#  add_custom_command(TARGET buc_py POST_BUILD COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=$<TARGET_FILE_DIR:buc_py>${sep}$ENV{PYTHONPATH}"
+#  ${Python_EXECUTABLE} -m pybind11_stubgen bobkit
+#  --enum-class-locations=Ignore)
+#endif()
+# here 21Jan
+
 
 if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
-install(TARGETS buc_py DESTINATION "${Python_SITEARCH}" COMPONENT py)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_scripts" DESTINATION "${Python_SITEARCH}/bobkit"
+        FILES_MATCHING PATTERN "*.py" )
+install(TARGETS buc_py DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
 endif()
 #this is for convenience to delete fftw
 #set(INSTALL_SHAREDIR ${FFTW_INSTALL_PATH}/share/fftw3)

@@ -95,7 +95,13 @@ void declare_cell(py::module &m) {
   cell.def(py::init<>(), "Null constructor, must initialise later.")
       .def(py::init<const Cell_descr &>(), py::arg("Cell_description"),
            "Constructor from Cell descriptor")
-      //.def("init", 8&Cell::init, py::arg("Cell_description"))
+      .def(py::init([](const py::array_t<ftype> &params) {
+        return std::unique_ptr<Cell>(
+            new Cell(Cell_descr(params.at(0), params.at(1), params.at(2),
+                           params.at(3), params.at(4), params.at(5))));
+      }),
+      "Constructor from cell parameters (list/numpy array).")
+      .def("init", &Cell::init, py::arg("Cell_description"))
       .def(
           "init", [](Cell &self, const Cell_descr &cd) { self.init(cd); },
           py::arg("Cell_description"), "Initialise with Cell descriptor.")
@@ -136,6 +142,19 @@ void declare_cell(py::module &m) {
                              "Return real space metric tensor.")
       .def_property_readonly("metric_reci", &Cell::metric_reci,
                              "Return reciprocal space metric tensor.")
+      .def(py::pickle(
+          [](const Cell &c) { // __getstate__
+            return py::make_tuple(c.a(), c.b(), c.c(), c.alpha(), c.beta(), c.gamma());  
+          },
+          [](py::tuple t) { // __setstate__
+            if (t.size() < 6)
+              throw std::runtime_error("Invalid state, must have 4 elements!");
+            
+            Cell c(Cell_descr(t[0].cast<ftype>(), t[1].cast<ftype>(), t[2].cast<ftype>(),
+                              t[3].cast<ftype>(), t[4].cast<ftype>(), t[5].cast<ftype>()));
+            return c;
+          }
+      ))
       .doc() = "Cell object.\n"
                "The Cell class is the fully functional description of the unit "
                "cell. In addition to the cell parameters, it stores derived "
