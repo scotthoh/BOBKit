@@ -1179,3 +1179,24 @@ bool ProteinTools::is_protein( const clipper::MMonomer& mm )
   if ( PROTEIN_TYPES.find( mm.type() ) != PROTEIN_TYPES.end() ) return true;
   return mm.lookup( " CA ", clipper::MM::ANY ) >= 0;
 }
+
+// bool ProteinTools::calculate_residues_centre_of_mass_relative_to_calpha( const clipper::MiniMol&
+// mol, std::vector<clipper::Coord_orth>& coms, bool backbone_only ) {
+//   coms.resize( ntype );
+//   std::fill( coms.begin(), coms.end(), clipper::Coord_orth( 0.0, 0.0, 0.0 ) );
+//   for ( int chn = 0; chn < mol.size(); chn++ ) {
+//     clipper::MPolymer mp;
+//     for ( int res = 0; res < mol[chn].size(); res++ ) {
+//       int rindex = residue_index_3( mol[chn][res].type() );
+//       clipper::Coord_orth com( 0.0, 0.0, 0.0 );
+//       int natom = 0;
+//       int index_ca = mol[c][r].lookup( " CA ", clipper::MM::ANY );
+//       for ( int atm = 0; atm < mol[chn][res].size(); atm++ ) {
+//         com = com + (mol[chn][res][atm].coord_orth() - mol[chn][res][];
+//         natom += 1;
+//       }
+//       com = ( 1.0 / double( natom ) ) * com;
+//       coms[rindex]
+//     }
+//   }
+// }

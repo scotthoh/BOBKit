@@ -57,16 +57,23 @@ void init_minimol(py::module &m) {
       .export_values();
 
   pyAtom.def(py::init<>())
-      .def(py::init<const Atom &>(), py::arg("atom"),
+      .def(py::init<const Atom&>(), py::arg("atom"),
            "Constructor from clipper::Atom.")
       // also inherit methods from Atom class e.g. element, coord_orth...
-      .def_property("id", &MAtom::id, &MAtom::set_id,
-                    "Get/set atom ID, e.g. \" N  \"")
-      .def_property("name", &MAtom::name, &MAtom::set_name,
-                    "Get/set atom name, i.e. the ID omitting any alternate "
-                    "conformation code.")
+      .def_property_readonly(
+          "id", &MAtom::id,
+          "Get atom id, e.g. \" N  \", \" CA \", \" CG1\", \" CA :A\".")
+      .def_property_readonly(
+          "name", &MAtom::name,
+          "Get atom name, i.e. the ID, omitting any alternate "
+          "conformation code.")
+      .def("set_id", &MAtom::set_id, py::arg("id"), py::arg("is_gemmi") = false,
+           "Set atom id.")
+      .def("set_name", &MAtom::set_name, py::arg("name"),
+           py::arg("altconf") = "", py::arg("is_gemmi") = false,
+           "Set atom name.")
       .def("__repr__",
-           [](const MAtom &self) {
+           [](const MAtom& self) {
              std::stringstream stream;
              auto coord = self.coord_orth();
              stream << "<clipper.MAtom " << self.name().trim();
@@ -76,21 +83,39 @@ void init_minimol(py::module &m) {
              return stream.str();
            })
       .def(
-          "atom", [](const MAtom &self) -> const Atom & { return self.atom(); },
+          "atom", [](const MAtom& self) -> const Atom& { return self.atom(); },
           py::return_value_policy::reference_internal, "Get atom.")
       .def(
-          "atom", [](MAtom &self, Atom atm) { self.atom() = atm; },
+          "set_atom", [](MAtom& self, Atom atm) { self.atom() = atm; },
           py::return_value_policy::reference_internal, "Set atom.")
       .def("copy_from", &MAtom::copy, py::arg("other"),
            py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
       .def(
-          "copy", [](const MAtom &self) { return self; },
+          "copy", [](const MAtom& self) { return self; },
           "Return a copy of object. Use this to make copy because "
           "assignment operator in Python only create bindings not copy.")
       .def_static("id_tidy", &MAtom::id_tidy, py::arg("id"),
                   py::arg("is_gemmi") = false, "Convert id to standard format.")
       .def_static("id_match", &MAtom::id_match, py::arg("id1"), py::arg("id2"),
                   py::arg("mode"), "Compare IDs.")
+      .def(py::pickle(
+        [](const MAtom &a){ // __getstate__
+            return py::make_tuple(a.id(), a.element(), a.coord_orth(), a.occupancy(), a.u_iso(), a.u_aniso_orth());
+        },
+        [](py::tuple t) { // __setstate__
+            if (t.size() != 6)
+              throw std::runtime_error("Invalid state, must have 6 elements!");
+            
+            MAtom a;
+            a.set_id(t[0].cast<std::string>());
+            a.set_element(t[1].cast<std::string>());
+            a.set_coord_orth(t[2].cast<Coord_orth>());
+            a.set_occupancy(t[3].cast<ftype>());
+            a.set_u_iso(t[4].cast<ftype>());
+            a.set_u_aniso_orth(t[5].cast<U_aniso_orth>());
+            return a;
+        }
+      ))
       .doc() =
       "MiniMol atom object.\nThe MiniMol atom is derived "
       "from the basic clipper::Atom, with the addition of an 'id', "
@@ -103,160 +128,156 @@ void init_minimol(py::module &m) {
       "`-` \"CID\" The original CID of this atom in an MMDB heirarchy. "
       "The id() is the unique key which identifies an atom.";
 
-  pyResidue.def(py::init<>())
-      .def_property("id", &MResidue::id, &MResidue::set_id,
-                    "Get/set monomer ID.")
-      .def_property("type", &MResidue::type, &MResidue::set_type,
-                    "Get/set monomer type, e.g. LYS, VAL, G.")
+  pyResidue.def( py::init<>() )
+      .def_property( "id", &MResidue::id, &MResidue::set_id, "Get/set monomer ID." )
+      .def_property( "type", &MResidue::type, &MResidue::set_type,
+                     "Get/set monomer type, e.g. LYS, VAL, G." )
       //.def("set_type", &MResidue::set_type)
-      .def("seqnum", &MResidue::seqnum, "Get monomer sequence number.")
-      .def("set_seqnum", &MResidue::set_seqnum, py::arg("s"),
-           py::arg("inscode") = "", "Set full sequence id.")
-      .def("atom_list", &MResidue::atom_list,
-           "Return a list of contained atoms.")
-      .def("transform", &MResidue::transform, py::arg("rtop"),
-           "Apply transformation to object.")
-      .def("size", &MResidue::size, "Return number of atoms in monomer.")
-      .def("__len__", &MResidue::size)
-      .def("__repr__",
-           [](const MResidue &self) {
-             std::stringstream stream;
-             stream << "<clipper.MResidue ";
-             stream << self.id().trim() << "(" << self.type()
-                    << ") containing ";
-             stream << self.size() << " atom(s)>";
-             return stream.str();
-           })
+      .def( "seqnum", &MResidue::seqnum, "Get monomer sequence number." )
+      .def( "set_seqnum", &MResidue::set_seqnum, py::arg( "s" ), py::arg( "inscode" ) = "",
+            "Set full sequence id." )
+      .def( "atom_list", &MResidue::atom_list, "Return a list of contained atoms." )
+      .def( "transform", &MResidue::transform, py::arg( "rtop" ),
+            "Apply transformation to object.", py::return_value_policy::reference_internal )
+      .def( "size", &MResidue::size, "Return number of atoms in monomer." )
+      .def( "__len__", &MResidue::size )
+      .def( "__repr__",
+            []( const MResidue& self ) {
+              std::stringstream stream;
+              stream << "<clipper.MResidue ";
+              stream << self.id().trim() << "(" << self.type() << ") containing ";
+              stream << self.size() << " atom(s)>";
+              return stream.str();
+            } )
       .def(
           "__getitem__",
-          [](MResidue &self, const int i) -> const MAtom & {
+          []( MResidue& self, const int i ) -> const MAtom& {
             return self[normalise_index(i, self.size())];
           },
-          py::arg("i"), py::return_value_policy::reference_internal,
-          "Get atom.")
+          py::arg( "i" ), py::return_value_policy::reference_internal, "Get atom." )
       .def(
           "__getitem__",
-          [](MResidue &self, const std::string &n) -> const MAtom & {
-            return self.find(n);
-          },
-          py::arg("id"), py::return_value_policy::reference_internal,
-          "Set atom.")
+          []( MResidue& self, const std::string& n ) -> const MAtom& { return self.find( n ); },
+          py::arg( "id" ), py::return_value_policy::reference_internal, "Get atom." )
       .def(
           "find",
-          [](const MResidue &self, const std::string &n, const MM::MODE mode)
-              -> const MAtom & { return self.find(n, mode); },
-          py::arg("id"), py::arg("mode") = MM::MODE::UNIQUE,
+          []( const MResidue& self, const std::string& n, const MM::MODE mode ) -> const MAtom& {
+            return self.find( n, mode );
+          },
+          py::arg( "id" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
           py::return_value_policy::reference_internal,
           "Lookup by id. If mode=UNIQUE, the alternate conformation code must "
-          "match, otherwise the first atom with the same name is returned.")
+          "match, otherwise the first atom with the same name is returned." )
       .def(
           "find",
-          [](MResidue &self, const std::string &n, const MAtom &atm,
-             const MM::MODE mode) -> MAtom & {
-            return self.find(n, mode) = atm;
-          },
+          []( MResidue& self, const std::string& n, const MAtom& atm,
+              const MM::MODE mode ) -> MAtom& { return self.find( n, mode ) = atm; },
           "Set atom by looking up id. If mode=UNIQUE, the alternate "
           "conformation code must match, otherwise the first atom with "
-          "the same name is returned.")
+          "the same name is returned." )
       .def(
           "__setitem__",
-          [](MResidue &self, const int i, const MAtom atm) {
+          []( MResidue& self, const int i, const MAtom atm ) {
             self[normalise_index(i, self.size())] = atm;
           },
-          py::arg("i"), py::arg("atom"),
-          py::return_value_policy::reference_internal)
+          py::arg( "i" ), py::arg( "atom" ), py::return_value_policy::reference_internal )
       .def(
           "__setitem__",
-          [](MResidue &self, const std::string &n, const MAtom atm) {
-            self.find(n) = atm;
-          },
-          py::arg("id"), py::arg("atom"),
-          py::return_value_policy::reference_internal)
-      .def("select", &MResidue::select, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a copy of this monomet containing only atoms described by "
-           "selection string. The atom selection must contain an atom ID or "
-           "a comma separated list of atom IDs, or \"*\" to select all atoms.")
-      .def("select_index", &MResidue::select_index, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a list of inidices of children matching the given "
-           "selection string.")
-      .def("insert", &MResidue::insert, py::arg("add"), py::arg("pos"),
-           "Add atom to given position.")
-      .def("lookup", &MResidue::lookup, py::arg("id"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Lookup atom by ID and return the index position.")
-      .def(py::self & py::self)
-      .def(py::self | py::self)
-      .def("copy_from", &MResidue::copy, py::arg("other"),
-           py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+          []( MResidue& self, const std::string& n, const MAtom atm ) { self.find( n ) = atm; },
+          py::arg( "id" ), py::arg( "atom" ), py::return_value_policy::reference_internal )
+      .def( "select", &MResidue::select, py::arg( "sel" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a copy of this monomet containing only atoms described by "
+            "selection string. The atom selection must contain an atom ID or "
+            "a comma separated list of atom IDs, or \"*\" to select all atoms." )
+      .def( "select_index", &MResidue::select_index, py::arg( "sel" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a list of inidices of children matching the given "
+            "selection string." )
+      .def( "insert", &MResidue::insert, py::arg( "add" ), py::arg( "pos" ) = -1,
+            "Add atom to given position." )
+      .def( "lookup", &MResidue::lookup, py::arg( "id" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Lookup atom by ID and return the index position." )
+      .def( py::self & py::self )
+      .def( py::self | py::self )
+      .def( "copy_from", &MResidue::copy, py::arg( "other" ), py::arg( "mode" ) = MM::COPY::COPY_C,
+            "Configurable copy function." )
       .def(
-          "copy", [](const MResidue &self) { return self; },
+          "copy", []( const MResidue& self ) { return self; },
           "Return a copy of object. Use this to make copy because "
-          "assignment operator in Python only create bindings not copy.")
-      .def_static("id_match", &MResidue::id_match, py::arg("id1"),
-                  py::arg("id2"), py::arg("mode"), "Compare two IDs.")
-      .def_static("id_tidy", &MResidue::id_tidy, py::arg("id"),
-                  "Convert ID to standard format.")
+          "assignment operator in Python only create bindings not copy." )
+      .def_static( "id_match", &MResidue::id_match, py::arg( "id1" ), py::arg( "id2" ),
+                   py::arg( "mode" ), "Compare two IDs." )
+      .def_static( "id_tidy", &MResidue::id_tidy, py::arg( "id" ),
+                   "Convert ID to standard format." )
+      .def(py::pickle(
+        [](const MResidue &r) { // __getstate__
+            // only hack to do this since children are private
+            std::vector<MAtom> atoms;
+            for (size_t i = 0; i < r.size(); ++i)
+              atoms.push_back(r[i]);
+            return py::make_tuple(r.id(), r.type(), r.seqnum(), atoms);
+        },
+        [](py::tuple t) {  // __setstate__
+            if (t.size() != 4)
+              throw std::runtime_error("Invalid state, must have 4 elements!");
+            MResidue r;
+            r.set_id(t[0].cast<std::string>());
+            r.set_type(t[1].cast<std::string>());
+            r.set_seqnum(t[2].cast<int>());
+            for (const auto& c : t[3].cast<std::vector<MAtom>>())
+              r.insert(c);
+            return r;
+        }
+      ))
       // UTILITY
-      .def("build_carbonyl_oxygen",
-           (void(MResidue::*)(const MResidue &)) &
-               MResidue::protein_mainchain_build_carbonyl_oxygen,
-           py::arg("next"),
-           "Build carbonyl oxygen, given next residue in chain.")
-      .def("build_carbonyl_oxygen",
-           (void(MResidue::*)()) &
-               MResidue::protein_mainchain_build_carbonyl_oxygen,
-           "Build carbonyl oxygen, without next residue in chain.")
-      .def("number_of_rotamers",
-           (int(MResidue::*)(MResidue::TYPE) const) &
-               MResidue::protein_sidechain_number_of_rotamers,
-           py::arg("t"),
-           "Get number of rotamers for protein sidechain, given a rotamer "
-           "library type.")
-      .def("number_of_rotamers",
-           (int(MResidue::*)() const) &
-               MResidue::protein_sidechain_number_of_rotomers,
-           "Get number of rotamers for protein sidechain from Richardson "
-           "rotamer library.")
-      .def("build_sidechain_numbered_rotamer",
-           (ftype(MResidue::*)(const int &, MResidue::TYPE)) &
-               MResidue::protein_sidechain_build_rotamer,
-           py::arg("n"), py::arg("t"),
-           "Build numbered rotamer for protein sidechain.")
-      .def("build_sidechain_numbered_rotamer",
-           (ftype(MResidue::*)(const int &)) &
-               MResidue::protein_sidechain_build_rotomer,
-           py::arg("n"), "Build numbered rotamer for protein sidechain.")
-      .def_static("protein_peptide_bond", &MResidue::protein_peptide_bond,
-                  py::arg("m1"), py::arg("m2"), py::arg("r") = 1.5,
-                  "Test if two peptide are adjacent.")
-      .def_static("protein_ramachandran_phi",
-                  &MResidue::protein_ramachandran_phi, py::arg("m1"),
-                  py::arg("m2"),
-                  "Return Ramachandran phi, or NaN if atoms missing.")
-      .def_static("protein_ramachandran_psi",
-                  &MResidue::protein_ramachandran_psi, py::arg("m1"),
-                  py::arg("m2"),
-                  "Return Ramachandran psi, or NaN if atoms missing.")
-      .def_static("default_type", &MResidue::default_type,
-                  "Return default rotamer library type.")
-      .doc() = "MiniMol monomer (e.g. residue) object.\nThe MiniMol "
-               "monomer object contains a list of clipper::MAtom. "
-               "It has two properties: a sequence number and a type. "
-               "The sequence number need not reflect the order in which "
-               "the monomers are stored in a polymer. MResidue is an alias "
-               "for MMonomer. In addition, it is a clipper::PropertyManager, "
-               "refer documented details in MAtom class.";
+      .def( "build_carbonyl_oxygen",
+            ( void( MResidue::* )( const MResidue& ) ) &
+                MResidue::protein_mainchain_build_carbonyl_oxygen,
+            py::arg( "next" ), "Build carbonyl oxygen, given next residue in chain." )
+      .def( "build_carbonyl_oxygen",
+            ( void( MResidue::* )() ) & MResidue::protein_mainchain_build_carbonyl_oxygen,
+            "Build carbonyl oxygen, without next residue in chain." )
+      .def( "number_of_rotamers",
+            ( int( MResidue::* )( MResidue::TYPE ) const ) &
+                MResidue::protein_sidechain_number_of_rotamers,
+            py::arg( "t" ),
+            "Get number of rotamers for protein sidechain, given a rotamer "
+            "library type." )
+      .def( "number_of_rotamers",
+            ( int( MResidue::* )() const ) & MResidue::protein_sidechain_number_of_rotomers,
+            "Get number of rotamers for protein sidechain from Richardson "
+            "rotamer library." )
+      .def( "build_sidechain_numbered_rotamer",
+            ( ftype( MResidue::* )( const int&,
+                                    MResidue::TYPE ) )&MResidue::protein_sidechain_build_rotamer,
+            py::arg( "n" ), py::arg( "t" ), "Build numbered rotamer for protein sidechain." )
+      .def( "build_sidechain_numbered_rotamer",
+            ( ftype( MResidue::* )( const int& ) )&MResidue::protein_sidechain_build_rotomer,
+            py::arg( "n" ), "Build numbered rotamer for protein sidechain." )
+      .def_static( "protein_peptide_bond", &MResidue::protein_peptide_bond, py::arg( "m1" ),
+                   py::arg( "m2" ), py::arg( "r" ) = 1.5, "Test if two peptide are adjacent." )
+      .def_static( "protein_ramachandran_phi", &MResidue::protein_ramachandran_phi, py::arg( "m1" ),
+                   py::arg( "m2" ), "Return Ramachandran phi, or NaN if atoms missing." )
+      .def_static( "protein_ramachandran_psi", &MResidue::protein_ramachandran_psi, py::arg( "m1" ),
+                   py::arg( "m2" ), "Return Ramachandran psi, or NaN if atoms missing." )
+      .def_static( "default_type", &MResidue::default_type, "Return default rotamer library type." )
+      .doc() =
+      "MiniMol monomer (e.g. residue) object.\nThe MiniMol "
+      "monomer object contains a list of clipper::MAtom. "
+      "It has two properties: a sequence number and a type. "
+      "The sequence number need not reflect the order in which "
+      "the monomers are stored in a polymer. MResidue is an alias "
+      "for MMonomer. In addition, it is a clipper::PropertyManager, "
+      "refer documented details in MAtom class.";
 
   pyChain.def(py::init<>())
-      .def_property("id", &MChain::id, &MChain::set_id, "Get/set id.")
-      .def("atom_list", &MChain::atom_list, "Return list of contained atoms.")
-      .def("transform", &MChain::transform, py::arg("rtop"),
-           "Apply transformation to object.")
-      .def("size", &MChain::size, "Return number of monomers in polymer.")
-      .def("__len__", &MChain::size)
-      .def("__repr__",
+      .def_property( "id", &MChain::id, &MChain::set_id, "Get/set id." )
+      .def( "atom_list", &MChain::atom_list, "Return list of contained atoms." )
+      .def( "transform", &MChain::transform, py::arg("rtop"),
+            "Apply transformation to object.", py::return_value_policy::reference_internal )
+      .def( "size", &MChain::size, "Return number of monomers in polymer." )
+      .def( "__len__", &MChain::size )
+      .def( "__repr__",
            [](const MChain &self) {
              std::stringstream stream;
              stream << "<clipper.MChain ";
@@ -270,169 +291,195 @@ void init_minimol(py::module &m) {
             return self[normalise_index(i, self.size())];
           },
           py::arg("i"), py::return_value_policy::reference_internal,
-          "Get residue.")
+          "Get residue." )
       .def(
           "__getitem__",
           [](MChain &self, const std::string &n) -> const MResidue & {
             return self.find(n);
           },
           py::arg("id"), py::return_value_policy::reference_internal,
-          "Get residue.")
+          "Get residue." )
       .def(
           "find",
           [](const MChain &self, const std::string &n, const MM::MODE mode)
               -> const MResidue & { return self.find(n, mode); },
           py::arg("id"), py::arg("mode") = MM::MODE::UNIQUE,
-          py::return_value_policy::reference_internal, "Find residue by id.")
+          py::return_value_policy::reference_internal, "Find residue by id." )
       .def(
           "find",
           [](MChain &self, const std::string &n, const MResidue &res,
              const MM::MODE mode) { self.find(n, mode) = res; },
           py::arg("id"), py::arg("res"), py::arg("mode"),
-          "Find and set residue by id.")
+          "Find and set residue by id." )
       .def(
           "__setitem__",
           [](MChain &self, const int i, const MResidue res) {
             self[normalise_index(i, self.size())] = res;
           },
           py::arg("i"), py::arg("res"),
-          py::return_value_policy::reference_internal, "Set residue.")
+          py::return_value_policy::reference_internal, "Set residue." )
       .def(
           "__setitem__",
           [](MChain &self, const std::string &n, const MResidue res) {
             self.find(n) = res;
           },
           py::arg("id"), py::arg("res"),
-          py::return_value_policy::reference_internal, "Set residue.")
+          py::return_value_policy::reference_internal, "Set residue." )
       .def(
           "__iter__",
           [](MChain &self) {
             return py::make_iterator(&self[0], &self[self.size()]);
           },
           py::keep_alive<0, 1>())
-      .def("insert", &MChain::insert, py::arg("add"), py::arg("pos"),
-           "Add residue to given position.")
-      .def("select", &MChain::select, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Create a copy of this polymer containing only the monomers and "
-           "atoms described by the selection string.")
-      .def("select_index", &MChain::select_index, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Get child indices mathcing the selection criteria.")
-      .def(py::self & py::self, "and operator")
-      .def(py::self | py::self, "or operator")
-      .def("copy_from", &MChain::copy, py::arg("other"),
-           py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+      .def( "insert", &MChain::insert, py::arg("add"), py::arg("pos"),
+            "Add residue to given position." )
+      .def( "select", &MChain::select, py::arg("sel"),
+            py::arg("mode") = MM::MODE::UNIQUE,
+            "Create a copy of this polymer containing only the monomers and "
+            "atoms described by the selection string." )
+      .def( "select_index", &MChain::select_index, py::arg("sel"),
+            py::arg("mode") = MM::MODE::UNIQUE,
+            "Get child indices mathcing the selection criteria." )
+      .def( py::self & py::self, "and operator")
+      .def( py::self | py::self, "or operator")
+      .def( "copy_from", &MChain::copy, py::arg("other"),
+            py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+      .def( py::pickle(
+            [](const MChain &c) { // __getstate__
+                std::vector<MResidue> res;
+                for (size_t i = 0; i < c.size(); ++i)
+                  res.push_back(c[i]);
+                return py::make_tuple(c.id(), res);
+            },
+            [](py::tuple t) { // __setstate__
+                if (t.size() < 2)
+                  throw std::runtime_error("Invalid state, must have 2 elements!");
+                MChain c;
+                c.set_id(t[0].cast<std::string>());
+                for (const auto& r : t[1].cast<std::vector<MResidue>>())
+                  c.insert(r); 
+                return c;   
+            }
+      ))
       .def(
           "copy", [](const MChain &self) { return self; },
           "Return a copy of object. Use this to make copy because "
-          "assignment operator in Python only create bindings not copy.")
+          "assignment operator in Python only create bindings not copy." )
       .def_static("id_tidy", &MChain::id_tidy, py::arg("id"),
                   "Convert ID to standard format.")
       .def_static("id_match", &MChain::id_match, py::arg("id1"), py::arg("id2"),
-                  py::arg("mode") = MM::MODE::UNIQUE, "Compare two ids.")
+                  py::arg("mode") = MM::MODE::UNIQUE, "Compare two ids." )
       .doc() = "MiniMol polymer (e.g. chain) object.\nThe MiniMol "
                "polymer object has one property: an identifying name. "
                "It contains a list of clipper::MMonomer. In addition, "
                "it is a clipper::PropertyManager, refer documented "
                "details in MAtom class.";
 
-  pyModel.def(py::init<>())
-      .def("atom_list", &MModel::atom_list, "Return list of contained atoms")
-      .def("transform", &MModel::transform,
-           "Apply transformation to object.") // maybe can use array/matrix?
-      .def("size", &MModel::size, "Return number of polymers in model.")
-      .def("__len__", &MModel::size)
-      .def("__repr__",
-           [](const MModel &self) {
-             return "<clipper.MModel containing " +
-                    std::to_string(self.size()) + " chain(s)>";
-           })
+  pyModel.def( py::init<>() )
+      .def( "atom_list", &MModel::atom_list, "Return list of contained atoms" )
+      .def( "transform", &MModel::transform,
+            "Apply transformation to object.", py::return_value_policy::reference_internal )  // maybe can use array/matrix?
+      .def( "size", &MModel::size, "Return number of polymers in model." )
+      .def( "__len__", &MModel::size )
+      .def( "__repr__",
+            []( const MModel& self ) {
+              return "<clipper.MModel containing " + std::to_string( self.size() ) + " chain(s)>";
+            } )
       .def(
           "__getitem__",
-          [](MModel &self, const int i) -> const MChain & {
+          []( MModel& self, const int i ) -> const MChain& {
             return self[normalise_index(i, self.size())];
           },
-          py::arg("i")) // py::return_value_policy::reference_internal)
+          py::arg( "i" ), py::return_value_policy::reference_internal )
       .def(
           "__getitem__",
-          [](MModel &self, const std::string &n) -> const MChain & {
-            return self.find(n);
+          []( MModel& self, const std::string& n ) -> const MChain& { return self.find( n ); },
+          py::arg( "n" ), py::return_value_policy::reference_internal )
+      .def(
+          "find",
+          []( const MModel& self, const std::string& n, const MM::MODE mode ) -> const MPolymer& {
+            return self.find( n, mode );
           },
-          py::arg("n")) // py::return_value_policy::reference_internal)
+          py::arg( "n" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+          py::return_value_policy::reference_internal, "Find polymer by id." )
       .def(
           "find",
-          [](const MModel &self, const std::string &n, const MM::MODE mode)
-              -> const MPolymer & { return self.find(n, mode); },
-          py::arg("n"), py::arg("mode") = MM::MODE::UNIQUE,
-          py::return_value_policy::reference_internal, "Find polymer by id.")
-      .def(
-          "find",
-          [](MModel &self, const std::string &n, const MChain &chn,
-             const MM::MODE mode) { self.find(n, mode) = chn; },
-          py::arg("n"), py::arg("chain"), py::arg("mode") = MM::MODE::UNIQUE,
-          "Find and set polymer by id.")
+          []( MModel& self, const std::string& n, const MChain& chn, const MM::MODE mode ) {
+            self.find( n, mode ) = chn;
+          },
+          py::arg( "n" ), py::arg( "chain" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+          "Find and set polymer by id." )
       .def(
           "__setitem__",
-          [](MModel &self, const int i, const MChain chn) {
+          []( MModel& self, const int i, const MChain chn ) {
             self[normalise_index(i, self.size())] = chn;
           },
-          py::return_value_policy::reference_internal)
+          py::return_value_policy::reference_internal )
       .def(
           "__setitem__",
-          [](MModel &self, const std::string &n, const MChain chn) {
-            self.find(n) = chn;
-          },
-          py::return_value_policy::reference_internal)
+          []( MModel& self, const std::string& n, const MChain chn ) { self.find( n ) = chn; },
+          py::return_value_policy::reference_internal )
       .def(
           "__iter__",
-          [](MModel &self) {
-            return py::make_iterator(&self[0], &self[self.size()]);
-          },
-          py::keep_alive<0, 1>())
-      .def("select", &MModel::select, py::arg("selection"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates copy of this model containing only the polymers, "
-           "monomers and atoms described by the selection string. The "
-           "selection string must be of the form \'X/Y/Z\' where X is a "
-           "polymer selection, Y is a monomer selection described "
-           "under MMonomer::select(), and Z is an atom selection "
-           "described under MAtom::select(). The polymer selection must "
-           "contain a polymer ID or a comma separated list of "
-           "polymer IDs, or \"*\" to select all polymers.")
-      .def("select_index", &MModel::select_index, py::arg("selection"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Creates a list of indices of children matching the given "
-           "selection string.")
-      .def("lookup", &MModel::lookup, py::arg("id"), py::arg("mode"),
-           "Lookup polymer by id.")
-      .def("insert", &MModel::insert, py::arg("add"), py::arg("pos") = -1,
-           "Add polymer to given position.")
-      .def(py::self & py::self, "and operator.")
-      .def(py::self | py::self, "or operator.")
-      .def("select_atom_index", &MModel::select_atom_index, py::arg("sel"),
-           py::arg("mode") = MM::MODE::UNIQUE,
-           "Select and return a list of MAtomIndex.")
-      .def("copy_from", &MModel::copy, py::arg("other"),
-           py::arg("mode") = MM::COPY::COPY_C, "Configurable copy function.")
+          []( MModel& self ) { return py::make_iterator( &self[0], &self[self.size()] ); },
+          py::keep_alive<0, 1>() )
+      .def( "select", &MModel::select, py::arg( "selection" ), py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates copy of this model containing only the polymers, "
+            "monomers and atoms described by the selection string. The "
+            "selection string must be of the form \'X/Y/Z\' where X is a "
+            "polymer selection, Y is a monomer selection described "
+            "under MMonomer::select(), and Z is an atom selection "
+            "described under MAtom::select(). The polymer selection must "
+            "contain a polymer ID or a comma separated list of "
+            "polymer IDs, or \"*\" to select all polymers." )
+      .def( "select_index", &MModel::select_index, py::arg( "selection" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE,
+            "Creates a list of indices of children matching the given "
+            "selection string." )
+      .def( "lookup", &MModel::lookup, py::arg( "id" ), py::arg( "mode" ), "Lookup polymer by id." )
+      .def( "insert", &MModel::insert, py::arg( "add" ), py::arg( "pos" ) = -1,
+            "Add polymer to given position." )
+      .def( py::self & py::self, "and operator." )
+      .def( py::self | py::self, "or operator." )
+      .def( "select_atom_index", &MModel::select_atom_index, py::arg( "sel" ),
+            py::arg( "mode" ) = MM::MODE::UNIQUE, "Select and return a list of MAtomIndex." )
+      .def( "copy_from", &MModel::copy, py::arg( "other" ), py::arg( "mode" ) = MM::COPY::COPY_C,
+            "Configurable copy function." )
+      .def( py::pickle(
+            [](const MModel &m) { // __getstate__
+                std::vector<MChain> c;
+                for (size_t i = 0; i < m.size(); ++i)
+                  c.push_back(m[i]);
+                return py::make_tuple(c);
+            },
+            [](py::tuple t) { // __setstate__
+                if (t.size() < 1)
+                  throw std::runtime_error("Invalid state, must have 1 element!");
+                MModel m;
+                for (const auto& c : t[0].cast<std::vector<MChain>>())
+                  m.insert(c);
+                return m;
+            }
+      ))
       .def(
-          "copy", [](const MModel &self) { return self; },
+          "copy", []( const MModel& self ) { return self; },
           "Return a copy of object. Use this to make copy because "
-          "assignment operator in Python only create bindings not copy.")
-      .doc() = "MiniMol model object.\nThe MiniMol model object contains "
-               "a list of clipper::MPolymer. It is a clipper::PropertyManager, "
-               "refer documented details in MAtom class.";
+          "assignment operator in Python only create bindings not copy." )
+      .doc() =
+      "MiniMol model object.\nThe MiniMol model object contains "
+      "a list of clipper::MPolymer. It is a clipper::PropertyManager, "
+      "refer documented details in MAtom class.";
 
   py::class_<MiniMol, MModel> minimol(m, "MiniMol");
   minimol.def(py::init<>())
-      .def(py::init<const Spacegroup &, const Cell &>(), py::arg("spacegroup"),
+      .def(py::init<const Spacegroup&, const Cell&>(), py::arg("spacegroup"),
            py::arg("cell"), "Constructor from spacegroup and cell.")
       .def("init", &MiniMol::init, py::arg("spacegroup"), py::arg("cell"),
            "Initialiser from spacegroup and cell.")
       //.def("__len__", [](const MiniMol &self) { return
       // self.model().size(); })
       .def("__repr__",
-           [](const MiniMol &self) {
+           [](const MiniMol& self) {
              std::stringstream stream;
              stream << "<clipper.MiniMol containing model with ";
              stream << self.model().size() << " chain(s)>";
@@ -441,22 +488,37 @@ void init_minimol(py::module &m) {
       .def_property_readonly("cell", &MiniMol::cell, "Get cell.")
       .def_property_readonly("spacegroup", &MiniMol::spacegroup,
                              "Get spacegroup.")
+      .def(py::pickle(
+        [](const MiniMol &m) { // __getstate__
+            
+            return py::make_tuple(m.spacegroup().symbol_hm(), m.cell(), m.model());
+        },
+        [](py::tuple t) { // __setstate__
+            if (t.size() < 3)
+              throw std::runtime_error("Invalid state, must have 3 elements!");
+            
+            Spacegroup spg(Spgr_descr(t[0].cast<std::string>(), Spgr_descr::TYPE::HM));
+            MiniMol mol(spg, t[1].cast<Cell>());
+            mol.model() = t[2].cast<MModel>();
+            return mol;
+        }
+      ))
       .def(
           "model",
-          [](const MiniMol &self) -> const MModel & { return self.model(); },
+          [](const MiniMol& self) -> const MModel& { return self.model(); },
           py::return_value_policy::reference_internal, "Get model.")
       .def(
-          "model", [](MiniMol &self, MModel mol) { self.model() = mol; },
+          "set_model", [](MiniMol& self, MModel mol) { self.model() = mol; },
           py::return_value_policy::reference_internal, "Set model.")
       .def(
           "copy",
-          [](const MiniMol &self) { return self; }, // new MiniMol(self); },
+          [](const MiniMol& self) { return self; },  // new MiniMol(self); },
           "Return a copy of object. Use this to make copy because "
           "assignment operator in Python only create bindings not copy.")
       .def("is_null", &MiniMol::is_null,
            "Test for null model (Uninitialised). ")
       .def(
-          "is_empty", [](const MiniMol &self) { return (self.size() == 0); },
+          "is_empty", [](const MiniMol& self) { return (self.size() == 0); },
           "Test if MiniMol object is empty.")
       .def("symmetry_atom", &MiniMol::symmetry_atom, py::arg("index"),
            "Return symmetry atom by MAtomIndexSymmetry.");

@@ -87,12 +87,8 @@ void declare_LLK_map_target(py::module &m) {
            "Output formatted representation.")
       .def("__repr__",
            [](LLK_map_target &self) {
-             std::string msg = "<Buccaneer.LLK_map_target with ";
-             if (!self.llk_target().is_null())
-               return msg + clipper::String(self.num_samples()) +
-                      " map samples.>";
-             else
-               return msg + "0 map samples.>";
+             return "<Buccaneer.LLK_map_target>";
+             
            })
       .def("prep_llk_distribution", &LLK_map_target::prep_llk_distribution,
            py::arg("xmap"),

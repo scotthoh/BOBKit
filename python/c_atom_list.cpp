@@ -53,7 +53,7 @@ void init_atomlist(py::module &m) {
           "z", [](const Atom &self) { return self.coord_orth().z(); },
           "Get atom z coordinate.")
       .def("transform", &Atom::transform, py::arg("rtop"),
-           "Apply a rotation-translation operator (RTop) to the atom.")
+           "Apply a rotation-translation operator (RTop) to the atom.", py::return_value_policy::reference_internal)
       .def("is_null", &Atom::is_null,
            "Test for null atom: atom is null if coord is null.")
       .def_static("null", &Atom::null, "Return null atom.")
@@ -66,6 +66,41 @@ void init_atomlist(py::module &m) {
              return "<clipper.Atom " + self.element().trim() + " " +
                     self.coord_orth().format() + ">";
            })
+      .def(py::pickle(
+        [](const Atom &a) { // __getstate__
+          //std::vector<ftype> co(3);
+          //co[0] = a.coord_orth().x();
+          //co[1] = a.coord_orth().y();
+          //co[2] = a.coord_orth().z();
+          //std::vector<ftype> aniso(6);
+          //aniso[0] = a.u_aniso_orth().mat00();
+          //aniso[1] = a.u_aniso_orth().mat11();
+          //aniso[2] = a.u_aniso_orth().mat22();
+          //aniso[3] = a.u_aniso_orth().mat01();
+          //aniso[4] = a.u_aniso_orth().mat02();
+          //aniso[5] = a.u_aniso_orth().mat12();
+          
+          return py::make_tuple(a.element(), a.coord_orth(), a.occupancy(), a.u_iso(), a.u_aniso_orth());
+        },
+        [](py::tuple t) { // __setstate__
+          if (t.size() != 5)
+            throw std::runtime_error("Invalid state!");
+          
+            Atom a;
+            a.set_element(t[0].cast<std::string>());
+            a.set_coord_orth(t[1].cast<Coord_orth>()); //Coord_orth(t[1][0].cast<ftype>(), t[1][1].cast<ftype>(), t[1][2].cast<ftype>()));
+            //auto t1 = t[1];
+            //a.set_coord_orth(Coord_orth(t1[0].cast<ftype>(), t1[1].cast<ftype>(), t1[2].cast<ftype>()));
+            a.set_occupancy(t[2].cast<ftype>());
+            a.set_u_iso(t[3].cast<ftype>());
+            a.set_u_aniso_orth(t[4].cast<U_aniso_orth>()); //(t[2][0].cast<ftype>(),t[2][1].cast<ftype>(),t[2][2].cast<ftype>(),t[2][3].cast<ftype>(),t[2][4].cast<ftype>(),t[2][5].cast<ftype>() ));
+            //auto t2 = std::get<2>(t);
+            //a.set_u_aniso_orth(U_aniso_orth(t2[0].cast<ftype>(),t2[1].cast<ftype>(),t2[2].cast<ftype>(),t2[3].cast<ftype>(),t2[4].cast<ftype>(),t2[5].cast<ftype>() ));
+
+            return a;
+
+        }
+      ))
       .doc() = "Atom class.\nThis class defines a minimal atom object "
                "providing only those properties required for an electron "
                "density calculation. A template constructor allows it to be "

@@ -602,7 +602,7 @@ template <class T>
 void declare_CHKL_data(py::module &m, const char *class_name,
                        const char *dtype) {
   using Class = CHKL_data<T>;
-  std::string pyclass_name = std::string("CHKL_data_") + class_name + dtype;
+  auto pyclass_name = std::string("CHKL_data_") + class_name + dtype;
   py::class_<Class, /*std::unique_ptr<Class, Deleter<Class>>,*/ Container,
              HKL_data<T>>(m, pyclass_name.c_str())
       .def(py::init<>())

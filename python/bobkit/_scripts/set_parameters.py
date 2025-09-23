@@ -165,6 +165,14 @@ class BucArgParse:
             help="Input molecular replacement model.",
         )
         _GROUP.add_argument(
+            "--model-in-seq",
+            dest="model_in_seq",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help="Input model with prior sequence."
+        )
+        _GROUP.add_argument(
             "--output-model",
             dest="model_out",
             type=str,
@@ -179,6 +187,14 @@ class BucArgParse:
             default="NONE",
             metavar="X",
             help="Output filename used for simulated map.",
+        )
+        _GROUP.add_argument(
+            "--output-sim-refmap",
+            dest="sim_refmapout",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help="Output filename used for simulated reference map."
         )
         _GROUP.add_argument(
             "--xmlout",
@@ -380,6 +396,28 @@ class BucArgParse:
             # default="False",
             # metavar="Build MSE",
             help="Build Selenmethionine instead of methionine.",
+        )
+        _GROUP.add_argument(
+            "--use-ml-find",
+            dest="use_ml_find",
+            action="store_true",
+            help="Will use machine learning outputs given in finding step"
+        )
+        _GROUP.add_argument(
+            "--sequence-method",
+            dest="sequence_method",
+            default="default",
+            choices=["default", "mlinput", "hybrid"],
+            metavar="default | mlinput | hybrid",
+            help=("Specify sequencing method. Default is Buccaneer's default method."
+                  "mlinput is to use machine learning outputs. hybrid is a mixture of both.")
+        )
+        _GROUP.add_argument(
+            "--apply-shiftback-mlfind",
+            dest="shiftback",
+            action="store_true",
+            help=("Look for and apply shifts in cutout.pdb output from PHENIX "
+                  "mapcut when making P1 maps.")
         )
         _GROUP.add_argument(
             "--anisotropy-correction",
@@ -623,6 +661,17 @@ class BucArgParse:
             help="Set filter sigma for molecular replacement model.",
         )
         _GROUP.add_argument(
+            "--aa-instance-directory",
+            dest="aa_instance_directory",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help=(
+                "Directory containing numpy files density and inst_pred "
+                "for starting positions of amino acid instances from machine learning output."
+            ),
+        )
+        _GROUP.add_argument(
             "--verbose",
             dest="verbose",
             type=int,
@@ -646,13 +695,15 @@ class BuccaneerParams:
     outfile_name: str
     xmlout: str  # = "output.xml"
     mapout: str  # output simulated map, what buccaneer sees
+    refmapout: str  # output simulated reference map
     pdbin: str
     mtzin: str
     mapin: str
     pdbin_ref: str
     mtzin_ref: str
     pdbin_mr: str
-
+    pdbin_seq: str
+    aa_instance_directory: str
     # columns
     title: str
     ipcol_ref_fo: str  # "FP.F_sigF.F,FP.F_sigF.sigF"
@@ -688,9 +739,12 @@ class BuccaneerParams:
     prune: bool  # = True  # False  #
     build: bool  # = True  # False  #
     semet: bool  # further options
+    use_ml_find: bool
+    sequence_method: str
+    shiftback: bool
     optemp: bool  # false
     # fast mode Ca_find.TYPE.SECSTRUC else Ca_find.TYPE.LIKELIHOOD
-    findtype: bool
+    findtype: Ca_find.TYPE
     correl: bool
     tidy: bool  # = True
     fixpos: bool  # = False
@@ -722,6 +776,11 @@ class BuccaneerParams:
         mapin: str = "NONE",
         pdbin: str = "NONE",
         pdbin_mr: str = "NONE",
+        pdbin_seq: str = "NONE",
+        aa_instance_directory: str = "NONE",
+        use_ml_find: bool = False,
+        sequence_method: str = "default",
+        shifback: bool = False,
         outfile_name: str = "buccaneer_build.pdb",
         xmlout: str = "summary.xml",
         write_pdb: bool = True,
@@ -732,6 +791,11 @@ class BuccaneerParams:
         self.mapin = mapin
         self.pdbin = pdbin
         self.pdbin_mr = pdbin_mr
+        self.pdbin_seq = pdbin_seq
+        self.aa_instance_directory = aa_instance_directory
+        self.use_ml_find = use_ml_find
+        self.sequence_method = sequence_method
+        self.shiftback = shifback
         self.verbose = verbose
         self.title = title
         self.ipseq_wrk = seqin
@@ -743,7 +807,7 @@ class BuccaneerParams:
         self.write_cif = write_cif
         self.set_outfile(outfile_name)
         self.set_xmlout(xmlout)
-        self.set_write_simulated_map("NONE")
+        self.set_write_simulated_map("NONE", "NONE")
         self.set_resolution(res_in)
         self.set_nfrag()
         self.set_nfragr()
@@ -777,6 +841,11 @@ class BuccaneerParams:
         self.mapin = args.mapin
         self.pdbin = args.model_in
         self.pdbin_mr = args.model_in_mr
+        self.pdbin_seq = args.model_in_seq
+        self.aa_instance_directory = args.aa_instance_directory
+        self.use_ml_find = args.use_ml_find
+        self.sequence_method = args.sequence_method
+        self.shiftback = args.shiftback
         self.verbose = args.verbose
         self.title = args.title
         self.ipseq_wrk = args.seqin
@@ -799,7 +868,7 @@ class BuccaneerParams:
         self.write_cif = not args.no_write_cif
         self.set_outfile(args.model_out)
         self.set_xmlout(args.xmlout)
-        self.set_write_simulated_map(args.sim_mapout)
+        self.set_write_simulated_map(args.sim_mapout, args.sim_refmapout)
         self.set_resolution(args.resolution)
         self.set_nfrag(args.fragments)
         self.set_nfragr(args.fragments_per_100_residues)
@@ -848,8 +917,9 @@ class BuccaneerParams:
     def set_outfile(self, outfile_name: str = "buccaneer_build"):
         self.outfile_name = outfile_name
 
-    def set_write_simulated_map(self, mapout: str = "NONE"):
+    def set_write_simulated_map(self, mapout: str = "NONE", refmapout: str = "NONE"):
         self.mapout = mapout
+        self.refmapout = refmapout
 
     def set_xmlout(self, xmlout: str = "NONE"):
         self.xmlout = xmlout
