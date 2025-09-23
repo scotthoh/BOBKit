@@ -241,8 +241,7 @@ add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
-#set(clipper_src_path "${clipper_dep_path}/src/clipper")
-set(clipper_src_path "/Users/swh514/Work/development/clipper/clipper_bobkit_303")
+set(clipper_src_path "${clipper_dep_path}/src/clipper")
 set(clipper_bin_path "${clipper_dep_path}/src/clipper_ex-build/")
 
 set(lib_clippercore ${lib_prefix}clipper-core${lib_suffix})
@@ -255,8 +254,8 @@ ExternalProject_add(project_clipper
                     PREFIX ${clipper_dep_path}
                     SOURCE_DIR ${clipper_src_path}
                     BINARY_DIR ${clipper_bin_path}
-                    #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
-                    #GIT_TAG v3.0.3-dev
+                    GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
+                    GIT_TAG v3.0.3-dev
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
