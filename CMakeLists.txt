@@ -387,11 +387,11 @@ add_custom_command(TARGET buc_py PRE_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py 
   BYPRODUCTS ${py_dir}/bobkit/__init__.py
 )
-add_custom_command(TARGET buc_py PRE_BUILD
-  COMMENT "Copying bobkit/_buccaneer.py"
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_buccaneer.py" ${py_dir}/bobkit/_buccaneer.py 
-  BYPRODUCTS ${py_dir}/bobkit/_buccaneer.py
-)
+#add_custom_command(TARGET buc_py PRE_BUILD
+#  COMMENT "Copying bobkit/_buccaneer.py"
+#  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_buccaneer.py" ${py_dir}/bobkit/_buccaneer.py 
+#  BYPRODUCTS ${py_dir}/bobkit/_buccaneer.py
+#)
 add_custom_command(TARGET buc_py PRE_BUILD
   COMMENT "Copying bobkit/_util.py"
   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_util.py" ${py_dir}/bobkit/_util.py 
@@ -420,7 +420,7 @@ if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "$ORIGIN/${rpath_rel}")
 endif()
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_scripts" DESTINATION "${Python_SITEARCH}/bobkit"
