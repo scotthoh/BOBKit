@@ -1,32 +1,30 @@
-// Wrapper for buccaneer-find
+// Nanobind bindings for buccaneer-find
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-find.h"
-#include <pybind11/attr.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "commons.h"
+#include <nanobind/stl/vector.h>
 
-#include "type_conversions.h"
 
-namespace py = pybind11;
 using namespace clipper;
 
-void declare_search_result(py::module &m) {
-  py::class_<SearchResult>(m, "SearchResult")
-      .def(py::init<>())
-      .def(py::init([](const ftype32 &score, const int &rot, const int &trn) {
+void declare_search_result(nb::module_ &m) {
+  nb::class_<SearchResult>(m, "SearchResult")
+      .def(nb::init<>())
+      .def("__init__", [](SearchResult *sr, const ftype32 &score, const int &rot, const int &trn) {
              // SearchResult *result{score, rot, trn} = ;
-             return std::unique_ptr<SearchResult>(
-                 new SearchResult({score, rot, trn}));
-           }),
-           py::arg("score"), py::arg("rot_ind"), py::arg("trn_ind"))
-      .def_readwrite("score", &SearchResult::score)
-      .def_readwrite("rot", &SearchResult::rot)
-      .def_readwrite("trn", &SearchResult::trn)
-      .def("__lt__", &SearchResult::operator<, py::is_operator())
+             new ( sr ) SearchResult({score, rot, trn});
+             //return std::unique_ptr<SearchResult>(
+             //    new SearchResult({score, rot, trn}));
+           },
+           nb::arg("score"), nb::arg("rot_ind"), nb::arg("trn_ind"))
+      .def_rw("score", &SearchResult::score)
+      .def_rw("rot", &SearchResult::rot)
+      .def_rw("trn", &SearchResult::trn)
+      .def("__lt__", &SearchResult::operator<, nb::is_operator())
       .def("__str__",
            [](const SearchResult self) {
              return (String(self.score, 6, 4) + "," + String(self.rot) + "," +
@@ -42,20 +40,20 @@ void declare_search_result(py::module &m) {
       .doc() = "Results class.";
 }
 
-void declare_ca_find(py::module &m) {
-  py::class_<Ca_find> ca_find(m, "Ca_find",
+void declare_ca_find(nb::module_ &m) {
+  nb::class_<Ca_find> ca_find(m, "Ca_find",
                               "Class for finding Ca's from density.");
 
-  py::enum_<Ca_find::TYPE>( ca_find, "TYPE", "Find methods." )
+  nb::enum_<Ca_find::TYPE>( ca_find, "TYPE", "Find methods." )
       .value( "LIKELIHOOD", Ca_find::TYPE::LIKELIHOOD )
       .value( "SECSTRUC", Ca_find::TYPE::SECSTRUC )
       //.value( "CENTROIDS", Ca_find::TYPE::CENTROIDS )
       .export_values();
 
-  ca_find.def( py::init<int, double>(), py::arg( "n_find" ) = 500, py::arg( "resol" ) = 1.0 )
-      .def( "__call__", &Ca_find::operator(), py::arg( "mol" ), py::arg( "knownstruc" ),
-            py::arg( "xmap" ), py::arg( "llktarget" ),
-            py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, py::arg( "modelindex" ) = 0,
+  ca_find.def( nb::init<int, double>(), nb::arg( "n_find" ) = 500, nb::arg( "resol" ) = 1.0 )
+      .def( "__call__", &Ca_find::operator(), nb::arg( "mol" ), nb::arg( "knownstruc" ),
+            nb::arg( "xmap" ), nb::arg( "llktarget" ),
+            nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "modelindex" ) = 0,
             "Find Ca using density." )
       //.def(
       //    "__call__",
@@ -64,8 +62,8 @@ void declare_ca_find(py::module &m) {
       //        const Ca_find::TYPE type, const int modelindex ) {
       //      return self( mol, knownstruc, xmap, llktarget, type, modelindex );
       //    },
-      //    py::arg( "mol" ), py::arg( "knownstruc" ), py::arg( "xmap" ), py::arg( "llktarget" ),
-      //    py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, py::arg( "modelindex" ) = 0,
+      //    nb::arg( "mol" ), nb::arg( "knownstruc" ), nb::arg( "xmap" ), nb::arg( "llktarget" ),
+      //    nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "modelindex" ) = 0,
       //    "Find Ca using density." )
       //.def(
       //    "__call__",
@@ -75,61 +73,57 @@ void declare_ca_find(py::module &m) {
       //        const int modelindex ) {
       //      return self( mol, knownstruc, xmap, llktarget, aa_instance, type, modelindex );
       //    },
-      //    py::arg( "mol" ), py::arg( "knownstruc" ), py::arg( "xmap" ), py::arg( "llktarget" ),
-      //    py::arg( "centroids" ), py::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD,
-      //    py::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
-      .def_static( "set_cpus", &Ca_find::set_cpus, py::arg( "ncpus" ),
+      //    nb::arg( "mol" ), nb::arg( "knownstruc" ), nb::arg( "xmap" ), nb::arg( "llktarget" ),
+      //    nb::arg( "centroids" ), nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD,
+      //    nb::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
+      .def_static( "set_cpus", &Ca_find::set_cpus, nb::arg( "ncpus" ),
                    "Set number of cpu threads to use." )
       .def( "set_starting_instance_coords", &Ca_find::set_starting_instance_coords,
             //( void( Ca_find::* )( const std::vector<clipper::Coord_orth>&, const Xmap<float>&,
             //      const LLK_map_target& llktgt, const Ca_find::TYPE type ) ) &
             //    Ca_find::set_starting_instance_coords,
-            py::arg( "aa_instance" ), py::arg( "xmap" ), py::arg("llktarget"),
-            py::arg("type") = Ca_find::TYPE::LIKELIHOOD, py::arg("refine_coords") = false,
+            nb::arg( "aa_instance" ), nb::arg( "xmap" ), nb::arg("llktarget"),
+            nb::arg("type") = Ca_find::TYPE::LIKELIHOOD, nb::arg("refine_coords") = false,
             "Set starting instance coordinates from a list of orthogonal coordinates of amino acid "
             "instances." )
       .def( "__repr__", []( const Ca_find& self ) {
-        std::stringstream stream;
-        stream << "<buccaneer.Ca_find class>";
-        return stream.str();
+        return "<buccaneer.Ca_find class>";
       } );
 }
 
-void declare_search_threaded(py::module &m) {
-  py::class_<Search_threaded>(m, "Search_threaded",
+void declare_search_threaded(nb::module_ &m) {
+  nb::class_<Search_threaded>(m, "Search_threaded",
                               "Class with thread methods to search Ca groups.")
-      .def(py::init<>())
-      .def(py::init<const Xmap<int> &, const FFFear_fft<float> &,
+      .def(nb::init<>())
+      .def(nb::init<const Xmap<int> &, const FFFear_fft<float> &,
                     const LLK_map_target &, const std::vector<RTop_orth> &,
                     const int>(),
-           py::arg("xlookp1"), py::arg("srch"), py::arg("llktarget"),
-           py::arg("RToperators"), py::arg("lresult"))
-      .def("set_range", &Search_threaded::set_range, py::arg("n1"),
-           py::arg("n2"), "Set search range.")
-      .def("search", &Search_threaded::search, py::arg("op"),
+           nb::arg("xlookp1"), nb::arg("srch"), nb::arg("llktarget"),
+           nb::arg("RToperators"), nb::arg("lresult"))
+      .def("set_range", &Search_threaded::set_range, nb::arg("n1"),
+           nb::arg("n2"), "Set search range.")
+      .def("search", &Search_threaded::search, nb::arg("op"),
            "Search Ca groups.")
-      .def_property_readonly("results", &Search_threaded::results,
+      .def_prop_ro("results", &Search_threaded::results,
                              "Return search results.")
-      .def("__call__", &Search_threaded::operator(), py::arg("nthread") = 0,
+      .def("__call__", &Search_threaded::operator(), nb::arg("nthread") = 0,
            "Run single or multi-threaded.")
-      .def("merge", &Search_threaded::merge, py::arg("other"),
+      .def("merge", &Search_threaded::merge, nb::arg("other"),
            "Merge results from multiple threads.")
       .def("__repr__",
            [](const Search_threaded &self) {
-             std::stringstream stream;
-             stream << "<buccaneer.Search_threaded class>";
-             return stream.str();
+             return "<buccaneer.Search_threaded class>";
            })
       // inherited function/property
-      .def_property_readonly("id", &Search_threaded::id, "Return thread id.");
+      .def_prop_ro("id", &Search_threaded::id, "Return thread id.");
 }
 
-void declare_ssfind(py::module &m) {
-  py::class_<SSfind> ssfind(
+void declare_ssfind(nb::module_ &m) {
+  nb::class_<SSfind> ssfind(
       m, "SSfind",
       "Class for fast secondary structure finding (alternative to fffear).");
 
-  py::enum_<SSfind::SSTYPE>(ssfind, "TYPE", "Secondary structure type.")
+  nb::enum_<SSfind::SSTYPE>(ssfind, "TYPE", "Secondary structure type.")
       .value("ALPHA2", SSfind::SSTYPE::ALPHA2)
       .value("ALPHA3", SSfind::SSTYPE::ALPHA3)
       .value("ALPHA4", SSfind::SSTYPE::ALPHA4)
@@ -138,84 +132,77 @@ void declare_ssfind(py::module &m) {
       .value("BETA4", SSfind::SSTYPE::BETA4)
       .export_values();
 
-  ssfind.def( py::init<>() )
-      .def( "prep_xmap", &SSfind::prep_xmap, py::arg( "xmap" ), py::arg( "radius" ),
+  ssfind.def( nb::init<>() )
+      .def( "prep_xmap", &SSfind::prep_xmap, nb::arg( "xmap" ), nb::arg( "radius" ),
             "Prepare target map." )
-      .def( "prep_search", ( void( SSfind::* )( const Xmap<float>& ) ) & SSfind::prep_search,
-            py::arg( "xmap" ), "Prepare search with given map." )
+      .def( "prep_search", nb::overload_cast<const Xmap<float>&> ( & SSfind::prep_search ),
+          //( void( SSfind::* )( const Xmap<float>& ) ) & SSfind::prep_search,
+            nb::arg( "xmap" ), "Prepare search with given map." )
       .def( "prep_search",
-            ( void( SSfind::* )( const Xmap<float>&, const double, const double,
-                                 const Coord_orth ) ) &
-                SSfind::prep_search,
-            py::arg( "xmap" ), py::arg( "rhocut" ), py::arg( "radcut" ), py::arg( "centre" ),
+            nb::overload_cast<const Xmap<float>&, const double, const double, const Coord_orth>( &
+                SSfind::prep_search ),
+            nb::arg( "xmap" ), nb::arg( "rhocut" ), nb::arg( "radcut" ), nb::arg( "centre" ),
             "Prepare search with given map, density and radius cutoff, centre "
             "coordinates." )
       .def( "prep_search",
-            ( void( SSfind::* )( const Xmap<float>&, const std::vector<clipper::Coord_grid>& ) ) &
-                SSfind::prep_search,
-            py::arg( "xmap" ), py::arg( "centroids" ),
+            nb::overload_cast<const Xmap<float>&, const std::vector<clipper::Coord_grid>&> ( &
+                SSfind::prep_search ),
+            nb::arg( "xmap" ), nb::arg( "centroids" ),
             "Prepare search with given map, density and radius cutoff, centre "
             "coordinates." )
-      .def( "search", &SSfind::search, py::arg( "target_coords" ), py::arg( "op" ),
-            py::arg( "rhocut" ), py::arg( "frccut" ) = 0.0, "Search secondary structure elements." )
+      .def( "search", &SSfind::search, nb::arg( "target_coords" ), nb::arg( "op" ),
+            nb::arg( "rhocut" ), nb::arg( "frccut" ) = 0.0, "Search secondary structure elements." )
       .def( "__repr__", []( const SSfind& self ) {
-        std::stringstream stream;
-        stream << "<buccaneer.SSfind class>";
-        return stream.str();
+        return "<buccaneer.SSfind class>";
       } );
 
   using Class = SSfind::Target;
-  py::class_<Class> target(ssfind, "Target",
+  nb::class_<Class> target(ssfind, "Target",
                            "Class to hold target coordinates.");
   target
-      .def(py::init<SSfind::SSTYPE, int>(), py::arg("type"),
-           py::arg("num_residues"),
+      .def(nb::init<SSfind::SSTYPE, int>(), nb::arg("type"),
+           nb::arg("num_residues"),
            "Constructor with secondary structure type and number of residues.")
-      .def_property_readonly("target_coords", &Class::target_coords,
+      .def_prop_ro("target_coords", &Class::target_coords,
                              "Return list of target coordinates pairs")
-      .def_property_readonly("calpha_coords", &Class::calpha_coords,
+      .def_prop_ro("calpha_coords", &Class::calpha_coords,
                              "Return list of C-alpha coordinates")
       .def("__repr__", [](Class &self) {
-        std::stringstream stream;
-        stream << "<buccaneer.SSfind.Target with backbone coordinates for ";
-        stream << self.calpha_coords().size() << " residues.>";
-        return stream.str();
+        return "<buccaneer.SSfind.Target with backbone coordinates for " + String(int(self.calpha_coords().size())) + " residues.>";
       });
 }
 
-void declare_search_op_aa_instance( py::module &m ){
-  py::class_<Search_op_aa_instance_threaded>(m, "Search_op_aa_instance_threaded",
+void declare_search_op_aa_instance( nb::module_ &m ){
+  nb::class_<Search_op_aa_instance_threaded>(m, "Search_op_aa_instance_threaded",
                               "Class for searching RTop for Ca positions from centroids.")
-      .def(py::init<>())
-      .def(py::init<const Xmap<float> &, const std::vector<Coord_grid>&,
+      .def(nb::init<>())
+      .def(nb::init<const Xmap<float> &, const std::vector<Coord_grid>&,
                     const FFFear_fft<float> &, const LLK_map_target &,
                     const std::vector<RTop_orth> &, const int>(),
-           py::arg("xmap"), py::arg("aa_instances"), py::arg("srch"), py::arg("llktarget"),
-           py::arg("RToperators"), py::arg("lresult"))
-      .def("set_range", &Search_op_aa_instance_threaded::set_range, py::arg("n1"),
-           py::arg("n2"), "Set search range.")
-      .def("search_op", &Search_op_aa_instance_threaded::search_op, py::arg("op"),
+           nb::arg("xmap"), nb::arg("aa_instances"), nb::arg("srch"), nb::arg("llktarget"),
+           nb::arg("RToperators"), nb::arg("lresult"))
+      .def("set_range", &Search_op_aa_instance_threaded::set_range, nb::arg("n1"),
+           nb::arg("n2"), "Set search range.")
+      .def("search_op", &Search_op_aa_instance_threaded::search_op, nb::arg("op"),
            "Search RTop for amino acid instances.")
-      .def_property_readonly("results", &Search_op_aa_instance_threaded::results,
+      .def_prop_ro("results", &Search_op_aa_instance_threaded::results,
                              "Return search results.")
-      .def("__call__", &Search_op_aa_instance_threaded::operator(), py::arg("nthread") = 0,
+      .def("__call__", &Search_op_aa_instance_threaded::operator(), nb::arg("nthread") = 0,
            "Run single or multi-threaded.")
-      .def("merge", &Search_op_aa_instance_threaded::merge, py::arg("other"),
+      .def("merge", &Search_op_aa_instance_threaded::merge, nb::arg("other"),
            "Merge results from multiple threads.")
       .def("__repr__",
            [](const Search_op_aa_instance_threaded &self) {
-             std::stringstream stream;
-             stream << "<buccaneer.Search_op_aa_instance_threaded class>";
-             return stream.str();
+             return "<buccaneer.Search_op_aa_instance_threaded class>";
            })
       // inherited function/property
-      .def_property_readonly("id", &Search_op_aa_instance_threaded::id, "Return thread id.");
+      .def_prop_ro("id", &Search_op_aa_instance_threaded::id, "Return thread id.");
 }
 
 // Target_fn_refine_llk_map_target defined in b_simplex.cpp
 // to be within same scope as Target_fn_zero_order trampoline definition
 
-void init_ca_find(py::module &m) {
+void add_ca_find(nb::module_ &m) {
   declare_search_result(m);
   declare_ca_find(m);
   declare_search_threaded(m);

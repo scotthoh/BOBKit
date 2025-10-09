@@ -5,7 +5,7 @@
 #ifndef BUCCANEER_UTIL
 #define BUCCANEER_UTIL
 
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 
 class BuccaneerUtil {

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core>=0.5.0", "pybind11>=2.6.2"]
+requires = ["scikit-build-core", "nanobind >=2.4", "typing-extensions >=4.0; python_version < '3.11'", "scipy>=1.13", "gemmi>0.7.0", "scikit-learn>=1.6"]
 build-backend = "scikit_build_core.build"
 
 # edit from here
@@ -22,7 +22,7 @@ classifiers = [
 "Programming Language :: C++",
 "Programming Language :: Python :: 3",
 ]
-dependencies = ["numpy<2.0.0"]
+dependencies = ["numpy<2.0.0", "scipy>=1.13", "scikit-learn>=1.6"]
 dynamic = ["version"]
 
 [project.urls]
@@ -64,7 +64,7 @@ pybuccaneer = "bobkit._scripts.buccaneer:main"
 [tool.scikit-build.cmake.define]
 BUCCANEER_PROFILE = "ON"
 BUILD_OWN_FFTW3 = "ON"
-# GENERATE_STUBS = "ON"
+GENERATE_STUBS = "ON"
 
 # Get version from python/version.hpp file
 [tool.scikit-build.metadata.version]

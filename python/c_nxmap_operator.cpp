@@ -4,55 +4,46 @@
 // York Structural Biology Laboratory
 // The University of York
 
-#include "helper_functions.h"
-#include "type_conversions.h"
+#include "commons.h"
 #include <clipper/clipper.h>
-// #include <clipper/core/clipper_types.h>
-// #include <clipper/core/clipper_util.h>
-#include <pybind11/detail/common.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
 
-namespace py = pybind11;
 using namespace clipper;
 
 template<class Base, class I, class T, class M>
-void add_get_map_data_methods(py::class_<Base> &pyclass, const char *map_type, const char *interp_data_type) {
+void add_get_map_data_methods(nb::class_<Base> &pyclass, const char *map_type, const char *interp_data_type) {
   auto fn_name = map_type + std::string( "_data_" ) + interp_data_type;
   if (std::is_same<M, NXmap<T>>::value ) {
     pyclass.def( fn_name.c_str(), [](Base &self, const M& map, const Coord_grid& c) {
       return self.template nxmap_data<I, T>(map, c);
-    }, py::arg("nxmap"), py::arg("coord_grid"),
+    }, nb::arg("nxmap"), nb::arg("coord_grid"),
     "Get value of nxmap at xmap grid coord using fastest appropriate method");
   }
   if (std::is_same<M, Xmap<T>>::value ) {
     pyclass.def( fn_name.c_str(), [](Base &self, const M& map, const Coord_grid& c) {
       return self.template xmap_data<I, T>(map, c);
-    }, py::arg("xmap"), py::arg("coord_grid"),
+    }, nb::arg("xmap"), nb::arg("coord_grid"),
     "Get value of xmap at nxmap grid coord using fastest appropriate method");
   }
 }
 
-void declare_nxoperator(py::module &m)
+void declare_nxoperator(nb::module_ &m)
 {
-  py::class_<NX_operator> nx_op(m, "NX_operator");
+  nb::class_<NX_operator> nx_op(m, "NX_operator");
   nx_op
-      .def(py::init<>(), "Null constructor")
-      .def(py::init<const Xmap_base &, const NXmap_base &, const RTop_orth &>(),
-           py::arg("xmap"), py::arg("nxmap"), py::arg("rtop"),
+      .def(nb::init<>(), "Null constructor")
+      .def(nb::init<const Xmap_base &, const NXmap_base &, const RTop_orth &>(),
+           nb::arg("xmap"), nb::arg("nxmap"), nb::arg("rtop"),
            "Constructor: from Xmap, NXmap, and operator")
-      .def(py::init<const Cell &, const Grid_sampling &, const NXmap_base &, const RTop_orth &>(),
-           py::arg("cell"), py::arg("grid"), py::arg("nxmap"), py::arg("rtop"),
+      .def(nb::init<const Cell &, const Grid_sampling &, const NXmap_base &, const RTop_orth &>(),
+           nb::arg("cell"), nb::arg("grid"), nb::arg("nxmap"), nb::arg("rtop"),
            "Constructor: from cell, grid sampling, NXmap, and operator")
       .def("init", (void(NX_operator::*)(const Xmap_base &, const NXmap_base &, const RTop_orth &)) & NX_operator::init,
-           py::arg("xmap"), py::arg("nxmap"), py::arg("rtop"), "Initialiser: from Xmap, NXmap, and operator")
+           nb::arg("xmap"), nb::arg("nxmap"), nb::arg("rtop"), "Initialiser: from Xmap, NXmap, and operator")
       .def("init", (void(NX_operator::*)(const Cell &, const Grid_sampling &, const NXmap_base &, const RTop_orth &)) & NX_operator::init,
-           py::arg("cell"), py::arg("grid"), py::arg("nxmap"), py::arg("rtop"),
+           nb::arg("cell"), nb::arg("grid"), nb::arg("nxmap"), nb::arg("rtop"),
            "Initialiser: from cell, grid sampling, NXmap, and operator")
-      .def("coord_map", &NX_operator::coord_map, py::arg("coord_frac"), "Convert xtal frac coord to nxmap map coord")
-      .def("coor_frac", &NX_operator::coord_frac, py::arg("coord_map"), "Convert nxmap map coord to xtal frac coord")
+      .def("coord_map", &NX_operator::coord_map, nb::arg("coord_frac"), "Convert xtal frac coord to nxmap map coord")
+      .def("coor_frac", &NX_operator::coord_frac, nb::arg("coord_map"), "Convert nxmap map coord to xtal frac coord")
       .def("is_null", &NX_operator::is_null, "Test if object has been initialised.")
       //.def("nxmap_data_linear_float", &NX_operator)
       .doc() = "NX_operator: non-crystal map operator\n"
@@ -75,20 +66,20 @@ void declare_nxoperator(py::module &m)
 }
 
 template<class T>
-void declare_nxmap_operator(py::module &m, const std::string &name){
+void declare_nxmap_operator(nb::module_ &m, const std::string &name){
   using Class = NXmap_operator<T>;
   std::string PyClass = std::string("NXmap_operator_") + name;
-  py::class_<Class, NX_operator>(m, PyClass.c_str())
-    .def(py::init<>(), "Null constructor")
-    .def(py::init<const Xmap_base &, const NXmap<T> &, const RTop_orth &>(),
-         py::arg("xmap"), py::arg("nxmap"), py::arg("rtop"), "Constructor: from Xmap, NXmap, and operator.")
-    .def(py::init<const Cell &, const Grid_sampling &, const NXmap<T> &, const RTop_orth &>(),
-         py::arg("cell"), py::arg("grid"), py::arg("nxmap"), py::arg("rtop"),
+  nb::class_<Class, NX_operator>(m, PyClass.c_str())
+    .def(nb::init<>(), "Null constructor")
+    .def(nb::init<const Xmap_base &, const NXmap<T> &, const RTop_orth &>(),
+         nb::arg("xmap"), nb::arg("nxmap"), nb::arg("rtop"), "Constructor: from Xmap, NXmap, and operator.")
+    .def(nb::init<const Cell &, const Grid_sampling &, const NXmap<T> &, const RTop_orth &>(),
+         nb::arg("cell"), nb::arg("grid"), nb::arg("nxmap"), nb::arg("rtop"),
          "Constructor: from cell, grid sampling, NXmap, and operator.")
     .def("init", (void(Class::*)(const Xmap_base &, const NXmap<T> &, const RTop_orth &)) &  Class::init,
-         py::arg("xmap"), py::arg("nxmap"), py::arg("rtop"), "Initialiser: from Xmap, NXmap, and operator")
+         nb::arg("xmap"), nb::arg("nxmap"), nb::arg("rtop"), "Initialiser: from Xmap, NXmap, and operator")
     .def("init", (void(Class::*)(const Cell &, const Grid_sampling &, const NXmap<T> &, const RTop_orth &)) & Class::init,
-         py::arg("cell"), py::arg("grid"), py::arg("nxma"), py::arg("rtop"), 
+         nb::arg("cell"), nb::arg("grid"), nb::arg("nxma"), nb::arg("rtop"), 
          "Initialiser: from Xmap, NXmap, and operator")
     .def("nxmap", &Class::nxmap, "Get the target NXmap of this operator.")
     .def("nxmap_data_interp_linear", [](Class &self, const Coord_grid &c) {
@@ -116,7 +107,7 @@ void declare_nxmap_operator(py::module &m, const std::string &name){
 
 }
 
-void init_nxmap_operator(py::module &m) {
+void add_nxmap_operator(nb::module_ &m) {
   declare_nxoperator(m);
   declare_nxmap_operator<ftype32>(m, "float");
   declare_nxmap_operator<ftype64>(m, "double");

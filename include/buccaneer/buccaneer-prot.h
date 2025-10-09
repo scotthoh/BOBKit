@@ -8,7 +8,7 @@
 #include "buccaneer-lib.h"
 
 #include <clipper/clipper-contrib.h>
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 #include <deque>
 

@@ -1,32 +1,25 @@
-// Wrapper for buccaneer-build
+// Nanobind bindings for buccaneer-build
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-build.h"
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "commons.h"
+#include <nanobind/operators.h>
 
-#include "type_conversions.h"
-
-namespace py = pybind11;
-
-void init_ca_build(py::module &m) {
-  py::class_<Ca_build>(m, "Ca_build")
-      .def(py::init<clipper::String, bool>(), py::arg("newrestype") = "ALA",
-           py::arg("flexible") = false, "Constructor for Ca_build.")
-      .def_static("build", &Ca_build::build, py::arg("mol"), py::arg("xmap"),
-                  py::arg("newrestype") = "ALA", py::arg("flexible") = false,
+void add_ca_build(nb::module_ &m) {
+  nb::class_<Ca_build>(m, "Ca_build")
+      .def(nb::init<clipper::String, bool>(), nb::arg("newrestype") = "ALA",
+           nb::arg("flexible") = false, "Constructor for Ca_build.")
+      .def_static("build", &Ca_build::build, nb::arg("mol"), nb::arg("xmap"),
+                  nb::arg("newrestype") = "ALA", nb::arg("flexible") = false,
                   "Build Ca chains using density, static function.")
-      .def("__call__", &Ca_build::operator(), py::arg("mol"), py::arg("xmap"),
+      .def("__call__", &Ca_build::operator(), nb::arg("mol"), nb::arg("xmap"),
            "Build Ca chains using density.")
       .def("__repr__",
            [](const Ca_build &self) {
-             std::stringstream stream;
-             stream << "<buccaneer.Ca_build class>";
-             return stream.str();
+             return "<buccaneer.Ca_build class>";
            })
       .doc() = "Class for building Ca chains using density.";
 }

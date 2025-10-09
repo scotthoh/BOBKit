@@ -1,153 +1,158 @@
-// Wrapper for clipper hkl info
+// Nanobind bindings for clipper hkl_info
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
-#include "type_conversions.h"
+#include "commons.h"
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
-#include <clipper/core/coords.h>
-#include <gemmi/symmetry.hpp>
-#include <gemmi/unitcell.hpp>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/vector.h>
+// #include <gemmi/symmetry.hpp>
+// #include <gemmi/unitcell.hpp>
 
-namespace py = pybind11;
 using namespace clipper;
 
-void init_hklinfo(py::module &m) {
-  py::class_<HKL_info> hklinfo(m, "HKL_info");
-  hklinfo.def(py::init<>())
-      .def(py::init<const Spacegroup &, const Cell &, const Resolution &,
-                    const bool &>(),
-           py::arg("spacegroup"), py::arg("cell"), py::arg("resolution"),
-           py::arg("generate") = false)
-      .def(py::init([](const Spacegroup &sg, const Cell &c, const double &res,
-                       const bool &gen) {
-             clipper::Resolution reso(res);
-             return std::unique_ptr<HKL_info>(new HKL_info(sg, c, reso, gen));
-           }),
-           py::arg("spacegroup"), py::arg("cell"), py::arg("resolution"),
-           py::arg("generate") = false)
-      .def("init",
-           (void(HKL_info::*)(const Spacegroup &, const Cell &,
-                              const Resolution &, const bool &)) &
-               HKL_info::init,
-           py::arg("spacegroup"), py::arg("cell"), py::arg("resolution"),
-           py::arg("generate") = false)
-      .def("init",
-           (void(HKL_info::*)(const Spacegroup &, const Cell &,
-                              const HKL_sampling &, const bool &)) &
-               HKL_info::init,
-           py::arg("spacegroup"), py::arg("cell"), py::arg("hkl_sampling"),
-           py::arg("generate") = true)
+void add_hklinfo( nb::module_ &m ) {
+  nb::class_<HKL_info> hklinfo( m, "HKL_info" );
+  hklinfo.def( nb::init<>(), "Null constructor" )
+      .def( nb::init<const Spacegroup &, const Cell &, const Resolution &, const bool &>(), nb::arg( "spacegroup" ),
+            nb::arg( "cell" ), nb::arg( "resolution" ), nb::arg( "generate" ) = false,
+            "Constructor: takes Spacegroup, Cell and Resolution types." )
+      .def(
+          "__init__",
+          []( HKL_info *hklinfo, const Spacegroup &sg, const Cell &c, const double &res, const bool &gen ) {
+            clipper::Resolution reso( res );
+            new ( hklinfo ) HKL_info( sg, c, reso, gen );
+          },
+          nb::arg( "spacegroup" ), nb::arg( "cell" ), nb::arg( "resolution" ), nb::arg( "generate" ) = false,
+          "Constructor: takes Spacegroup, Cell and resolution(double)." )
+      .def(
+          "init",
+          ( void ( HKL_info::* )( const Spacegroup &, const Cell &, const Resolution &, const bool & ) )&HKL_info::init,
+          nb::arg( "spacegroup" ), nb::arg( "cell" ), nb::arg( "resolution" ), nb::arg( "generate" ) = false,
+          "Initialiser: takes Spacegroup, Cell, and Resolution types." )
+      .def( "init",
+            ( void ( HKL_info::* )( const Spacegroup &, const Cell &, const HKL_sampling &,
+                                    const bool & ) )&HKL_info::init,
+            nb::arg( "spacegroup" ), nb::arg( "cell" ), nb::arg( "hkl_sampling" ), nb::arg( "generate" ) = true,
+            "Initialiser: takes Spacegroup, Cell, and HKL_sampling" )
       // from gemmi types
       .def(
           "init",
-          [](HKL_info &self, const gemmi::SpaceGroup &sg,
-             const gemmi::UnitCell &uc, const double dmin, const double tol,
-             const bool &generate) {
-            self.init(GEMMI::spacegroup(sg), GEMMI::cell(uc),
-                      Resolution(dmin - tol), generate);
+          []( HKL_info &self, const gemmi::SpaceGroup &sg, const gemmi::UnitCell &uc, const double dmin,
+              const double tol, const bool &generate ) {
+            self.init( GEMMI::spacegroup( sg ), GEMMI::cell( uc ), Resolution( dmin - tol ), generate );
           },
-          py::arg("spacegroup"), py::arg("cell"), py::arg("dmin"),
-          py::arg("tol") = 1.e-8, py::arg("generate") = false)
-      .def("is_null", &HKL_info::is_null)
-      .def_property_readonly("cell", &HKL_info::cell)
-      .def_property_readonly("spacegroup", &HKL_info::spacegroup)
-      .def_property_readonly("hkl_sampling", &HKL_info::hkl_sampling)
-      .def_property_readonly("resolution", &HKL_info::resolution)
+          nb::arg( "spacegroup" ), nb::arg( "cell" ), nb::arg( "dmin" ), nb::arg( "tol" ) = 1.e-8,
+          nb::arg( "generate" ) = false )
+      .def( "is_null", &HKL_info::is_null, "Test if object has been initialised" )
+      .def_prop_ro( "cell", &HKL_info::cell, "Get the cell" )
+      .def_prop_ro( "spacegroup", &HKL_info::spacegroup, "Get the spacegroup" )
+      .def_prop_ro( "hkl_sampling", &HKL_info::hkl_sampling, "Get HKL_sampling" )
+      .def_prop_ro( "resolution", &HKL_info::resolution, "Get the resolution" )
 
       // from gemmi::Mtz
       .def_static(
           "from_gemmi_mtz",
-          [](const gemmi::Mtz &mtzobj, const double tol, const bool &generate) {
-            return GEMMI::as_HKL_info(mtzobj, tol, generate);
+          []( const gemmi::Mtz &mtzobj, const double tol, const bool &generate ) {
+            return GEMMI::as_HKL_info( mtzobj, tol, generate );
           },
-          py::arg("mtz"), py::arg("tol") = 1.e-8, py::arg("generate") = false)
-      //.def_static("from_cell_spacegroup")
-      .def("generate_hkl_list", &HKL_info::generate_hkl_list)
-      //.def("add_hkl_list", &HKL_info::add_hkl_list, py::arg("hkls"))
+          nb::arg( "mtz" ), nb::arg( "tol" ) = 1.e-8, nb::arg( "generate" ) = false )
+      .def( "generate_hkl_list", &HKL_info::generate_hkl_list, "Synthesize hkl list" )
+      //.def("add_hkl_list", &HKL_info::add_hkl_list, nb::arg("hkls"))
 
       //.def("add_hkl_list",
       //     (void(HKL_info::*)(const std::vector<HKL> &add)) &
       //         HKL_info::add_hkl_list,
-      //     py::arg("hkls"))
-      .def("add_hkl_list",
-           [](HKL_info &self, const py::array_t<int> &hkl) {
-             std::cout << "add" << std::endl;
-             std::vector<HKL> hkl_list;
-             auto hbuf = hkl.request();
-             if (hbuf.shape[1] != 3)
-               throw std::logic_error(
-                   "HKL list does not have the expected width!");
-             auto l = hbuf.shape[0];
-             int *hptr = (int *)hbuf.ptr;
-             for (int i = 0; i < l; ++i) {
-               hkl_list.emplace_back(HKL(*hptr, *(hptr + 1), *(hptr + 2)));
-               hptr += 3;
-             }
-             // check hkl_list size and array size are the same
-             if (hkl_list.size() != l) {
-               throw std::logic_error("Error in adding HKL list, length is "
-                                      "not the same as input.");
-             } else
-               self.add_hkl_list(hkl_list);
-           })
-      .def("num_reflections", &HKL_info::num_reflections)
-      .def("hkl_of", &HKL_info::hkl_of, py::arg("index"))
-      .def("index_of", &HKL_info::index_of, py::arg("hkl"))
-      .def("invresolsq", &HKL_info::invresolsq, py::arg("index"))
-      .def_property_readonly("invresolsq_range", &HKL_info::invresolsq_range)
-      .def("hkl_class", &HKL_info::hkl_class, py::arg("index"))
-      .def("find_sym", &HKL_info::find_sym, py::arg("hkl"), py::arg("sym"),
-           py::arg("friedel"))
-      .def("first", &HKL_info::first)
-      .def("debug", &HKL_info::debug)
-      .def("__repr__", [](const HKL_info &self) {
-        return "<clipper.HKL_info with spacegroup " +
-               self.spacegroup().symbol_hm() + ", " +
-               clipper::String(self.num_reflections()) + " reflections>";
-      });
+      //     nb::arg("hkls"))
+      .def(
+          "add_hkl_list", []( HKL_info &self, std::vector<HKL> &hkl ) { self.add_hkl_list( hkl ); },
+          "Add new reflections to the list" )
+      .def( "num_reflections", &HKL_info::num_reflections, "Get number of reflections in the object" )
+      .def( "hkl_of", &HKL_info::hkl_of, nb::arg( "index" ), "Return the corresponding HKL to the index given." )
+      .def( "index_of", &HKL_info::index_of, nb::arg( "hkl" ),
+            "Reflection index from hkl. This does not check symmetry equivalence." )
+      .def( "invresolsq", &HKL_info::invresolsq, nb::arg( "index" ), "Get reflection resolution using lookup" )
+      .def_prop_ro( "invresolsq_range", &HKL_info::invresolsq_range, "Get resolution limits of the list" )
+      .def( "hkl_class", &HKL_info::hkl_class, nb::arg( "index" ), "Get reflection class using lookup" )
+      .def( "find_sym", &HKL_info::find_sym, nb::arg( "hkl" ), nb::arg( "sym" ), nb::arg( "friedel" ),
+            "Find symop number and friedel to bring an HKL into ASU" )
+      .def( "first", &HKL_info::first, "Return HKL_reference_index pointing to first reflection" )
+      .def( "debug", &HKL_info::debug, "Debug: print number of reflections" )
+      .def( "__repr__",
+            []( const HKL_info &self ) {
+              return "<clipper.HKL_info with spacegroup " + self.spacegroup().symbol_hm() + ", " +
+                     clipper::String( self.num_reflections() ) + " reflections>";
+            } )
+      .doc() = "HKL list container and tree root.\n"
+               "This object contains contains a reflection list, and all the "
+               "properties on which such a list depends, i.e. spacegroup, cell, "
+               "resolution. It also keeps a fast reflection lookup list and lookup "
+               "lists for resolutions and reflection classes.";
 
   using HKLB = HKL_info::HKL_reference_base;
-  py::class_<HKLB>(hklinfo, "HKL_reference_base")
-      .def("base_hkl_info", &HKLB::base_hkl_info)
-      .def("index", &HKLB::index)
-      .def("invresolsq",
-           (ftype(HKLB::*)(const HKL_data_base &) const) & HKLB::invresolsq,
-           py::arg("hkldata"))
-      .def("invresolsq", (ftype(HKLB::*)() const) & HKLB::invresolsq)
-      .def("last", &HKLB::last);
+  nb::class_<HKLB>( hklinfo, "HKL_reference_base" )
+      .def_prop_ro( "base_hkl_info", &HKLB::base_hkl_info, "Return the parent HKL_info" )
+      .def_prop_ro( "index", &HKLB::index, "Return the current index(-1 if invalid)" )
+      .def( "invresolsq", ( ftype ( HKLB::* )( const HKL_data_base & ) const ) & HKLB::invresolsq, nb::arg( "hkldata" ),
+            "Return the inverse resolution squared for the reflections (assumes index valid)" )
+      .def( "invresolsq", ( ftype ( HKLB::* )() const ) & HKLB::invresolsq,
+            "Return the inverse resolution squared for the reflection of current index (assumes index valid)" )
+      .def( "last", &HKLB::last, "Test if index has gone past last reflection" )
+      .doc() = "HKL reference base class\n"
+               "This is a reference to an HKL. It forms a base class for "
+               "index-like and coordinate-like HKL references. If you write a "
+               "method which will work with either, then specify this instead of "
+               "either of the derived classed. ";
 
   using HKLI = HKL_info::HKL_reference_index;
-  py::class_<HKLI, HKLB>(hklinfo, "HKL_reference_index")
-      .def(py::init<>())
-      .def(py::init<const HKL_info &, const int &>(), py::arg("hklinfo"),
-           py::arg("index"))
-      .def("hkl", &HKLI::hkl)
-      .def("hkl_class", &HKLI::hkl_class)
+  nb::class_<HKLI, HKLB>( hklinfo, "HKL_reference_index" )
+      .def( nb::init<>(), "Null constructor" )
+      .def( nb::init<const HKL_info &, const int &>(), nb::arg( "hklinfo" ), nb::arg( "index" ),
+            "Constructor: takes parent HKL_info and initial index" )
+      .def( "hkl", &HKLI::hkl, "Return the current HKL" )
+      .def( "hkl_class", &HKLI::hkl_class, "Return the reflection class for the reflection" )
       // note from Tristan: avoid creating new Python objects when incrementing
-      .def("next", [](HKLI &self) { self.next(); });
+      .def(
+          "next", []( HKLI &self ) { self.next(); }, "Increment to the next reflection" )
+      .doc() = "HKL reference with index-like behaviour\n"
+               "This is a reference to an HKL. It behaves like a simple index "
+               "into the reflection list, but can be easily converted into an "
+               "HKL as and when required. It also implements methods for "
+               "iterating through a reflection list. "
+               "NOTE: The following methods are inherited from "
+               "HKL_reference_base but are documented here for convenience: "
+               "base_hkl_info(), index(), invresolsq(), last(). ";
 
   using HKLC = HKL_info::HKL_reference_coord;
-  py::class_<HKLC, HKLB>(hklinfo, "HKL_reference_coord")
-      .def(py::init<>())
-      .def(py::init<const HKL_info &, const HKL &>(), py::arg("hklinfo"),
-           py::arg("hkl"))
-      .def_property("hlk", &HKLC::hkl,
-                    [](HKLC &self, const HKL &hkl) { self.set_hkl(hkl); })
-      .def_property_readonly("sym", &HKLC::sym)
-      .def_property_readonly("friedel", &HKLC::friedel)
+  nb::class_<HKLC, HKLB>( hklinfo, "HKL_reference_coord" )
+      .def( nb::init<>(), "Null constructor" )
+      .def( nb::init<const HKL_info &, const HKL &>(), nb::arg( "hklinfo" ), nb::arg( "hkl" ),
+            "Constructor: takes parent HKL_info and intial HKL" )
+      .def_prop_rw(
+          "hkl", &HKLC::hkl, []( HKLC &self, const HKL &hkl ) { self.set_hkl( hkl ); }, "Return/Set current HKL" )
+      .def_prop_ro( "sym", &HKLC::sym, "Get current symop number" )
+      .def_prop_ro( "friedel", &HKLC::friedel, "Get current friedel flag" )
       // note from Tristan: avoid creating new Python objects when incrementing
-      .def("next", [](HKLC &self) { self.next(); })
-      .def("next_h", [](HKLC &self) { self.next_h(); })
-      .def("next_k", [](HKLC &self) { self.next_k(); })
-      .def("next_l", [](HKLC &self) { self.next_l(); })
-      .def("prev_h", [](HKLC &self) { self.prev_h(); })
-      .def("prev_k", [](HKLC &self) { self.prev_k(); })
-      .def("prev_l", [](HKLC &self) { self.prev_l(); });
+      .def(
+          "next", []( HKLC &self ) { self.next(); }, "Increment to next reflection" )
+      .def(
+          "next_h", []( HKLC &self ) { self.next_h(); }, "Increment to next h" )
+      .def(
+          "next_k", []( HKLC &self ) { self.next_k(); }, "Increment to next k" )
+      .def(
+          "next_l", []( HKLC &self ) { self.next_l(); }, "Increment to next l" )
+      .def(
+          "prev_h", []( HKLC &self ) { self.prev_h(); }, "Decrement to previous h" )
+      .def(
+          "prev_k", []( HKLC &self ) { self.prev_k(); }, "Decrement to previous h" )
+      .def(
+          "prev_l", []( HKLC &self ) { self.prev_l(); }, "Decrement to previous h" )
+      .doc() = "HKL reference with coord-like behaviour.\nThis is a reference to an HKL. "
+               "It behaves like an HKL, but also stores the index of the corresponding reflection in the "
+               "reflection list, if it exists, and the symmetry and friedel operators required to get there. "
+               "NOTE: The following methods are inherited from HKL_reference_base but are documented here "
+               "for convenience: base_hkl_info(), index(), invresolsq(), last(). ";
 }

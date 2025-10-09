@@ -1,33 +1,29 @@
-// Wrapper for buccaneer-correct
+// Nanobind bindings for buccaneer-correct
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-correct.h"
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "commons.h"
+#include <nanobind/operators.h>
 
-#include "type_conversions.h"
+using namespace clipper;
 
-namespace py = pybind11;
-
-void init_ca_correct(py::module &m) {
-  py::class_<Ca_correct>(m, "Ca_correct")
-      .def(py::init<int>(), py::arg("torsion_sampling") = 12,
+void add_ca_correct(nb::module_ &m)
+{
+  nb::class_<Ca_correct>(m, "Ca_correct")
+      .def(nb::init<int>(), nb::arg("torsion_sampling") = 12,
            "Constructor for Ca correct class.")
-      .def("__call__", &Ca_correct::operator(), py::arg("mol"), py::arg("xmap"),
-           py::arg("llktargets"), py::arg("seq"),
+      .def("__call__", &Ca_correct::operator(), nb::arg("mol"), nb::arg("xmap"),
+           nb::arg("llktargets"), nb::arg("seq"),
            "Rebuild chain to fix insertion/deletions.")
-      .def_property_readonly("num_corrected", &Ca_correct::num_corrected,
-                             "Get number of C-alphas corrected.")
+      .def_prop_ro("num_corrected", &Ca_correct::num_corrected,
+                   "Get number of C-alphas corrected.")
       .def("__repr__",
-           [](const Ca_correct &self) {
-             std::stringstream stream;
-             stream << "<buccaneer.Ca_correct with ";
-             stream << self.num_corrected() << " C-alphas corrected.>";
-             return stream.str();
+           [](const Ca_correct &self)
+           {
+             return "<buccaneer.Ca_correct with " + String(self.num_corrected()) + " C-alphas corrected.>";
            })
       .doc() = "Class for correcting Ca chains using density.";
 }

@@ -1,46 +1,46 @@
-// Wrapper for buccaneer-util
+// Nanobind bindings for buccaneer-util
 // Author: S.W.Hoh
-// (C) 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-util.h"
+#include "commons.h"
+#include "arrays.h"
 #include <clipper/minimol/minimol_seq.h>
-#include <pybind11/pybind11.h>
 
-#include "helper_functions.h"
-#include "type_conversions.h"
+using namespace clipper;
 
-void declare_buccaneer_log(py::module &m) {
-  py::class_<BuccaneerLog>(m, "Log", "Class for logging and simple profiling.")
-      .def(py::init<clipper::String &>(), py::arg("title"))
+void declare_buccaneer_log(nb::module_ &m) {
+  nb::class_<BuccaneerLog>(m, "Log", "Class for logging and simple profiling.")
+      .def(nb::init<String &>(), nb::arg("title"))
       .def(
-          "log",
-          [](BuccaneerLog &self, const clipper::String &id) { self.log(id); },
-          py::arg("id"), "Start time log for specified id.")
+          "log", nb::overload_cast<const String &>(&BuccaneerLog::log),
+          //[](BuccaneerLog &self, const String &id) { self.log(id); },
+          nb::arg("id"), "Start time log for specified id.")
       .def(
-          "log",
-          [](BuccaneerLog &self, const clipper::String &id,
-             const clipper::MiniMol &mol,
-             bool view) { self.log(id, mol, view); },
-          py::arg("id"), py::arg("mol"), py::arg("view") = false,
+          "log", nb::overload_cast<const String &, const MiniMol &, bool>(&BuccaneerLog::log),
+          //[](BuccaneerLog &self, const String &id,
+          //   const MiniMol &mol,
+          //   bool view) { self.log(id, mol, view); },
+          nb::arg("id"), nb::arg("mol"), nb::arg("view") = false,
           "Start time log for specified id and model.")
       .def(
           "summary",
-          [](BuccaneerLog &self, const clipper::MiniMol &mol,
-             const clipper::MiniMol &mr,
+          [](BuccaneerLog &self, const MiniMol &mol,
+             const MiniMol &mr,
              const MMoleculeSequence &seq) { return self.log(mol, mr, seq); },
-          py::arg("mol"), py::arg("mol_mr"), py::arg("seq"),
+          nb::arg("mol"), nb::arg("mol_mr"), nb::arg("seq"),
           "Return summary of model stats as string.")
-      .def("xml", &BuccaneerLog::xml, py::arg("xml"), "Write XML output.")
+      .def("xml", &BuccaneerLog::xml, nb::arg("xml"), "Write XML output.")
       .def("profile", &BuccaneerLog::profile,
            "Outputs time profile for each id logged.")
-      .def("evaluate", &BuccaneerLog::evaluate, py::arg("mol"),
-           py::arg("mol_mr"), py::arg("seq"), "Evaluate model.");
+      .def("evaluate", &BuccaneerLog::evaluate, nb::arg("mol"),
+           nb::arg("mol_mr"), nb::arg("seq"), "Evaluate model.");
 }
 
-void init_buccaneer_util(py::module &m) {
-  m.def( "set_reference", &BuccaneerUtil::set_reference, py::arg( "mtz" ), py::arg( "pdb" ),
+void add_buccaneer_util(nb::module_ &m) {
+  m.def( "set_reference", &BuccaneerUtil::set_reference, nb::arg( "mtz" ), nb::arg( "pdb" ),
          "Set reference MTZ and PDB, only work when CCP4's CLIBD "
          "environment path is set." );
   // declare_buccaneer_util( m );

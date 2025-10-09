@@ -6,7 +6,7 @@
 #define BUCCANEER_KNOWN
 
 #include <clipper/clipper.h>
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 
 //! Class for augmenting model with known model

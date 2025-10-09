@@ -6,7 +6,7 @@
 
 #include "type_conversions.h"
 #include <clipper/clipper-gemmi.h>
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 #include <clipper/core/clipper_types.h>
 #include <clipper/gemmi/clipper_gemmi_model.h>
 #include <clipper/minimol/minimol_io_gemmi.h>
@@ -19,19 +19,19 @@ using namespace clipper;
 // Importing bindings for Structure from gemmi
 // caution: need to make sure gemmi is built with same pybind11 and stl
 // versions
-py::object structure =
-    (py::object)py::module_::import("gemmi").attr("Structure");
+nb::object structure =
+    (nb::object)nb::module_::import("gemmi").attr("Structure");
 
-void declare_gemmifile(py::module &m) {
-  py::class_<GEMMIfile> gemmifile(m, "GEMMIfile");
-  py::enum_<GEMMIfile::TYPE>(gemmifile, "TYPE", "File formats.")
+void declare_gemmifile(nb::module &m) {
+  nb::class_<GEMMIfile> gemmifile(m, "GEMMIfile");
+  nb::enum_<GEMMIfile::TYPE>(gemmifile, "TYPE", "File formats.")
       .value("DEFAULT", GEMMIfile::TYPE::Default)
       .value("PDB", GEMMIfile::TYPE::PDB)
       .value("CIF", GEMMIfile::TYPE::CIF)
       .value("Mmjson", GEMMIfile::TYPE::Mmjson)
       .export_values();
 
-  gemmifile.def(py::init<>())
+  gemmifile.def(nb::init<>())
       .def(
           "read_file",
           [](GEMMIfile &self, const std::string &file, int max_line_length,
@@ -41,8 +41,8 @@ void declare_gemmifile(py::module &m) {
             opts.split_chain_on_ter = split_chain_on_ter;
             self.read_file(file, opts, force_label);
           },
-          py::arg("file"), py::arg("max_line_length") = 0,
-          py::arg("split_chain_on_ter") = false, py::arg("force_label") = false,
+          nb::arg("file"), nb::arg("max_line_length") = 0,
+          nb::arg("split_chain_on_ter") = false, nb::arg("force_label") = false,
           "Read structure from file.")
       .def(
           "write_pdb",
@@ -55,9 +55,9 @@ void declare_gemmifile(py::module &m) {
             opts.PdbLinkR = linkr;
             self.write_file(file, GEMMIfile::TYPE::PDB, opts);
           },
-          py::arg("file"), py::arg("minimal") = false,
-          py::arg("shortTer") = false, py::arg("linkr") = false,
-          py::arg("short_chain_names") = false,
+          nb::arg("file"), nb::arg("minimal") = false,
+          nb::arg("shortTer") = false, nb::arg("linkr") = false,
+          nb::arg("short_chain_names") = false,
           "Write structure as PDB format.")
       .def(
           "write_cif",
@@ -68,11 +68,11 @@ void declare_gemmifile(py::module &m) {
             opts.UpdateCifDoc = update;
             self.write_file(file, GEMMIfile::TYPE::CIF, opts);
           },
-          py::arg("file"), py::arg("allauth") = false,
-          py::arg("updatecif") = false, "Write structure as CIF format.")
-      .def("import_minimol", &GEMMIfile::import_minimol, py::arg("minimol"),
-           py::arg("model_num") = 1, "Import MiniMol from Gemmi Structure.")
-      .def("export_minimol", &GEMMIfile::export_minimol, py::arg("minimol"),
+          nb::arg("file"), nb::arg("allauth") = false,
+          nb::arg("updatecif") = false, "Write structure as CIF format.")
+      .def("import_minimol", &GEMMIfile::import_minimol, nb::arg("minimol"),
+           nb::arg("model_num") = 1, "Import MiniMol from Gemmi Structure.")
+      .def("export_minimol", &GEMMIfile::export_minimol, nb::arg("minimol"),
            "Export MiniMol to Gemmi Structure.")
       .def_property("gemmi_structure", &GEMMIfile::get_gemmi_structure,
                     &GEMMIfile::set_gemmi_structure,
@@ -92,10 +92,10 @@ void declare_gemmifile(py::module &m) {
                "methods and then imported to MiniMol object and vice versa."
                "Works fine for gemmi==v0.6.4.";
 }
-void declare_gemmi_structure(py::module &m) {
-  py::class_<GemmiStructure>(m, "gemmiStructure", structure)
-      .def(py::init<>())
-      .def(py::init<const gemmi::Structure &>(),
+void declare_gemmi_structure(nb::module &m) {
+  nb::class_<GemmiStructure>(m, "gemmiStructure", structure)
+      .def(nb::init<>())
+      .def(nb::init<const gemmi::Structure &>(),
            "Constructor copy/convert from gemmi.Structure.")
       .def_property("clipper_spacegroup", &GemmiStructure::spacegroup,
                     &GemmiStructure::set_spacegroup,
@@ -108,7 +108,7 @@ void declare_gemmi_structure(py::module &m) {
                     &GemmiStructure::set_transform,
                     "Get/set origx transformation matrix as/from RTop_orth.")
       .def_static("get_id_str", &GemmiStructure::GetID_str,
-                  py::arg("model_name"), py::arg("cra"), py::arg("entity"),
+                  nb::arg("model_name"), nb::arg("cra"), nb::arg("entity"),
                   "Get IDs for model, chain, residue, or atom.")
       .def_static(
           "to_minimol",
@@ -153,7 +153,7 @@ void declare_gemmi_structure(py::module &m) {
                "reference to this type to access additional functions.";
 }
 
-void init_gemmi_structure(py::module &m) {
+void init_gemmi_structure(nb::module &m) {
   declare_gemmi_structure(m);
   declare_gemmifile(m);
 }

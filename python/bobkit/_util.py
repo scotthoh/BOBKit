@@ -1013,7 +1013,153 @@ def write_out_model_with_seq(mol: _Minimol = None, outfile: str = "model_with_se
     
     write_structure(mol, outfile, False)
 
-   
+
+def cut_fragment_density(xmap: _Xmap_float, fragment: _Union[_MModel, _MChain, _MRes, _MAtom], radius: float, resolution: float, offset: bool=True, center: bool=True, respad: bool=False, cell_multiplier: float=1.0, return_array: bool=False, verbose: bool=False):
+    """Cut out density of given fragment and place in a box
+
+    Args:
+        xmap (_Xmap_float): Original density map of model
+        fragment (_Union[_MModel, _MChain, _MRes, _MAtom]): Fragment where density is to be cut
+        radius (float): Radius around given model to include
+        resolution (float): Resolution
+        offset (bool, optional): Offset density/fragment to center of mass. Defaults to True.
+        center (bool, optional): Offset density/fragment to center of box. Defaults to True.
+        respad (bool, optional): Turn on resolution padding. Defaults to False.
+        cell_multiplier (float, optional): Cell multiplier. Defaults to 1.0.
+        return_array (bool, optional): If true, returns only array contain cut density else Xmap_float instance. Defaults to False.
+        verbose: (bool, optional): Verbosity. Defaults to False.
+
+    Returns:
+        Xmap_float or Ndarray: If return_array is turned on, a 3D array with cut density values is returned, 
+                               else Xmap_float instance.
+        restmp: Shifted or non-shifted fragment
+        cellcut: Cut cell
+    """
+    cell = xmap.cell
+    grid = xmap.grid_sampling
+    # bounds from fragment
+    atoms = []
+    if not isinstance(fragment, _MAtom):
+        atoms = fragment.atom_list()
+    else:
+        atoms.append(fragment)
+    cm0 = _Coord_map(1.0e20,  1.0e20,  1.0e20)
+    cm1 = _Coord_map(-1.0e20, -1.0e20, -1.0e20)
+    # find boundaries for atom positions
+    for i in range(0, len(atoms)):
+        cm = xmap.coord_map(atoms[i].pos)
+        for j in range(0, 3):
+            cm0[j] = min(cm0[j], cm[j])
+            cm1[j] = max(cm1[j], cm[j])
+    if verbose:
+        print(f"Atom positions lower and upper boundaries :\n {cm0}\n {cm1}")
+    # grid range
+    gr0 = _Grid_range(cell, grid, radius+1.0)
+    gr1 = _Grid_range(cm0.floor()+gr0.min, cm1.ceil()+gr0.max)
+    if verbose:
+        print(f"Grid range :\n {gr0.min}\n {gr0.max}")
+        print(f"Grid range :\n {gr1.min}\n {gr1.max}")
+        
+    mask = _NXmap_float()
+    mask.init(cell, grid, gr1)
+    edcalc = _EDcalc_mask_float(radius)
+    edcalc(mask, atoms)
+
+    co0 = _Coord_orth(1.0e20, 1.e20, 1.e20)
+    co1 = _Coord_orth(-1.e20, -1e20, -1e20)
+    com = _Coord_orth(0., 0., 0.)
+    count = 0.0
+    ix = mask.first()
+    while not ix.last():
+        if mask[ix] > 0.0:
+            co = ix.coord_orth()
+            for j in range(0, 3):
+                co0[j] = min(co0[j], co[j])
+                co1[j] = max(co1[j], co[j])
+            com += co
+            count += 1.0
+        ix.next()
+    com = (1.0/count) * com
+    print(f"Centre of mass : {com.format()}")
+    print(f"Masked region bounds :\n{co0.format()}\n{co1.format()}")
+    coff = _Coord_orth(0., 0., 0.,)
+    restmp = fragment.clone()    
+    #co1 = gr1.max.coord_frac(grid).coord_orth(cell)
+    if (offset):
+        coff = com
+        if verbose:
+            print(f"CoM Offset : {coff}")
+        restmp.transform(_RTop_orth(_Mat33_double.identity(), _Vec3_double(-coff.x,-coff.y,-coff.z)))
+    #else:
+    #    coff1 = co1
+    #    print(f"coff {coff1}")
+    #    restmp.transform(clipper.RTop_orth(clipper.Mat33_double.identity(), clipper.Vec3_double(-coff1.x, -coff1.y, -coff1.z)))
+
+    cd = cell_multiplier*(co1-co0)
+    cellcut = _Cell([cd[0], cd[1], cd[2], 90., 90., 90.])
+    spgrcut = _Spacegroup.p1()
+    if verbose:
+        print(f"Cut cell : {cellcut}")
+    ctr = _Coord_orth(0.,0.,0.)
+    if center:
+        ctr = _Coord_frac(0.5,0.5,0.5).coord_orth(cellcut)
+        print(f"Box center offset : {ctr}")
+        restmp.transform(_RTop_orth(_Mat33_double.identity(), _Vec3_double(ctr.x,ctr.y,ctr.z)))
+    
+    # get resol from map
+    resol = min( resolution, 2.0/(cell.a_star*float(grid.nu)) )
+    resol = min( resolution, 2.0/(cell.b_star*float(grid.nv)) )
+    resol = min( resolution, 2.0/(cell.c_star*float(grid.nw)) )
+    resol *= 1.5
+    if respad:
+        resol =  1.0 / ( 1.0/resol + _np.sqrt( pow(cellcut.a(),-2.0) +
+                                      pow(cellcut.b(),-2.0) +
+                                      pow(cellcut.c(),-2.0) ) )
+    rescut = _Resolution(resol)
+    print(rescut)
+    gridcut = _Grid_sampling(spgrcut, cellcut, rescut)
+    xcut = _Xmap_float(spgrcut, cellcut, gridcut)
+    xcut.fill_map_with(0.0)
+    if verbose:
+        print(f"Cut grid : {gridcut}")
+    # find bounds of masked region
+    cg0 = _Coord_grid(999999,999999,999999)
+    cg1 = _Coord_grid(-999999,-999999,-999999)
+    ix = mask.first()
+    while not ix.last():
+        if mask[ix] > 0.0:
+            cg = xcut.coord_map(ix.coord_orth()-coff+ctr).coord_grid()
+            for j in range(0, 3):
+                cg0[j] = min(cg0[j], cg[j]-1)
+                cg1[j] = max(cg1[j], cg[j]+1)
+        ix.next()
+
+    #spacing = [cell.x/float(grid.nu), cell.y/float(grid.nv), cell.z/float(grid.nw)]
+    # fill cut map
+    #c0 = clipper.Coord_grid(0,0,0)
+    i0 = xcut.map_reference_coord(cg0)
+    iu = xcut.map_reference_coord(i0.coord)
+    while iu.coord.u <= cg1.u:
+        iv = xcut.map_reference_coord(iu.coord)
+        while iv.coord.v <= cg1.v:
+            iw = xcut.map_reference_coord(iv.coord)
+            while iw.coord.w <= cg1.w:
+                co = iw.coord_orth()+coff-ctr
+                cg = mask.coord_map(co).coord_grid()
+                if mask.in_map(cg):
+                    if mask.get_data(cg) > 0.0:
+                        xcut[iw] = xmap.interp_cubic_orth(co)
+                iw.next_w()
+            iv.next_v()
+        iu.next_u()
+
+    #mapfile = _CCP4MAPfile()
+    #fname = f"{fragment.type}_{str(fragment.seqnum)}"
+    #mapfile.open_write(f"{fname}.ccp4")
+    #mapfile.export_xmap_float( xcut )
+    #mapfile.close_write()
+    return xcut.array, restmp, cellcut
+
 # del _Ca_group, _Cell, _Grid_sampling, _Coord_orth, _Coord_map
 # del _MiniMol #_MAtom, _MModel, _MChain, _MRes
 del annotations

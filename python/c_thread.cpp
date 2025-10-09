@@ -1,22 +1,22 @@
-// Wrapper for clipper_thread
+// Nanobind bindings for clipper xmap
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
+#include "commons.h"
 #include <clipper/core/clipper_thread.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/trampoline.h>
 
-namespace py = pybind11;
 using namespace clipper;
 
 // trampoline class for thread base
 class Trampoline_Thread_base : public Thread_base {
  public:
   /* Inherit the constructors. */
-  using Thread_base::Thread_base;
+  NB_TRAMPOLINE( Thread_base, 1 );
   /* Trampoline (need one for each virtual function) */
-  void Run() override { PYBIND11_OVERRIDE_PURE( void, Thread_base, Run ); }
+  void Run() override { NB_OVERRIDE_PURE( Run ); }
 };
 
 class PyThread_base : public Thread_base {
@@ -24,9 +24,9 @@ class PyThread_base : public Thread_base {
   using Thread_base::Run;
 };
 
-void init_thread_base( py::module& m ) {
-  py::class_<Thread_base, Trampoline_Thread_base>( m, "Thread_base" )
-      .def( py::init<>() )
+void add_thread_base( nb::module_ & m ) {
+  nb::class_<Thread_base, Trampoline_Thread_base>( m, "Thread_base" )
+      .def( nb::init<>() )
       .def( "run", &Thread_base::run )
       .def( "join", &Thread_base::join )
       .def_static( "lock", &Thread_base::lock )

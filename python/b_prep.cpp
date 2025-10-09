@@ -1,17 +1,14 @@
-// Wrapper for buccaneer-prep
+// Nanobind bindings for buccaneer-prep
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-lib.h"
 #include "buccaneer/buccaneer-prep.h"
-#include <pybind11/numpy.h>
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
-#include "helper_functions.h"
+#include "commons.h"
+#include "arrays.h"
+#include <nanobind/operators.h>
 
 //! Makeup class to hold a vector of LLK_map_target used in cbuccaneer.
 /*! Simple hack to pass vectors as reference to C++ side and gets updated.
@@ -49,13 +46,13 @@ private:
   int max_;
 };
 
-void declare_llktargetlist(py::module &m) {
+void declare_llktargetlist(nb::module_ &m) {
 
-  py::class_<LLK_TargetList>(m, "LLK_TargetList")
-      .def(py::init<>())
-      .def(py::init<const std::vector<LLK_map_target> &>(),
+  nb::class_<LLK_TargetList>(m, "LLK_TargetList")
+      .def(nb::init<>())
+      .def(nb::init<const std::vector<LLK_map_target> &>(),
            "Constructor from a list of LLK_map_targets.")
-      .def(py::init<const int &>(),
+      .def(nb::init<const int &>(),
            "Constructor with maximum size for the list.")
       .def("init", &LLK_TargetList::init,
            "Initialiser with maximum size for the list.")
@@ -64,7 +61,7 @@ void declare_llktargetlist(py::module &m) {
       .def(
           "__getitem__",
           [](const LLK_TargetList &self, const int &i) { return self[i]; },
-          py::return_value_policy::reference_internal,
+          nb::rv_policy::reference_internal,
           "Get LLK_map_target at given index.")
       .def(
           "__setitem__",
@@ -82,18 +79,18 @@ void declare_llktargetlist(py::module &m) {
       .doc() = "Class containing a list of LLK_map_target classes.";
 }
 
-void declare_ca_prep(py::module &m) {
-  py::class_<Ca_prep> ca_prep(m, "Ca_prep");
+void declare_ca_prep(nb::module_ &m) {
+  nb::class_<Ca_prep> ca_prep(m, "Ca_prep");
 
   using Class = Ca_prep::Rama_flt;
-  py::class_<Class>(ca_prep, "Rama_flt")
-      .def(py::init<>())
-      .def(py::init<double, double, double>(), py::arg("phi"), py::arg("psi"),
-           py::arg("rad"),
+  nb::class_<Class>(ca_prep, "Rama_flt")
+      .def(nb::init<>())
+      .def(nb::init<double, double, double>(), nb::arg("phi"), nb::arg("psi"),
+           nb::arg("rad"),
            "Construct Ramachandran filter with phi, psi, radius.")
-      .def_readwrite("phi", &Class::phi, "Accessor for phi.")
-      .def_readwrite("psi", &Class::psi, "Accessor for psi.")
-      .def_readwrite("rad", &Class::rad, "Accessor for radius.")
+      .def_rw("phi", &Class::phi, "Accessor for phi.")
+      .def_rw("psi", &Class::psi, "Accessor for psi.")
+      .def_rw("rad", &Class::rad, "Accessor for radius.")
       .def("__repr__",
            [](const Class &self) {
              return "<buccaneer.Ca_prep.Rama_flt phi = " +
@@ -104,10 +101,10 @@ void declare_ca_prep(py::module &m) {
       .doc() = "Struct for Ramachandran filter data.";
 
   ca_prep
-      .def(py::init<double, double, Ca_prep::Rama_flt, bool, bool, bool>(),
-           py::arg("main_tgt_rad"), py::arg("side_tgt_rad"),
-           py::arg("rama_flt"), py::arg("correl"), py::arg("seqnc"),
-           py::arg("debug") = false, "Constructor for Ca_prep class.")
+      .def(nb::init<double, double, Ca_prep::Rama_flt, bool, bool, bool>(),
+           nb::arg("main_tgt_rad"), nb::arg("side_tgt_rad"),
+           nb::arg("rama_flt"), nb::arg("correl"), nb::arg("seqnc"),
+           nb::arg("debug") = false, "Constructor for Ca_prep class.")
       .def(
           "__call__",
           [](Ca_prep &self, LLK_map_target &llktgt, LLK_TargetList &llkcls,
@@ -115,19 +112,19 @@ void declare_ca_prep(py::module &m) {
             self(llktgt, llkcls.get_vector(), mol, xmap);
           },
           "Prepare LLK targets.")
-      .def_property_readonly_static(
-          "rama_flt_all", [](py::object) { return Ca_prep::rama_flt_all; },
+      .def_prop_ro_static(
+          "rama_flt_all", [](nb::object) { return Ca_prep::rama_flt_all; },
           "Ramachandran filter data.")
-      .def_property_readonly_static(
-          "rama_flt_helix", [](py::object) { return Ca_prep::rama_flt_helix; },
+      .def_prop_ro_static(
+          "rama_flt_helix", [](nb::object) { return Ca_prep::rama_flt_helix; },
           "Ramachandran filter data.")
-      .def_property_readonly_static(
+      .def_prop_ro_static(
           "rama_flt_strand",
-          [](py::object) { return Ca_prep::rama_flt_strand; },
+          [](nb::object) { return Ca_prep::rama_flt_strand; },
           "Ramachandran filter data.")
-      .def_property_readonly_static(
+      .def_prop_ro_static(
           "rama_flt_nonhelix",
-          [](py::object) { return Ca_prep::rama_flt_nonhelix; },
+          [](nb::object) { return Ca_prep::rama_flt_nonhelix; },
           "Ramachandran filter data.")
       .def_static("set_cpus", &Ca_prep::set_cpus,
                   "Set number of threads to use.")
@@ -135,9 +132,9 @@ void declare_ca_prep(py::module &m) {
            [](const Ca_prep &self) { return "<buccaneer.Ca_prep class>"; })
       .doc() = "Class to prepare log likelihood targets.";
 
-  py::class_<Prep_threaded>(m, "Prep_threaded")
-      .def(py::init<>())
-      .def(py::init<std::vector<LLK_map_target> &, const clipper::Xmap<float> &,
+  nb::class_<Prep_threaded>(m, "Prep_threaded")
+      .def(nb::init<>())
+      .def(nb::init<std::vector<LLK_map_target> &, const clipper::Xmap<float> &,
                     const std::vector<std::vector<clipper::RTop_orth>> &>(),
            "Constructor for Prep_threaded class.")
       .def("prep", &Prep_threaded::prep, "Prepare log likelihood targets.")
@@ -152,7 +149,7 @@ void declare_ca_prep(py::module &m) {
       .doc() = "Class to prepare log likelihood targets.";
 }
 
-void init_ca_prep(py::module &m) {
+void add_ca_prep(nb::module_ &m) {
   declare_llktargetlist(m);
   declare_ca_prep(m);
 }

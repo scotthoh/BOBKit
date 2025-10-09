@@ -7,7 +7,7 @@
 
 
 #include <clipper/clipper.h>
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 
 namespace ProteinDB {
