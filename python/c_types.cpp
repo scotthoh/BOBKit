@@ -80,6 +80,12 @@ template <class T> void declare_vec3( nb::module_ &m, const std::string &name ) 
               check_index(i, 0);
               self[i] = val;
             } )
+      .def( "__getstate__", [](const V3 &self) {
+        return nb::make_tuple(self[0], self[1], self[2]);
+      })
+      .def( "__setstate__", [](V3 &self, const std::tuple<T, T, T> &t) {
+        new (&self) Vec3(std::get<0>(t), std::get<1>(t), std::get<2>(t));
+      })
       //.def(
       //    "as_array",
       //    [](const V3 &self) {
@@ -160,10 +166,17 @@ template <class T> void declare_mat33( nb::module_ m, const std::string &name ) 
       .def(
           "__init__",
           []( M33 *m, const cpu_c_2darray<T, 3, 3> &a ) {
-            new ( m ) Mat33<T>( a( 0, 0 ), a( 0, 1 ), a( 0, 2 ), a( 1, 0 ), a( 1, 1 ), a( 1, 2 ), a( 2, 0 ), a( 2, 1 ),
-                                a( 2, 2 ) );
+            new ( m ) Mat33<T>( a( 0, 0 ), a( 0, 1 ), a( 0, 2 ), a( 1, 0 ), a( 1, 1 ), a( 1, 2 ),
+                                a( 2, 0 ), a( 2, 1 ), a( 2, 2 ) );
           },
-          nb::arg( "array" ) )
+          nb::arg( "array" ), "Constructor: copy/convert from array" )
+      .def(
+         "__init__",
+          []( M33 *m, const std::array< std::array<T, 3>, 3> &a ) {
+            new ( m ) Mat33<T>( a[0][0], a[0][1], a[0][2], a[1][0], a[1][1], a[1][2], 
+                                a[2][0], a[2][1], a[2][2] );
+          },
+          nb::arg( "array" ), "Constructor: copy/convert from array" )
       .def_prop_ro( "array", &mat33_to_array<T>, nb::rv_policy::reference_internal )
       //.def("__array__", [](nb:handle_t<Mat33>& h, nb::handle dtype, nb::handle copy) {
       //  return hand
@@ -208,6 +221,17 @@ template <class T> void declare_mat33( nb::module_ m, const std::string &name ) 
             return mtmp.is_null();
           },
           "Test for null vector (only valid for floating point types)." )
+      .def( "__getstate__", [](const M33 &self) {
+        return nb::make_tuple(self(0, 0), self(0, 1), self(0, 2),
+                              self(1, 0), self(1, 1), self(1, 2),
+                              self(2, 0), self(2, 1), self(2, 2));
+      })
+      .def( "__setstate__", [](M33 &self, const nb::tuple &t) {
+        if ( t.size() != 9 ) throw std::runtime_error("Invalid size!");
+        new (&self) Mat33(nb::cast<T>(t[0]), nb::cast<T>(t[1]), nb::cast<T>(t[2]),
+                          nb::cast<T>(t[3]), nb::cast<T>(t[4]), nb::cast<T>(t[5]),
+                          nb::cast<T>(t[6]), nb::cast<T>(t[7]), nb::cast<T>(t[8]));
+      })
       // operator Matrix-vector, assumes column vector
       .def(
           "__mul__", []( const M33 &self, const Vec3<T> &v ) { return self * v; }, nb::is_operator() )
@@ -248,6 +272,15 @@ template <class T> void declare_mat33sym( nb::module_ m, const std::string &name
             return mtmp.is_null();
           },
           "Test for null vector (only valid for floating point types)." )
+      .def( "__getstate__", [](const SMat &self) {
+        return nb::make_tuple(self.mat00(), self.mat11(), self.mat22(),
+                              self.mat01(), self.mat02(), self.mat12());
+      })
+      .def( "__setstate__", [](SMat &self, const nb::tuple &t) {
+        if (t.size() != 6) throw std::runtime_error("Invalid size!");
+        new (&self) SMat(nb::cast<T>(t[0]), nb::cast<T>(t[1]), nb::cast<T>(t[2]),
+                         nb::cast<T>(t[3]), nb::cast<T>(t[4]), nb::cast<T>(t[5]));
+      })
       .def( "quad_form", &SMat::quad_form, nb::arg( "v" ), "Return quadratic form with vector." )
       .def( "det", &SMat::det, "Determinant." )
       .def( "sqrt", &SMat::sqrt, "Square root." )
@@ -307,9 +340,16 @@ template <class T> void declare_rtop( nb::module_ m, const std::string &name ) {
             return Util::is_nan( ftype( self.rot()( 0, 0 ) ) ) && Util::is_nan( ftype( self.trn()[0] ) );
           },
           "Test for null operator (only valid for floating point types)." )
+      .def( "__getstate__", [](const RT &self) {
+          return nb::make_tuple(self.rot(), self.trn());
+        })
+      .def( "__setstate__", [](RT &self, const nb::tuple &t) {
+          if (t.size() != 2) throw std::runtime_error("Invalid size!");
+          new (&self) RT(nb::cast<Mat33<T>>(t[0]), nb::cast<Vec3<T>>(t[1]));
+        })  
       .def(
-          "format", []( const RT &self ) { return printMat( self.rot() ) + "\n" + printVec( self.trn() ); },
-          "Return formatted string representation." )
+            "format", []( const RT &self ) { return printMat( self.rot() ) + "\n" + printVec( self.trn() ); },
+            "Return formatted string representation." )
       .def( "__str__", []( const RT &self ) { return printMat( self.rot() ) + "\n" + printVec( self.trn() ); } )
       .def( "__repr__", [=]( const RT &self ) { return "<clipper.RTop_" + name + " class.>"; } )
       .def(
@@ -346,6 +386,13 @@ template <class T> void declare_array2d( nb::module_ m, const std::string &name 
       .def(
           "set", []( Arr2d &self, const int &i, const int &j, const T &val ) { self( i, j ) = val; }, nb::arg( "row" ),
           nb::arg( "col" ), nb::arg( "val" ), "Write accessor." )
+      .def( "array", []( Arr2d &self ) {
+        nb::ndarray<nb::numpy, T>(&self(0, 0), 
+        {(size_t)self.rows(), (size_t)self.cols()},
+        nb::handle(),
+        {self.cols(), 1}
+        );
+      }) 
       //.def(
       //    "from_numpy",
       //    [](Arr2d &self, const py::array_t<T> vals) {

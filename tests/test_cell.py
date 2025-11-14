@@ -62,12 +62,13 @@ class TestCell:
         assert orth_mat.get(0, 0) == 105.0
         assert orth_mat.get(1, 1) == 105.0
         assert orth_mat.get(2, 2) == 105.0
-        g_cell = clipper.Cell.to_gemmi_cell(cell)
-        assert g_cell.a == 105.0
-        assert g_cell.alpha == 90.0
+        assert frac_mat.get(0, 0)-9.52380952e-03 < 1.e-6
+        g_cell = cell.parameters
+        assert g_cell[0] == 105.0
+        assert g_cell[4] == 90.0
 
     def test_triclinic_cell(self, gemmi_cell_instance):
-        c_temp = clipper.Cell.from_gemmi_cell(gemmi_cell_instance)
+        c_temp = clipper.Cell(gemmi_cell_instance.parameters)
         assert c_temp.a == gemmi_cell_instance.a
         assert c_temp.b == gemmi_cell_instance.b
         assert c_temp.c == gemmi_cell_instance.c

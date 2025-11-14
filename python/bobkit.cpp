@@ -38,18 +38,10 @@ NB_MODULE( bobkit_ext, mbk_ ) {
     }
   } );
 
-  mbk.def( "_long_running_func", []() {
-    for (;;) {
-      if ( PyErr_CheckSignals() != 0 )
-        throw nb::python_error();
-      // Long running iteration
-    }
-  } );
-
   auto mc = mbk.def_submodule( "clipper" );
-  auto mb = mbk.def_submodule( "buccaneer" );
+  auto mb = mbk.def_submodule( "_buccaneer" );
   auto mpdb = mbk.def_submodule( "protein_db" );
-  auto mutil = mbk.def_submodule( "util" );
+  auto mutil = mbk.def_submodule( "_util" );
   auto mdata = mbk.def_submodule( "data", "Namespace for test data used in Test_core" );
   auto mm = mbk.def_submodule( "mm", "Dummy namespace to hold search modes." );
   add_clipper_util( mc );
@@ -64,7 +56,12 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   init_spacegroup( mc, mdata );
   init_clipper_stats( mc );
   init_resol_fn( mc );
+  add_atomsf( mc );
+  init_sfcalc( mc );
+  init_sfcalc_obs( mc );
+  init_sfweight( mc );
   add_clipper_tests( mc, mdata );
+  add_cifdata_io( mc );
   
   add_rotation( mc );
   add_xmap( mc );
@@ -80,9 +77,6 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   
   add_fffear(mc);
   add_edcalc(mc);
-
-
-
   add_hklinfo(mc);
   //init_containers(mc);
   init_hkl_datatypes(mc);

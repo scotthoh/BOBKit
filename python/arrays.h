@@ -29,18 +29,17 @@ auto make_numpy_array(std::initializer_list<size_t> shape, std::initializer_list
 }
 
 template <typename T>
-auto make_numpy_array_norv(std::initializer_list<size_t> shape, std::initializer_list<int64_t> strides={}) {
+auto make_numpy_array_2d(std::initializer_list<size_t> shape, std::initializer_list<int64_t> strides={}) {
   size_t array_size = 1;
   for ( size_t i : shape )
     array_size *= i;  
   // allocate memory region
-  T* arr = new T(array_size);
+  T* arr = new T[array_size];
   // Delete 'data' when the 'owner' capsule expires
-  //nb::capsule owner(arr, [](void *p) noexcept {
-  //  delete [] static_cast<T*>(p);
-  //});
-  return nb::ndarray<T, nb::numpy, nb::ndim<3>>(arr, shape, nullptr, strides);
-  //ßreturn view.cast();
+  nb::capsule owner(arr, [](void *p) noexcept {
+    delete [] static_cast<T*>(p);
+  });
+  return nb::ndarray<T, nb::numpy, nb::ndim<2>, nb::c_contig>(arr, shape, owner, strides);
 }
 
 // 23 sept read in ndarray and turn into xmap/nxmap

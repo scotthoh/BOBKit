@@ -11,7 +11,7 @@
 #include <nanobind/operators.h>
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/list.h>
-//#include <nanobind/stl/tuple.h>
+#include <nanobind/stl/tuple.h>
 
 using namespace clipper;
 
@@ -43,8 +43,8 @@ void add_coords( nb::module_ &m ) {
       .def_prop_ro( "epsilon", &HKL_class::epsilon, "Get epsilon." )
       .def( "epsilonc", &HKL_class::epsilonc, "Get epsilon for acentric, 2x epsilon for centric." )
       .def( "allowed", &HKL_class::allowed, "Get allowed phase." )
-      .def( "is_centric", &HKL_class::centric, "Is centric?" )
-      .def( "is_sys_abs", &HKL_class::sys_abs, "Is sys abs?" )
+      .def( "is_centric", &HKL_class::centric, "Is it centric?" )
+      .def( "is_sys_abs", &HKL_class::sys_abs, "Is there systematic absences?" )
       .def( "__repr__",
             []( const HKL_class &self ) {
               return "<clipper.HKL_class: Describes the type of reflection in a "
@@ -164,7 +164,10 @@ void add_coords( nb::module_ &m ) {
           "__mul__", []( const HKL &self, const int &s ) { return s * self; }, nb::is_operator() )
       .def(
           "__rmul__", []( const HKL &self, const int &s ) { return s * self; }, nb::is_operator() )
-      .def( "__rmul__", []( const HKL &self, const Isymop &op ) { return op * self; } );
+      .def( "__rmul__", []( const HKL &self, const Isymop &op ) { return op * self; } )
+      .def_prop_ro( "array", []( HKL &self) {
+        return nb::ndarray<int, nb::numpy>(&self[0], {3}, nb::handle());
+      });
 
   nb::class_<Coord_reci_orth, Vec3<>> coord_reci_orth(
       m, "Coord_reci_orth", "Orthogonal reciprocal coordinate (length of which is invresolsq)" );
@@ -293,14 +296,12 @@ void add_coords( nb::module_ &m ) {
       .def( "transform", &Coord_orth::transform, nb::arg( "op" ), "Return transformed coordinate." )
       .def( "format", &Coord_orth::format, "Return formatted string representation." )
       .def( "__str__", &Coord_orth::format )
-      //.def( "__getstate__", [](const Coord_orth &self) {
-      //  return nb::make_tuple(self.x(), self.y(), self.z());
-      //})
-      //.def( "__setstate__", [](Coord_orth &self, const std::tuple<ftype, ftype, ftype> &t) {
-      //  if (std::tuple_size_v<t> != 3)
-      //      throw std::runtime_error("Invalid state!");
-      //  new (&self) Coord_orth(std::get<0>(t), std::get<1>(t), std::get<2>(t));
-      //})
+      .def( "__getstate__", [](const Coord_orth &self) {
+        return nb::make_tuple(self.x(), self.y(), self.z());
+      })
+      .def( "__setstate__", [](Coord_orth &self, const std::tuple<ftype, ftype, ftype> &t) {
+        new (&self) Coord_orth(std::get<0>(t), std::get<1>(t), std::get<2>(t));
+      })
       .def_static( "length", &Coord_orth::length, nb::arg( "x1" ), nb::arg( "x2" ),
                    "Return length of vector between two coordinates." )
       .def_static( "angle", &Coord_orth::angle, nb::arg( "x1" ), nb::arg( "x2" ), nb::arg( "x3" ),
@@ -343,6 +344,12 @@ void add_coords( nb::module_ &m ) {
             nb::arg( "cf" ), "Return symmetry copy near the specified coordinate." )
       .def( "__str__", &Coord_frac::format )
       .def( "format", &Coord_frac::format, "Return formatted string representation." )
+      .def( "__getstate__", [](const Coord_frac &self) {
+        return nb::make_tuple(self.u(), self.v(), self.w());
+      })
+      .def( "__setstate__", [](Coord_orth &self, const std::tuple<ftype, ftype, ftype> &t) {
+        new (&self) Coord_frac(std::get<0>(t), std::get<1>(t), std::get<2>(t));
+      })
       .def( -nb::self )
       .def( nb::self + nb::self )
       .def( nb::self += nb::self, nb::rv_policy::none )
@@ -397,6 +404,15 @@ void add_coords( nb::module_ &m ) {
           "__mul__", []( const U_aniso_orth &self, const ftype &s ) { return s * self; }, nb::is_operator() )
       .def(
           "__rmul__", []( const U_aniso_orth &self, const ftype &s ) { return s * self; }, nb::is_operator() )
+      .def( "__getstate__", [](const U_aniso_orth &u) {
+        return nb::make_tuple(u.mat00(), u.mat11(), u.mat22(), u.mat01(), u.mat02(), u.mat12());
+      })
+      .def( "__setstate__", [](U_aniso_orth &self, const nb::tuple &t) {
+        if (t.size() != 6) throw std::runtime_error("Invalid size!");
+        
+        new (&self) U_aniso_orth(nb::cast<ftype>(t[0]), nb::cast<ftype>(t[1]), nb::cast<ftype>(t[2]),
+                                nb::cast<ftype>(t[3]), nb::cast<ftype>(t[4]), nb::cast<ftype>(t[5]));
+      })
       .doc() = "Anisotropic orthogonal atomic displacement parameters.\n"
                "These are defined on orthogonal atomic coordinates in "
                "A<sup>-2</sup>, i.e. they are anisotropic U values.";

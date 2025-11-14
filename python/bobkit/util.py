@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List as _List
-from bobkit.util import *
+from bobkit._util import *
 import scipy.spatial as _spatial
 import itertools as _IT
 
@@ -8,6 +8,7 @@ __all__ = [
     "read_structure",
     "write_structure",
     "get_coordinates_from_predicted_instance",
+    "MapParameters",
 ]
 
 from bobkit.buccaneer import (
@@ -28,17 +29,20 @@ from bobkit.clipper import (
     MChain as _MChain,
     MResidue as _MRes,
     MAtom as _MAtom,
+    Xmap_base as _Xmap_base,
     Xmap_float as _Xmap_float,
     Vec3_double as _Vec3_double,
     Property_int as _Property_int,
     Property_sequence_data as _Property_sequence_data,
+    NXmap_base as _NXmap_base,
     NXmap_float as _NXmap_float,
     EDcalc_mask_float as _EDcalc_mask_float,
     RTop_orth as _RTop_orth,
     Mat33_double as _Mat33_double,
     Spacegroup as _Spacegroup,
     Coord_frac as _Coord_frac,
-    Resolution as _Resolution
+    Resolution as _Resolution,
+    NX_operator as _NX_operator
 )
 
 import numpy as _np
@@ -1102,7 +1106,7 @@ def cut_fragment_density(xmap: _Xmap_float, fragment: _Union[_MModel, _MChain, _
         print(f"Cut cell : {cellcut}")
     ctr = _Coord_orth(0.,0.,0.)
     if center:
-        ctr = _Coord_frac(0.5,0.5,0.5).coord_orth(cellcut)
+        ctr = _Coord_frac(0.5, 0.5, 0.5).coord_orth(cellcut)
         print(f"Box center offset : {ctr}")
         restmp.transform(_RTop_orth(_Mat33_double.identity(), _Vec3_double(ctr.x,ctr.y,ctr.z)))
     
@@ -1147,7 +1151,7 @@ def cut_fragment_density(xmap: _Xmap_float, fragment: _Union[_MModel, _MChain, _
                 co = iw.coord_orth()+coff-ctr
                 cg = mask.coord_map(co).coord_grid()
                 if mask.in_map(cg):
-                    if mask.get_data(cg) > 0.0:
+                    if mask.get_data(cg) != 0.0:
                         xcut[iw] = xmap.interp_cubic_orth(co)
                 iw.next_w()
             iv.next_v()
@@ -1159,6 +1163,101 @@ def cut_fragment_density(xmap: _Xmap_float, fragment: _Union[_MModel, _MChain, _
     #mapfile.export_xmap_float( xcut )
     #mapfile.close_write()
     return xcut.array, restmp, cellcut
+
+
+def interpolate_map_grid(xmap: _Xmap_base, spacing: float, box_size: int, overlap: int, interp_mode: int = 1, whole_unitcell: bool=False, mapout: bool=False):
+    """Interpolate map onto new map grid
+
+    Args:
+        xmap (_Xmap_float): Xmap object
+        spacing (float): Grid spacing
+        box_size (int): New grid size in one dimension, this will be use for all three dimensions to make a cubic box
+        overlap (int): Number of grid points a two dimension box overlaps
+        interp_mode (int): Mode of interpolation. 0=nearest, 1=linear, 3=cubic. Defaults to 1
+        whole_unitcell (bool, optional): Set True to interpolate whole unit cell, otherwise only cover the asymmetric unit. Defaults to False.
+        mapout (bool, optional): Set True to return Map object, otherwise 3D array. Defaults to False
+
+    Returns:
+        Xmap_float or Ndarray: If return_array is turned on, a 3D array is returned, else Xmap_float instance.
+        RTop: Rotation-translation operator
+    """  # noqa: E501
+    cf0 = _Coord_frac(0, 0, 0)
+    cf1 = _Coord_frac(1, 1, 1)
+    cell = xmap.cell
+    grid = xmap.grid_sampling
+    if whole_unitcell:
+        gr = _Grid_range(grid, cf0, cf1)
+    else:
+        gr = _Grid_range(xmap.grid_asu.min, xmap.grid_asu.max)
+
+    border = (box_size // 2)
+    gr.add_border(border)
+    co_min = gr.min.coord_frac(grid).coord_orth(cell)
+    co_max = gr.max.coord_frac(grid).coord_orth(cell)
+    cd = co_max - co_min
+    newcell = _Cell([cd[0], cd[1], cd[2], 90., 90., 90.])
+    numx = int(newcell.a / spacing) // overlap * overlap
+    numy = int(newcell.b / spacing) // overlap * overlap
+    numz = int(newcell.c / spacing) // overlap * overlap
+    newgrid = _Grid_sampling(numx, numy, numz)
+    # RTop to relate grids
+    rtop = _RTop_orth(_Mat33_double.identity(), co_min)
+    newcell = _Cell([(spacing*numx), (spacing*numy), (spacing*numz), 90., 90., 90.])
+    grnew = _Grid_range(newgrid, cf0, cf1)
+    nxm = _NXmap_float(newcell, newgrid, grnew)
+    nxop = _NX_operator(xmap, nxm, rtop)
+    nxm.fill_map_with(0.0)
+    cg0 = cf0.coord_grid(newgrid)
+    cg1 = cf1.coord_grid(newgrid)
+    nxop.xmap_interp_all_points(xmap, nxm, cg0, cg1, interp_mode)
+    
+    if mapout:
+        return nxm, rtop
+    else:
+        return nxm.array, rtop
+
+
+def reinterpolate_map_grid(work_array: _np.ndarray, rtop: _RTop_orth, spacing: float, input_xmap: _Xmap_base, interp_mode: int = 1, whole_unitcell: bool=False, mapout: bool=False):
+    """Reinterpolate results in array to map grid
+
+    Args:
+        work_array (_np.ndarray): Results in array
+        rtop (_RTop_orth): Rotation-translation operator
+        spacing (float): Grid spacing
+        input_xmap (_Xmap_base): Initial Xmap object
+        interp_mode (int): Mode of interpolation. 0=nearest, 1=linear, 3=cubic. Defaults to 1
+        whole_unitcell (bool, optional): Set True to reinterpolate whole unit cell, otherwise only cover the asymmetric unit. Defaults to False.
+        mapout (bool, optional): Set True to return Map object, otherwise 3D array. Defaults to False
+
+    Returns:
+        Xmap_float or ndarray: If return_array is turned on, a 3D array is returned, else Xmap_float instance.
+    """  # noqa: E501
+    cf0 = _Coord_frac(0, 0, 0)
+    cf1 = _Coord_frac(1, 1, 1)
+    input_spg = input_xmap.spacegroup
+    input_cell = input_xmap.cell
+    input_grid = input_xmap.grid_sampling
+    if whole_unitcell:
+        gr = _Grid_range(input_grid, cf0, cf1)
+    else:
+        gr = input_xmap.grid_asu
+    
+    cellx = work_array.shape[0] * spacing
+    celly = work_array.shape[1] * spacing
+    cellz = work_array.shape[2] * spacing
+    cell = _Cell([cellx, celly, cellz, 90., 90., 90.])
+    nxmap = _NXmap_float(work_array, cell)
+    xmap = _Xmap_float(input_spg, input_cell, input_grid)
+    
+    nxop = _NX_operator(xmap, nxmap, rtop)
+    cg0 = gr.min #.coord_grid(input_grid)
+    cg1 = gr.max #_Coord_frac(1, 1, 1).coord_grid(input_grid)
+    nxop.nxmap_interp_all_points(nxmap, xmap, cg0, cg1, 3)
+    if mapout:
+        return xmap
+    else:
+        return xmap.array
+
 
 # del _Ca_group, _Cell, _Grid_sampling, _Coord_orth, _Coord_map
 # del _MiniMol #_MAtom, _MModel, _MChain, _MRes

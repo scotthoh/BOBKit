@@ -109,6 +109,12 @@ void declare_map_base_methods( nb::module_ &m, nb::class_<NXmap_base> &nxmapbase
             "Get multiplicity of a map grid point (always 1 for NXmap)." )
       .def( "first", &NXmap_base::first, "Return a basic Map_reference_index for this map." )
       .def( "first_coord", &NXmap_base::first_coord, "Return a coord Map_reference_index for this map" )
+      .def( "map_reference_index", []( const NXmap_base &self, const Coord_grid &pos ) {
+        return NXmap_base::Map_reference_index(self, pos);
+      }, "Return map reference index for given coordinate grid.")
+      .def( "map_reference_coord", [](  const NXmap_base &self, const Coord_grid &pos ) {
+        return NXmap_base::Map_reference_coord(self, pos);
+      }, "Return map reference coordinate for given coordinate grid.")
       .doc() = "NXmap_base: base for non-crystallographic map class.\n"
                "The non-crystallographic map class stores a map of arbitrary "
                "data type. Unlike an Xmap it is finite in extent and has no "
@@ -137,6 +143,7 @@ void declare_map_reference_index( nb::module_ &m, nb::class_<NXmap_base> &nxmapb
           nb::for_getter( "Get current grid coordinate." ), nb::for_setter( "Set current grid coordinate." ) )
       .def( "coord_orth", &MRI::coord_orth )
       .def( "next", []( MRI &self ) -> void { self.next(); } )
+      .def( "copy", []( const MRI &self ) { return self; } )
       .def( "index_offset", &MRI::index_offset, nb::arg( "du" ), nb::arg( "dv" ), nb::arg( "dw" ) )
       .doc() = "Map reference with index-like behaviour.\n This is a reference "
                "to a map coordinate. It behaves like a simple index into the "
@@ -152,6 +159,7 @@ void declare_map_reference_coord( nb::module_ &m, nb::class_<NXmap_base> &nxmapb
           "coord", &MRC::coord, []( MRC &self, const Coord_grid &pos ) -> void { self.set_coord( pos ); },
           nb::for_getter( "Get current grid coordinate." ), nb::for_setter( "Set current grid coordinate." ) )
       .def( "coord_orth", &MRC::coord_orth )
+      .def( "copy", []( const MRC &self ) { return self; } )
       .def( "next", []( MRC &self ) -> void { self.next(); } )
       .def( "next_u", []( MRC &self ) -> void { self.next_u(); } )
       .def( "next_v", []( MRC &self ) -> void { self.next_v(); } )

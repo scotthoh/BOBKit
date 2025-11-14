@@ -1,6 +1,6 @@
 #from __future__ import annotations
 #from typing import List as _List
-from bobkit.buccaneer import *
+from bobkit._buccaneer import *
 
 __all__ = [
     "Ca_build",

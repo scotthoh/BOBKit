@@ -8,7 +8,7 @@
 #include <nanobind/operators.h>
 #include <nanobind/stl/bind_vector.h>
 #include <nanobind/stl/vector.h>
-//#include <nanobind/stl/tuple.h>
+#include <nanobind/stl/tuple.h>
 
 using namespace clipper;
 
@@ -53,46 +53,95 @@ void add_atomlist( nb::module_ &m ) {
             []( const Atom &self ) {
               return "<clipper.Atom " + self.element().trim() + " " + self.coord_orth().format() + ">";
             } )
-      //.def( "__getstate__", [](const Atom &a) {
-      //  nb::make_tuple(a.element(), a.coord_orth(), a.occupancy(), a.u_iso(), a.u_aniso_orth());
-      //})
-      //.def( "__setstate__", [](Atom &a, const std::tuple<std::string, Coord_orth, ftype, ftype, U_aniso_orth> &t) {
-      //  if (std::tuple_size_v<t> != 5)
-      //    throw std::runtime_error("Invalid state!");
-      //  
-      //  new (&a) Atom();
-      //  a.set_element(std::get<0>(t));
-      //  a.set_coord_orth(std::get<1>(t));
-      //  a.set_occupancy(std::get<2>(t));
-      //  a.set_u_iso(std::get<3>(t));
-      //  a.set_u_aniso_orth(std::get<4>(t));
-      //})
+      .def( "__getstate__", [](const Atom &a) {
+        return nb::make_tuple(a.element(), a.coord_orth(), a.occupancy(), a.u_iso(), a.u_aniso_orth());
+      })
+      .def( "__setstate__", [](Atom &a, const nb::tuple &t) {
+        if ( t.size() != 5 ) throw std::runtime_error("Invalide size!");
+        new (&a) Atom();
+        a.set_element(nb::cast<String>(t[0]));
+        a.set_coord_orth(nb::cast<Coord_orth>(t[1]));
+        a.set_occupancy(nb::cast<ftype>(t[2]));
+        a.set_u_iso(nb::cast<ftype>(t[3]));
+        a.set_u_aniso_orth(nb::cast<U_aniso_orth>(t[4]));
+        //new (&a) Atom(atm);
+      })
       .doc() = "Atom class.\nThis class defines a minimal atom object "
                "providing only those properties required for an electron "
                "density calculation. A template constructor allows it to be "
                "constructed from any other object with appropriate properties.";
 
-  nb::bind_vector<std::vector<Atom>, rv_ri>( m, "_Atom_list",
-                                             "Vector of atoms, do not use this class, use Atom_list instead." );
-  // doesn't work
-  //.def("__repr__", [](const Atom_list &self) {
-  //  return "<clipper.Atom_list containing " + std::to_string(self.size()) +
-  //         " atom(s).>";
-  //}, nb::sig("def __repr__(self, /) -> str"));
-
-  nb::class_<Atom_list, std::vector<Atom>> atomlist( m, "Atom_list" );
+  //nb::bind_vector<Atom_list, rv_ri>( m, "Atom_list",
+  //                                   "Vector of atoms, do not use this class, use Atom_list instead." )
+  //    // doesn't work
+  //    .def( "__repr__", [](const Atom_list &self) {
+  //          return "<clipper.Atom_list containing " + std::to_string(self.size()) +
+  //          " atom(s).>";
+  //          }, nb::sig("def __repr__(self, /) -> str"))
+  //    //q.def( "__getitem__", [](const Atom_list &self, size_t i) {
+  //    //q  if ( i >= self.size() ) throw std::out_of_range("Index out of range");
+  //    //q  return self[i];
+  //    //q}, nb::rv_policy::reference_internal)
+  //    //q.def( "__setitem__", [](Atom_list &self, size_t i, const Atom &atm) {
+  //    //q  if ( i >= self.size() ) throw std::out_of_range("Index out of range");
+  //    //q  self[i] = atm;
+  //    //q})
+  //    .def( "__len__", [](const Atom_list &self) {
+  //      return self.size();
+  //    })
+  //    .def( "__getstate__", [](const Atom_list &a) {
+  //      return nb::make_tuple(static_cast<const std::vector<Atom>&>(a));
+  //    })
+  //    .def( "__setstate__", [](Atom_list &a, nb::tuple state) {
+  //      const auto &vec = nb::cast<std::vector<Atom>>(state[0]);
+  //      a.clear();
+  //      new (&a) Atom_list(vec);
+  //      //a.insert(a.end(), vec.begin(), vec.end());
+  //    } )
+  //    .doc() = "Atom list class.\nThis class defines a minimal atom list "
+  //             "object providing only those properties required for an "
+  //             "electron density calculation. It is a trivial derivation "
+  //             "from std::vector<Atom>. In addition a template constructor "
+  //             "allows it to be constructed from any other object with "
+  //             "appropriate properties.";
+      
+  nb::bind_vector<Atom_list, rv_ri>( m, "Atom_list")
+  /*nb::class_<Atom_list, std::vector<Atom>> atomlist( m, "Atom_list" );
   atomlist.def( nb::init<>() )
       .def( nb::init<const std::vector<Atom> &>(), "Constructor from list[Atom]" )
       .def( "__repr__",
             []( const Atom_list &self ) {
               return "<clipper.Atom_list containing " + std::to_string( self.size() ) + " atom(s).>";
             } )
+      //.def( "__getitem__", [](const Atom_list &self, int i) {
+      //  //if ( i >= self.size() ) throw std::out_of_range("Index out of range");
+      //  return self[normalise_index(i, self.size())];
+      //  //return self[i];
+      //}, nb::rv_policy::reference_internal)
+      //.def( "__setitem__", [](Atom_list &self, int i, const Atom &atm) {
+      //  //if ( i >= self.size() ) throw std::out_of_range("Index out of range");
+      //  self[normalise_index(i, self.size())] = atm;
+      //  //self[i] = atm;
+      //})
+      .def( "__len__", [](const Atom_list &self) {
+        return self.size();
+      })*/
+      //.def( "__init__", [](Atom_list *alist, const std::vector<Atom>&v) {
+      //  new (alist) Atom_list(v);
+      //})
+      .def( "__getstate__", [](const Atom_list &a) {
+        return nb::make_tuple(static_cast<const std::vector<Atom>&>(a));
+      })
+      .def( "__setstate__", [](Atom_list &a, nb::tuple state) {
+        // this works fine
+        new (&a) Atom_list(nb::cast<Atom_list>(state[0]));
+      } )
       .doc() = "Atom list class.\nThis class defines a minimal atom list "
                "object providing only those properties required for an "
                "electron density calculation. It is a trivial derivation "
                "from std::vector<Atom>. In addition a template constructor "
                "allows it to be constructed from any other object with "
-               "appropriate properties.";
+               "appropriate properties."; //*/
   //.def( nb::init<>() )
   //    .def( nb::init<const std::vector<Atom> &>(), "Constructor from list[Atom]" )
   //.def(nb::init<const T &>())

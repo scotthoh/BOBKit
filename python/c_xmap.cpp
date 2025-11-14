@@ -94,9 +94,19 @@ void numpy_to_xmap(const nb::ndarray<nb::numpy, T, nb::ndim<3>> & data, /*np_cpu
   for (g[0] = 0; g[0] <= gfms[0]; g[0]++)
     for (g[1] = 0; g[1] <= gfms[1]; g[1]++)
       for (g[2] = 0; g[2] <= gfms[2]; g[2]++) {
-        ix.set_coord(clipper::Coord_grid(g[orderxyz[0]], g[orderxyz[1]], g[orderxyz[2]]));
+        ix.set_coord(Coord_grid(g[orderxyz[0]], g[orderxyz[1]], g[orderxyz[2]]));
         xmap[ix] = T(d(g[orderxyz[0]], g[orderxyz[1]], g[orderxyz[2]]));
       }
+}
+
+
+template<typename T>
+void normalise(Xmap<T> &xmap) {
+  Map_stats mapstat(xmap);
+  Xmap_base::Map_reference_index ix(xmap);
+  for (ix = xmap.first(); !ix.last(); ix.next() ) {
+    xmap[ix] = (xmap[ix] - mapstat.mean()) / mapstat.std_dev();
+  }
 }
 
 nb::class_<Xmap_base> declare_xmap_base( nb::module_ &m ) {
@@ -124,7 +134,7 @@ nb::class_<Xmap_base> declare_xmap_base( nb::module_ &m ) {
                     "operator (translation is zero)." )
       .def( "coord_orth", &Xmap_base::coord_orth, nb::arg( "coord_map" ), "Convert map coordinate to orthogonal." )
       .def( "coord_map", &Xmap_base::coord_map, nb::arg( "coord_orth" ), "Convert orthogonal coordinate to map." )
-      .def( "in_map", ( bool ( Xmap_base::* )( const clipper::Coord_grid & ) const ) & Xmap_base::in_map,
+      .def( "in_map", ( bool ( Xmap_base::* )( const Coord_grid & ) const ) & Xmap_base::in_map,
             nb::arg( "Coord_grid" ) = nullptr,
             "(This method is for compatibility with NXmap - it always returns "
             "true)." )
@@ -192,6 +202,7 @@ void declare_xmap_reference_index( nb::module_ &m, nb::class_<Xmap_base> &xmap_b
           "next", []( MRI &self ) -> void { self.next(); }, "Simpe increment." )
       .def( "index_offset", &MRI::index_offset, nb::arg( "du" ), nb::arg( "dv" ), nb::arg( "dw" ),
             "Index of neighbouring point." )
+      .def( "copy", []( const MRI &self ) { return self; } )
       .doc() = "Xmap reference with index-like behaviour.\n"
                "This is a reference to a map coordinate. It behaves like a "
                "simple index into the map, but can be easily converted into a "
@@ -216,7 +227,8 @@ void declare_xmap_reference_coord( nb::module_ &m, nb::class_<Xmap_base> &xmap_b
       .def(
           "next", []( MRC &self ) -> void { self.next(); },
           "Simple increment. Use of this function resets the stored "
-          "coordinat and sym." )
+          "coordinate and sym." )
+      .def( "copy", []( const MRC &self ) { return self; } )
       .def(
           "next_u", []( MRC &self ) -> void { self.next_u(); }, "Increment u." )
       .def(
@@ -309,8 +321,8 @@ template <class T> void declare_xmap( nb::module_ &m, const std::string &name ) 
       //  self.find_sym_1(cg, ind, sym);
       //  return nb::make_tuple(ind, sym);
       //})
-      .def_prop_ro( "asu_array", []( XMClass &xm) { return xmap_to_array(xm, true); }, nb::rv_policy::automatic)
-      .def_prop_ro( "array", []( XMClass &xm) { return xmap_to_array(xm); }, nb::rv_policy::automatic)
+      .def_prop_ro( "asu_array", []( XMClass &xm ) { return xmap_to_array(xm, true); }, nb::rv_policy::automatic)
+      .def_prop_ro( "array", []( XMClass &xm ) { return xmap_to_array(xm); }, nb::rv_policy::automatic)
       .def( "__repr__", []( const XMClass &self ) { return display_repr<T>( self ); } )
       .def( "__str__", []( const XMClass &self ) { return display_repr<T>( self ); } )
       .def( "__getitem__", []( const XMClass &self, const MRI &ix ) { return self[ix]; } )
@@ -328,6 +340,7 @@ template <class T> void declare_xmap( nb::module_ &m, const std::string &name ) 
           "Fill map with given value." )
       .def( nb::self += nb::self )
       .def( nb::self -= nb::self )
+      .def( "normalise", []( XMClass &self ) { normalise(self); }, "Normalise map." )
       // because python's gemmi map object's data is float type.
       .def(
           "import_from_gemmi",

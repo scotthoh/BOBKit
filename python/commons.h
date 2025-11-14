@@ -23,7 +23,12 @@ void init_symop( nb::module_ &m );  //1
 void init_spacegroup( nb::module_ &m, nb::module_ &mdata );  //1
 void init_clipper_stats( nb::module_ &m );  //1
 void init_resol_fn( nb::module_ &m );  //1
+void add_atomsf( nb::module_ &m );  //1
+void init_sfcalc( nb::module_ &m );
+void init_sfcalc_obs( nb::module_ &m );
+void init_sfweight( nb::module_ &m );
 void add_clipper_tests( nb::module_ &m, nb::module_ &mdata );  //1
+void add_cifdata_io( nb::module_ &m );
 
 void add_rotation( nb::module_ &m );  //1
 void add_xmap( nb::module_ &m );  //1

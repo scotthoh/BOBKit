@@ -32,9 +32,7 @@ class TestXmap:
             xm1[ix] = count
             count += 1
             ix.next()
-        print("t")
-        xmap = clipper.Xmap_float(a, sg, cell, axis_pos)
-        print("2")
+        xmap = clipper.Xmap_float(a, sg, cell)
         ix = xmap.first_coord()
         while not ix.last():
             cg = ix.coord
@@ -91,7 +89,7 @@ class TestXmap:
         #            a[i, j, k] = count
         #            count += 1
 
-        xmap = clipper.Xmap_float(a, sg, cell, axis_pos)
+        xmap = clipper.Xmap_float(a, sg, cell)
         #ix = xmap.map_reference_coord(clipper.Coord_grid(0, 0, 0))
         ix = xmap.first()
         count = 0

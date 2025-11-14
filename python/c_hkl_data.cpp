@@ -5,11 +5,16 @@
 // The University of York
 
 #include "commons.h"
-// #include <clipper/clipper-gemmi.h>
+#include <clipper/clipper-gemmi.h>
+#include "arrays.h"
 #include <clipper/clipper.h>
-#include <nanobind/ndarray.h>
+//#include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/unique_ptr.h>
+//#include <nanobind/stl/vector.h>
+//#include <nanobind/stl/array.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/tuple.h>
 #include <nanobind/trampoline.h>
 
 using namespace clipper;
@@ -125,27 +130,47 @@ void add_hkl_data_base_methods( nb::class_<HKL_data<C>, B> &pyclass, std::string
       //     "Set data by HKL_reference_coord (returns false if no equivalent "
       //     "hkl).")
       .def(
-          "data_to_array",
+          "data_export",
           []( const Class &self, const HKL &hkl ) { //}, std::vector<xtype> &vals) {
             return hkldatatype_to_array<Class, xtype>( self, hkl );
-            // xtype arr[self.data_size()];
-            // self.data_export(hkl, arr.data());
-            // return arr;
-            // for (xtype v : arr)
-            //   vals.append(v)
-            // for (size_t i = 0; i < self.data_size(); ++i) {
-            //   vals.append(arr[i]);
-            // }
           },
-          nb::rv_policy::reference_internal )
-      //.def("data_export",
-      //  [](const Class &self, const HKL& hkl, std::vector<double> &data) {
-      //    //self.data_export(hkl, data.data());
-      //    //return data;
-      //  },
-      //    &Class::data_export, "Conversion to array (for I/O).")
-      //.def("data_import", &Class::data_import,
-      //     "Conversion from array (for I/O).")
+          nb::rv_policy::reference_internal, "Export data at given HKL as array (for I/O)" )
+      .def( "data_import", []( Class &self, const HKL &hkl, const std::vector<xtype> &vals) {
+        self.data_import(hkl, vals.data());
+      }, "Import data for given HKL from array (for I/O)" )
+      .def_prop_ro( "hkl_array", []( const Class &self ) {
+        auto arr = make_numpy_array_2d<int>({(size_t)self.num_obs(), 3});
+        size_t count = 0;
+        for (auto ih = self.first_data(); !ih.last(); self.next_data(ih)) {
+          arr(count,0) = ih.hkl().h();
+          arr(count,1) = ih.hkl().k();
+          arr(count,2) = ih.hkl().l();
+          count++;
+        }
+        return arr;
+      }, nb::rv_policy::automatic)
+      .def_prop_ro( "array", []( const Class &self ) {
+          auto arr = make_numpy_array_2d<xtype>({(size_t)self.num_obs(), (size_t)self.data_size()});
+          //xtype* arr = new xtype[self.num_obs() * self.data_size()];
+          size_t count = 0;
+          std::vector<xtype> v(self.data_size());
+          for (auto ih = self.first_data(); !ih.last(); self.next_data(ih)) {
+            self.data_export(ih.hkl(), v.data());
+            for (auto j =0; j<self.data_size(); j++) {
+              arr(count, j) = v[j];
+            }
+            count++;
+          }
+          return arr;
+      }, "Export all non-missing data to numpy array.", nb::rv_policy::automatic)
+      .def( "data_import_hkls", [](Class &self, const std::vector<std::array<int,3>> &hkls,const nb::ndarray<nb::numpy, xtype, nb::ndim<2>> &vals) {
+        auto dv = vals.view();
+        if ( dv.ndim() != 2 ) throw std::runtime_error("Data array must be 2-Dimension");
+        if ( hkls.size() != dv.shape(0) ) throw std::runtime_error("HKL array has different length from data array.");
+        for ( size_t i = 0; i <  dv.shape(0); i++ ) {
+          self.data_import(HKL(hkls[i][0], hkls[i][1], hkls[i][2]), &dv(i,0));
+        }
+      }, nb::arg("hkls"), nb::arg("data"), "Import data from array for a list of HKL indices.")
       .def( "mask", &Class::mask, "Mask the data by marking any data missing in \'mask\' as missing." )
       .def(
           "__getitem__",
@@ -214,23 +239,36 @@ void add_hkl_data_base_methods( nb::class_<HKL_data<C>, B> &pyclass, std::string
           "copy_from", []( Class &self, const Class &other ) { self = other; }, "Copy from another hkl_data object." )
       .def(
           "set_all_values_to", []( Class &self, const C &value ) { self = value; }, "Set all values to given value." )
-      //.def(
-      //    "restrict_to",
-      //    [](Class &self, const HKL_info &hklinfo) {
-      //      auto new_array = new Class(hklinfo);
-      //      auto ih = hklinfo.first();
-      //      while (!ih.last()) {
-      //        new_array->set_data(ih.hkl(), self[ih.hkl()]);
-      //        ih.next();
-      //      }
-      //      return std::unique_ptr<Class>(new_array);
-      //    },
-      //    "Returns a new HKL_data object containing only those reflections in "
-      //    "the given HKL_info.")
+      .def(
+          "restrict_to",
+          [](Class &self, const HKL_info &hklinfo) {
+            std::unique_ptr<Class> hkldata(new Class(hklinfo));
+            auto ih = hklinfo.first();
+            while (!ih.last()) {
+              hkldata->set_data(ih.hkl(), self[ih.hkl()]);
+              ih.next();
+            }
+            return hkldata.release();
+            //return std::unique_ptr<Class>(new_array);
+          }, nb::arg("hklinfo"),
+          "Returns a new HKL_data object containing only those reflections in "
+          "the given HKL_info.")
       .def( nb::self & nb::self )
       .def( nb::self | nb::self )
       .def( nb::self ^ nb::self )
       .def( !nb::self )
+      // from clipper-gemmi
+      .def( "import_from_gemmi", []( Class &self, const gemmi::Mtz &mtzobj, const std::string mtzpath, const bool &legacy) {
+        String colpath(mtzpath);
+        if (legacy){
+          if (colpath.find("/") == String::npos && colpath.find("[") == String::npos) {
+            colpath = "/*/*/[" + colpath + "]";
+          }
+        }
+        GEMMI::import_hkl_data(self, mtzobj, colpath);
+        }, nb::arg("mtz"), nb::arg("column_names"), nb::arg("legacy") = false,
+        "Import HKL_data of specified columns from gemmi.Mtz object."
+      )
       .doc() = docstring.c_str();
 }
 

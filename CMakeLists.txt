@@ -275,7 +275,8 @@ ExternalProject_add(project_clipper
                     BINARY_DIR ${clipper_bin_path}
                     #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
                     GIT_REPOSITORY https://ccp4forge.rc-harwell.ac.uk/ccp4/clipper.git
-                    GIT_TAG origin/large_maps_support
+                    GIT_TAG b1fce0e931043aaf6c466cae1354842d511a230d
+                    #GIT_TAG origin/large_maps_support
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
                     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/clipper/CMakeLists.txt" 
@@ -408,22 +409,22 @@ endif()
 set_property(TARGET buc_py PROPERTY LIBRARY_OUTPUT_DIRECTORY ${py_dir}/bobkit)
 add_custom_command(TARGET buc_py PRE_BUILD
   COMMENT "Copying bobkit/__init__.py"
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py 
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/__init__.py" ${py_dir}/bobkit/__init__.py
   BYPRODUCTS ${py_dir}/bobkit/__init__.py
 )
 add_custom_command(TARGET buc_py PRE_BUILD
-  COMMENT "Copying bobkit/_buccaneer.py"
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_buccaneer.py" ${py_dir}/bobkit/_buccaneer.py 
-  BYPRODUCTS ${py_dir}/bobkit/_buccaneer.py
+  COMMENT "Copying bobkit/buccaneer.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/buccaneer.py" ${py_dir}/bobkit/buccaneer.py
+  BYPRODUCTS ${py_dir}/bobkit/buccaneer.py
 )
 add_custom_command(TARGET buc_py PRE_BUILD
-  COMMENT "Copying bobkit/_util.py"
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_util.py" ${py_dir}/bobkit/_util.py 
-  BYPRODUCTS ${py_dir}/bobkit/_util.py
+  COMMENT "Copying bobkit/util.py"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/util.py" ${py_dir}/bobkit/util.py
+  BYPRODUCTS ${py_dir}/bobkit/util.py
 )
 add_custom_command(TARGET buc_py PRE_BUILD
   COMMENT "Copying bobkit/_scripts"
-  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_scripts" ${py_dir}/bobkit/_scripts 
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/python/bobkit/_scripts" ${py_dir}/bobkit/_scripts
   BYPRODUCTS ${py_dir}/bobkit/_scripts
 )
 
@@ -441,11 +442,16 @@ if (GENERATE_STUBS AND CMAKE_CROSSCOMPILING)
   message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
 elseif(GENERATE_STUBS)
   # RECURSIVE didn't work keeps getting error when building/installing
-  function(add_nanostub target marker)
+  function(add_nanostub target marker underscore)
+    if (underscore)
+      set(MODNAME bobkit._${target})
+    else()
+      set(MODNAME bobkit.${target})
+    endif()
     if (marker)
       nanobind_add_stub(
         bobkit_${target}_stub
-        MODULE bobkit.${target}
+        MODULE ${MODNAME}
         PYTHON_PATH ${py_dir}
         DEPENDS buc_py project_gemmi
         OUTPUT ${py_dir}/bobkit/${target}.pyi
@@ -461,13 +467,13 @@ elseif(GENERATE_STUBS)
       )
     endif()
   endfunction()
-  add_nanostub(bobkit false)
-  add_nanostub(clipper true)
-  add_nanostub(buccaneer true)
-  add_nanostub(protein_db true)
-  add_nanostub(util true)
-  add_nanostub(data true)
-  add_nanostub(mm true)
+  add_nanostub(bobkit false false)
+  add_nanostub(clipper true false) 
+  add_nanostub(buccaneer true true)
+  add_nanostub(protein_db true false)
+  add_nanostub(util true true)
+  add_nanostub(data true false)
+  add_nanostub(mm true false)
   #nanobind_add_stub(
   #  bobkit_stub
   #  MODULE bobkit
@@ -505,8 +511,8 @@ if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
 endif()
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py"
-              "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py"
-              "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py"
+              "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/buccaneer.py"
+              "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/util.py"
               DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 #install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 #install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)

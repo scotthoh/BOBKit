@@ -68,6 +68,9 @@ template <class Derived> void declare_base_methods( nb::class_<Derived> pyclass 
       //    },
       //    "HKL data export/import to/from numpy.", )
       // Python methods common to all
+      //.def( "__array__", []( const Derived &self ) {
+      //  return nb::ndarray<nb::numpy, xtype, nb::ndim<self.data_size()>>()
+      //})
       .def( "clone", []( const Derived &self ) { return new Derived( self ); }, "Return a copy." );
 } // declare_base_methods
 

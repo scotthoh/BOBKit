@@ -9,6 +9,7 @@
 #include <clipper/clipper.h>
 #include <nanobind/make_iterator.h>
 #include <nanobind/operators.h>
+#include <nanobind/stl/tuple.h>
 
 // #include <gemmi/model.hpp>
 
@@ -84,6 +85,20 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
           "atom", []( const MAtom &self ) -> const Atom & { return self.atom(); },
           []( MAtom &self, Atom atm ) { self.atom() = atm; }, nb::for_getter( "Get atom." ),
           nb::for_setter( "Set atom." ), nb::rv_policy::reference_internal )
+      .def( "__getstate__", [](const MAtom &self) {
+        return nb::make_tuple(self.id(), self.element(), self.coord_orth(), self.occupancy(), self.u_iso(), self.u_aniso_orth());
+      })
+      .def( "__setstate__", [](MAtom &self, nb::tuple &t) {
+        if (t.size() != 6) throw std::runtime_error("Invalid state, must have 6 elements.");
+
+        new (&self) MAtom();
+        self.set_id(nb::cast<std::string>(t[0]));
+        self.set_element(nb::cast<std::string>(t[1]));
+        self.set_coord_orth(nb::cast<Coord_orth>(t[2]));
+        self.set_occupancy(nb::cast<ftype>(t[3]));
+        self.set_u_iso(nb::cast<ftype>(t[4]));
+        self.set_u_aniso_orth(nb::cast<U_aniso_orth>(t[5]));
+      })
       //.def("set_atom", [](MAtom& self, Atom atm) { self.atom() = atm; },
       //    nb::rv_policy::reference_internal, "Set atom.")
       .def( "copy_from", &MAtom::copy, nb::arg( "other" ), nb::arg( "mode" ) = MM::COPY::COPY_C,
@@ -182,6 +197,23 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
       .def_static( "id_match", &MResidue::id_match, nb::arg( "id1" ), nb::arg( "id2" ), nb::arg( "mode" ),
                    "Compare two IDs." )
       .def_static( "id_tidy", &MResidue::id_tidy, nb::arg( "id" ), "Convert ID to standard format." )
+      .def( "__getstate__", [](const MResidue &r) {
+        std::vector<MAtom> atoms;
+        for (size_t i = 0; i < r.size(); ++i)
+          atoms.push_back(r[i]);
+        return nb::make_tuple(r.id(), r.type(), r.seqnum(), atoms);
+      } )
+      .def( "__setstate__", [](MResidue &r, nb::tuple &t) {
+        if (t.size() != 4)
+          throw std::runtime_error("Invalid state, must have 4 elements.");
+        new (&r) MResidue();
+        r.set_id(nb::cast<std::string>(t[0]));
+        r.set_type(nb::cast<std::string>(t[1]));
+        r.set_seqnum(nb::cast<int>(t[2]));
+        for ( const auto& c : nb::cast<std::vector<MAtom>>(t[3]))
+          r.insert(c);
+      })
+      
       // UTILITY
       .def( "build_carbonyl_oxygen",
             ( void ( MResidue::* )( const MResidue & ) )&MResidue::protein_mainchain_build_carbonyl_oxygen,
@@ -271,6 +303,21 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
       .def( nb::self | nb::self, "or operator" )
       .def( "copy_from", &MChain::copy, nb::arg( "other" ), nb::arg( "mode" ) = MM::COPY::COPY_C,
             "Configurable copy function." )
+      .def( "__getstate__", []( const MChain &c ) {
+        std::vector<MResidue> res;
+        for (size_t i = 0; i < c.size(); ++i)
+          res.push_back(c[i]);
+        return nb::make_tuple(c.id(), res);
+      })
+      .def( "__setstate__", []( MChain &self, nb::tuple &t) {
+        if (t.size() < 2)
+          throw std::runtime_error("Invalid state, must have 2 elements.");
+        new (&self) MChain();
+        self.set_id(nb::cast<std::string>(t[0]));
+        for (const auto& r : nb::cast<std::vector<MResidue>>(t[1]))
+          self.insert(r);
+        
+      })
       .def(
           "clone", []( const MChain &self ) { return new MChain( self ); },
           "Return a copy of object. Use this to make copy because "
@@ -348,6 +395,19 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
             "Select and return a list of MAtomIndex." )
       .def( "copy_from", &MModel::copy, nb::arg( "other" ), nb::arg( "mode" ) = MM::COPY::COPY_C,
             "Configurable copy function." )
+      .def( "__getstate__", []( const MModel &self) {
+        std::vector<MChain> c;
+        for (size_t i = 0; i < self.size(); ++i)
+          c.push_back(self[i]);
+        return nb::make_tuple(c);
+      })
+      .def( "__setstate__", []( MModel &self, nb::tuple &t) {
+        if (t.size() < 1)
+          throw std::runtime_error("Invalid state, must have 1 element");
+        new (&self) MModel();
+        for ( const auto& c : nb::cast<std::vector<MChain>>(t[0]))
+          self.insert(c);
+      })
       .def(
           "clone", []( const MModel &self ) { return new MModel( self ); },
           "Return a copy of object. Use this to make copy because "
@@ -371,12 +431,25 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
       .def_prop_ro( "cell", &MiniMol::cell, "Get cell." )
       .def_prop_ro( "spacegroup", &MiniMol::spacegroup, "Get spacegroup." )
       .def_prop_rw(
-          "model", []( const MiniMol &self ) -> const MModel & { return self.model(); },
-          []( MiniMol &self, MModel mol ) { self.model() = mol; }, nb::for_getter( nb::sig("def get_model(self, /) -> MModel" )),
-          nb::for_setter( nb::sig("def set_model(self, mol: MModel, /) -> None" )), nb::for_getter( "Get model." ),
-          nb::for_setter( "Set model." ), nb::rv_policy::reference_internal, "Get model." )
+          "model", []( const MiniMol &self ) -> const MModel & { return static_cast<const MModel&>(self.model()); },
+          []( MiniMol &self, MModel mol ) { self.model() = mol; },
+          nb::for_getter( nb::sig("def model(self, /) -> MModel" )),
+          nb::for_setter( nb::sig("def model(self, mol: MModel, /) -> None" )), nb::for_getter( "Get model." ),
+          nb::for_setter( "Set model." ), nb::rv_policy::reference, "Get/Set model." )
       //.def( "set_model", [](MiniMol& self, MModel mol) { self.model() = mol; },
       //      nb::rv_policy::reference_internal, "Set model." )
+      .def( "__getstate__", [](const MiniMol &m) {
+        return nb::make_tuple(m.spacegroup().symbol_hm(), m.cell(), m.model());
+      })
+      .def( "__setstate__", [](MiniMol &m, nb::tuple &t) {
+        if (t.size()< 3)
+          throw std::runtime_error("Invalid state, must have 6 elements");
+        
+        Spacegroup spg(Spgr_descr(nb::cast<std::string>(t[0]), Spgr_descr::TYPE::HM));
+        new (&m) MiniMol(spg, nb::cast<Cell>(t[1]));
+        m.model() = nb::cast<MModel>(t[2]);
+        
+      })
       .def(
           "clone", []( const MiniMol &self ) { return new MiniMol( self ); },
           "Return a copy of object. Use this to make copy because "

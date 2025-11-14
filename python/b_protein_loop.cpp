@@ -12,6 +12,31 @@
 
 using namespace clipper;
 
+void remove_sidechains( MiniMol &mol, const bool &keep_oxygen=true ) {
+  MiniMol mold = mol;
+  mol = MiniMol( mold.spacegroup(), mold.cell() );
+  for ( int chn = 0; chn < mold.size(); chn++ ) {
+    MPolymer mp;
+    for ( int res = 0; res < mold[chn].size(); res++ ) {
+      MMonomer mm;
+      int in = mold[chn][res].lookup( " N  ", clipper::MM::ANY );
+      int ia = mold[chn][res].lookup( " CA ", clipper::MM::ANY );
+      int ic = mold[chn][res].lookup( " C  ", clipper::MM::ANY );
+      if ( in >= 0 && ia >= 0 && ic >= 0 ) {
+        mm.insert( mold[chn][res][in] );
+        mm.insert( mold[chn][res][ia] );
+        mm.insert( mold[chn][res][ic] );
+      }
+      if ( keep_oxygen ) {
+        int io = mold[chn][res].lookup( " O  ", clipper::MM::ANY );
+        if ( io >= 0 ) mm.insert( mold[chn][res][io] );
+      }
+      if ( mm.size() > 0 ) mp.insert( mm );
+    if ( mp.size() > 0 ) mol.insert( mp );
+    }
+  }
+}
+
 void declare_proteinloop(nb::module_ &m) {
   nb::class_<ProteinLoop>(m, "ProteinLoop")
       .def(nb::init<int>(), nb::arg("torsion_sampling") = 24, "Constructor.")
@@ -206,6 +231,10 @@ void declare_proteintools(nb::module_ &m) {
                   "Insert Ca_chains to model.")
       .def_static("trim_to_protein", &ProteinTools::trim_to_protein,
                   nb::arg("mol"), "Trim to protein backbone.")
+      .def_static("remove_sidechain", [](MiniMol &mol, const bool &keepoxy) { remove_sidechains(mol, keepoxy); },
+                  nb::arg("mol"), nb::arg("keep_oxygen") = true,
+                  "Remove sidechains, leave only atoms with labels "
+                  "'N', 'Ca', 'C', or 'O' if keep_oxygen is True. Default: keep_oxygen = True")
       .def_static("is_protein", &ProteinTools::is_protein, nb::arg("res"),
                   "Return true if residue in amino acid.")
       .def("__repr__",

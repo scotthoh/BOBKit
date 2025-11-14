@@ -5,10 +5,12 @@
 // The University of York
 
 #include "commons.h"
+#include "arrays.h"
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
 #include <nanobind/operators.h>
-#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/tuple.h>
 // #include <gemmi/symmetry.hpp>
 // #include <gemmi/unitcell.hpp>
 
@@ -70,6 +72,19 @@ void add_hklinfo( nb::module_ &m ) {
       .def(
           "add_hkl_list", []( HKL_info &self, std::vector<HKL> &hkl ) { self.add_hkl_list( hkl ); },
           "Add new reflections to the list" )
+      .def_prop_ro( "hkl_array", [](const HKL_info &self) {
+        int* arr = new int[self.num_reflections()*3];
+        std::initializer_list<int64_t> strides={3,1};
+        for ( int i = 0; i < self.num_reflections(); i++ ) {
+            auto hkl = self.hkl_of(i);
+            arr[i*3] = hkl.h();
+            arr[i*3+1] = hkl.k();
+            arr[i*3+2] = hkl.l();
+        }
+        nb::capsule owner(arr, [](void *p) noexcept {delete[] static_cast<int*>(p);});
+        return nb::ndarray<int, nb::numpy, nb::ndim<2>, nb::device::cpu, nb::c_contig>(arr, {(size_t)self.num_reflections(), 3}, owner, strides);
+
+      },nb::rv_policy::automatic)
       .def( "num_reflections", &HKL_info::num_reflections, "Get number of reflections in the object" )
       .def( "hkl_of", &HKL_info::hkl_of, nb::arg( "index" ), "Return the corresponding HKL to the index given." )
       .def( "index_of", &HKL_info::index_of, nb::arg( "hkl" ),
@@ -130,7 +145,7 @@ void add_hklinfo( nb::module_ &m ) {
   nb::class_<HKLC, HKLB>( hklinfo, "HKL_reference_coord" )
       .def( nb::init<>(), "Null constructor" )
       .def( nb::init<const HKL_info &, const HKL &>(), nb::arg( "hklinfo" ), nb::arg( "hkl" ),
-            "Constructor: takes parent HKL_info and intial HKL" )
+            "Constructor: takes parent HKL_info and initial HKL" )
       .def_prop_rw(
           "hkl", &HKLC::hkl, []( HKLC &self, const HKL &hkl ) { self.set_hkl( hkl ); }, "Return/Set current HKL" )
       .def_prop_ro( "sym", &HKLC::sym, "Get current symop number" )
