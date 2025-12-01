@@ -13,6 +13,7 @@
 NB_MODULE( bobkit_ext, mbk_ ) {
   ( void ) mbk_;
   nb::module_ mbk = nb::module_::import_( "bobkit" );
+  nb::module_::import_("gemmi");
   mbk.doc() =
       "Python bindings to Buccaneer and a subset of Clipper library for biomacromolecular "
       "model building kit (BOBKit).";
@@ -20,6 +21,11 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   nb::class_<clipper::Message_fatal>( mbk, "Message_fatal" )
     .def_prop_ro( "text", &clipper::Message_fatal::text )
     .def_prop_ro( "level", &clipper::Message_fatal::level );
+  
+  //nb::class_<clipper::Message_base>( mbk, "Message_base" )
+  //  .def_prop_ro( "text", &clipper::Message_base::text )
+  //  .def_prop_ro( "level", &clipper::Message_base::level );
+  //  
   // auto package = pybind11::module::import("gemmi");
   // auto module = package.attr("Structure");
   // mbk.add_object("Structure", module);
@@ -70,46 +76,47 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   add_mapfilters( mc );
   add_map_utils( mc );
   
-  init_minimol(mc, mm);
-  init_minimol_seq(mc);
-  add_matomindex(mc);
-  init_sfscale(mc);
-  
-  add_fffear(mc);
-  add_edcalc(mc);
-  add_hklinfo(mc);
-  //init_containers(mc);
-  init_hkl_datatypes(mc);
-  init_hkl_data(mc);
+  init_minimol( mc, mm );
+  init_minimol_seq( mc );
+  add_matomindex( mc );
+  init_sfscale( mc );
 
-  //init_gemmi_structure(mc);
+  add_fffear( mc );
+  add_edcalc( mc );
+  add_hklinfo( mc );
+  // init_containers(mc);
+  init_hkl_datatypes( mc );
+  init_hkl_data( mc );
+
+  add_minimol_io_gemmi( mc );
+  init_gemmi_structure(mc);
   //init_map_io(mc);
   
   //init_clipper_util(mc);
   // init_ccp4_mtz_io(mc);
 
-  add_simplex_lib(mb);
-  add_map_simulate(mb);
-  add_ca_build(mb);
-  add_ca_join(mb);
-  add_ca_filter(mb);
-  add_buccaneer_lib(mb);
-  add_buccaneer_util(mb);
-  add_ca_prep(mb);
-  add_buccaneer_prot(mb);
-  add_protein_loop(mb);
-  add_ca_merge(mb);
-  add_ca_find(mb);
-  add_ca_grow(mb);
-  add_ca_link(mb);
-  add_ca_sequence(mb);
-  add_ca_correct(mb);
-  add_ca_ncsbuild(mb);
-  add_ca_prune(mb);
-  add_knownstructure(mb);
-  add_model_tidy(mb);
+  add_simplex_lib( mb );
+  add_map_simulate( mb );
+  add_ca_build( mb );
+  add_ca_join( mb );
+  add_ca_filter( mb );
+  add_buccaneer_lib( mb );
+  add_buccaneer_util( mb );
+  add_ca_prep( mb );
+  add_buccaneer_prot( mb );
+  add_protein_loop( mb );
+  add_ca_merge( mb );
+  add_ca_find( mb );
+  add_ca_grow( mb );
+  add_ca_link( mb );
+  add_ca_sequence( mb );
+  add_ca_correct( mb );
+  add_ca_ncsbuild( mb );
+  add_ca_prune( mb );
+  add_knownstructure( mb );
+  add_model_tidy( mb );
 
-  add_proteindb(mpdb);
+  add_proteindb( mpdb );
 
   add_utils( mutil );
 }

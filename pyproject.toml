@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind >=2.4", "typing-extensions >=4.0; python_version < '3.11'", "scipy>=1.13", "gemmi>0.7.0", "scikit-learn>=1.6"]
+requires = ["scikit-build-core", "nanobind >=2.4", "typing-extensions >=4.0; python_version < '3.11'", "scipy>=1.13", "gemmi==0.7.3", "scikit-learn>=1.6"]
 build-backend = "scikit_build_core.build"
 
 # edit from here

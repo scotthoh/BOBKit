@@ -3,6 +3,7 @@
 #include <clipper/core/clipper_types.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <gemmi/math.hpp>
 
 namespace nb = nanobind;
 constexpr auto rv_ri = nb::rv_policy::reference_internal;
@@ -45,7 +46,8 @@ void init_sfscale( nb::module_ &m );  //1
 void add_fffear( nb::module_ &m );  //1
 void add_edcalc( nb::module_ &m );  //1
 
-//void add_minimol_io_gemmi( nb::module_ &m );  
+void init_gemmi_structure( nb::module_ &m );
+void add_minimol_io_gemmi( nb::module_ &m );  
 
 void add_ca_build( nb::module_ &m );
 void add_ca_correct( nb::module_ &m );
@@ -148,4 +150,11 @@ C &add_item(T &container, C child, int pos)
   if ((size_t)pos > container.size()) // true for negative pos
     pos = (int)container.size();
   return *container.insert(container.begin() + pos, std::move(child));
+}
+
+void to_pystream( std::string &msg, const nb::object &pystream ) {
+  if ( nb::hasattr( pystream, "write" ) && nb::hasattr( pystream, "flush" ) ) {
+    pystream.attr( "write" )( msg.c_str() );
+    pystream.attr( "flush" )();
+  }
 }

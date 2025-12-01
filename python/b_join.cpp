@@ -21,23 +21,44 @@ using namespace clipper;
 void add_ca_join(nb::module_ &m) {
   nb::class_<Ca_join> pyCaJoin(m, "Ca_join");
 
-  pyCaJoin
-      .def(nb::init<double &, double &>(), nb::arg("rad_merge") = 2.0,
-           nb::arg("rad_join") = 2.0)
-      .def("__call__", &Ca_join::operator(), nb::arg("mol"),
-           "Build chains by merging and joining tri-residue fragments.")
-      .def_static("join", &Ca_join::join, nb::arg("mol"), nb::arg("rmerge"),
-                  nb::arg("rjoin"), nb::arg("com"))
-      .def_static("join",
-                  [](MiniMol &mol, const double &rmerg, const double &rjoin,
-                     const std::array<ftype, 3> &com) -> bool {
-                    return Ca_join::join(mol, rmerg, rjoin,
-                                         Coord_orth(com[0], com[1], com[2]));
-                  })
-      .def("__repr__",
-           [](const Ca_join &self) { return "<buccaneer.Ca_join class.>"; })
-      .doc() =
-      "Class for merging overlapped Ca chains and grouping by symmetry.";
+  pyCaJoin.def( nb::init<double &, double &>(), nb::arg( "rad_merge" ) = 2.0, nb::arg( "rad_join" ) = 2.0 )
+      .def( "__call__", &Ca_join::operator(), nb::arg( "mol" ),
+            "Build chains by merging and joining tri-residue fragments." )
+      .def_static( "join", []( MiniMol &mol, double & rmerge, double &rjoin, const nb::object &pystream ) -> bool {
+        Ca_join cajoin( rmerge, rjoin );
+        bool success = cajoin( mol );
+        std::string m = " C-alphas after joining    : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+        if ( pystream.is_valid() ) to_pystream(m, pystream);
+        else std::cout << m;
+        return success;
+      }, nb::arg( "mol" ), nb::arg( "rmerge" )=2.0, nb::arg( "rjoin" )=2.0, nb::arg("stdout")=nullptr,
+      "Build chains by merging and joining tri-residue fragments. Static function with option to print summary.")
+      //.def_static( "join", &Ca_join::join, nb::arg( "mol" ), nb::arg( "rmerge" ), nb::arg( "rjoin" ), nb::arg( "com" ) )
+      .def_static( "join",
+                   []( MiniMol &mol, const double &rmerg, const double &rjoin, Coord_orth &com, const nb::object &pystream ) -> bool {
+                     bool success = Ca_join::join( mol, rmerg, rjoin, com );
+                     std::string m = " C-alphas after joining    : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+                     if ( pystream.is_valid() ) to_pystream(m, pystream);
+                     else std::cout << m;
+                     return success;
+                   }, nb::arg( "mol" ), nb::arg( "rmerge" ), nb::arg( "rjoin" ), nb::arg( "com" ), nb::arg("stdout")=nullptr,
+                  "Build chains by merging and joining tri-residue fragments. Static function with option to print summary.")
+      //.def_static(
+      //    "join",
+      //    []( MiniMol &mol, const double &rmerg, const double &rjoin, const std::array<ftype, 3> &com ) -> bool {
+      //      return Ca_join::join( mol, rmerg, rjoin, Coord_orth( com[0], com[1], com[2] ) );
+      //    } )
+      .def_static( "join",
+                   []( MiniMol &mol, const double &rmerg, const double &rjoin, const std::array<ftype, 3> &com, const nb::object &pystream ) -> bool {
+                     bool success = Ca_join::join( mol, rmerg, rjoin, Coord_orth( com[0], com[1], com[2] ) );
+                     std::string m = " C-alphas after joining    : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+                     if ( pystream.is_valid() ) to_pystream(m, pystream);
+                     else std::cout << m;
+                     return success;
+                   }, nb::arg( "mol" ), nb::arg( "rmerge" ), nb::arg( "rjoin" ), nb::arg( "com" ), nb::arg("stdout")=nullptr,
+                  "Build chains by merging and joining tri-residue fragments. Static function with option to print summary.")
+      .def( "__repr__", []( const Ca_join &self ) { return "<buccaneer.Ca_join class.>"; } )
+      .doc() = "Class for merging overlapped Ca chains and grouping by symmetry.";
 
   using NodeClass = Ca_join::Node;
   nb::class_<NodeClass>(pyCaJoin, "Node")

@@ -33,8 +33,14 @@ void declare_buccaneer_log(nb::module_ &m) {
           nb::arg("mol"), nb::arg("mol_mr"), nb::arg("seq"),
           "Return summary of model stats as string.")
       .def("xml", &BuccaneerLog::xml, nb::arg("xml"), "Write XML output.")
-      .def("profile", &BuccaneerLog::profile,
-           "Outputs time profile for each id logged.")
+      //.def("profile", &BuccaneerLog::profile,
+      //     "Outputs time profile for each id logged.")
+      .def("profile", [](BuccaneerLog &self, const nb::object &pystream) -> void {
+        clipper::String msg;
+        self.profile(msg);
+        if (pystream.is_valid()) to_pystream(msg, pystream);
+        else std::cout << msg;
+      }, nb::arg("stdout")=nullptr, "Outputs time profile for each id logged.")
       .def("evaluate", &BuccaneerLog::evaluate, nb::arg("mol"),
            nb::arg("mol_mr"), nb::arg("seq"), "Evaluate model.");
 }

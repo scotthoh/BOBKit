@@ -16,6 +16,15 @@ void declare_ca_grow(nb::module_ &m) {
            "Constructor for Ca_grow class.")
       .def("__call__", &Ca_grow::operator(), nb::arg("mol"), nb::arg("xmap"),
            nb::arg("llktarget"), "Grow the chain given a map and target.")
+      .def_static( "grow", [](clipper::MiniMol& mol, const clipper::Xmap<float>& xmap, const LLK_map_target& llktgt, const int &ngrow, int &ncpus, const nb::object &pystream) -> bool {
+        Ca_grow cagrow( ngrow );
+        bool success = cagrow( mol, xmap, llktgt );
+        std::string m = " C-alphas after growing    : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+        if ( pystream.is_valid() ) to_pystream(m, pystream);
+        else std::cout << m;
+        return success;
+      }, nb::arg("mol"), nb::arg("xmap"), nb::arg("llktarget"), nb::arg("n_grow")=25, nb::arg("ncpus")=1, nb::arg("stdout")=nullptr,
+      "Grow the chain given a map and target. Static function with option to print summary.")
       .def_static("grow", &Ca_grow::grow, nb::arg("chain"), nb::arg("xmap"),
                   nb::arg("llktarget"), nb::arg("rama1"), nb::arg("rama2"),
                   nb::arg("cutoff"), nb::arg("ngrow"),

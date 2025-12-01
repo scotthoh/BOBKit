@@ -16,11 +16,23 @@ using namespace clipper;
 void declare_ca_sequence(nb::module_ &m) {
   nb::class_<Ca_sequence> casequence(
       m, "Ca_sequence", "Class for sequence Ca chains using density");
-  casequence
-      .def( nb::init<double>(), nb::arg( "reliability" ) = 0.5,
-            "Constructor with sequence reliability." )
-      .def( "__call__", &Ca_sequence::operator(), nb::arg( "mol" ), nb::arg( "xmap" ),
-            nb::arg( "llktargets" ), nb::arg( "seq" ), "Sequence Ca chains using density." )
+  casequence.def( nb::init<double>(), nb::arg( "reliability" ) = 0.5, "Constructor with sequence reliability." )
+      .def( "__call__", &Ca_sequence::operator(), nb::arg( "mol" ), nb::arg( "xmap" ), nb::arg( "llktargets" ),
+            nb::arg( "seq" ), "Sequence Ca chains using density." )
+      .def_static(
+          "sequence",
+          []( clipper::MiniMol &mol, const clipper::Xmap<float> &xmap, const std::vector<LLK_map_target> &llkcls,
+              const clipper::MMoleculeSequence &seq, double &reliability, const nb::object &pystream ) -> bool {
+            Ca_sequence caseq( reliability );
+            bool success = caseq( mol, xmap, llkcls, seq );
+            std::string m = " C-alphas sequenced          : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+            if ( pystream.is_valid() ) to_pystream(m, pystream);   
+            else std::cout << m;
+            return success;
+          },
+          nb::arg( "mol" ), nb::arg( "xmap" ), nb::arg( "llktargets" ), nb::arg( "seq" ),
+          nb::arg( "reliability" ) = 0.5, nb::arg("stdout")=nullptr,
+          "Static function to sequence Ca chains using density, with option to print summary." )
       .def( "num_sequenced", &Ca_sequence::num_sequenced, "Return number of C-alphas sequenced." )
       .def( "format", &Ca_sequence::format,
             "Return sequencing results with up to top 5 scores for each chain "
@@ -30,52 +42,39 @@ void declare_ca_sequence(nb::module_ &m) {
                    "Approximate cumulative normal distribution function." )
       .def_static( "prepare_score", &Ca_sequence::prepare_score, nb::arg( "mm" ), nb::arg( "xmap" ),
                    nb::arg( "llksample" ), "Cache scores in residue properties." )
-      .def_static( "prepare_scores", &Ca_sequence::prepare_scores, nb::arg( "mp" ),
-                   nb::arg( "xmap" ), nb::arg( "llksample" ),
-                   "Cache scores in residue properties." )
-      .def_static( "sequence_overlap", &Ca_sequence::sequence_overlap, nb::arg( "seq1" ),
-                   nb::arg( "seq2" ),
+      .def_static( "prepare_scores", &Ca_sequence::prepare_scores, nb::arg( "mp" ), nb::arg( "xmap" ),
+                   nb::arg( "llksample" ), "Cache scores in residue properties." )
+      .def_static( "sequence_overlap", &Ca_sequence::sequence_overlap, nb::arg( "seq1" ), nb::arg( "seq2" ),
                    "Return fraction of first sequence which overlaps the second." )
-      .def_static( "sequence_similarity", &Ca_sequence::sequence_similarity, nb::arg( "seq1" ),
-                   nb::arg( "seq2" ), "Return fraction of sequenced residues which match" )
-      .def_static( "sequence_combine", &Ca_sequence::sequence_combine, nb::arg( "seq" ),
-                   nb::arg( "reliability" ),
+      .def_static( "sequence_similarity", &Ca_sequence::sequence_similarity, nb::arg( "seq1" ), nb::arg( "seq2" ),
+                   "Return fraction of sequenced residues which match" )
+      .def_static( "sequence_combine", &Ca_sequence::sequence_combine, nb::arg( "seq" ), nb::arg( "reliability" ),
                    "Combine multiple non-conflicting sequence alignments." )
-      .def_static( "sequence_score", &Ca_sequence::sequence_score, nb::arg( "scores" ),
-                   nb::arg( "subseq" ),
+      .def_static( "sequence_score", &Ca_sequence::sequence_score, nb::arg( "scores" ), nb::arg( "subseq" ),
                    "Return highest scoring subsequence matching the given "
                    "sequence to the supplied LLK scores." )
-      .def_static( "sequence_align", &Ca_sequence::sequence_align, nb::arg( "scores" ),
-                   nb::arg( "seq" ),
+      .def_static( "sequence_align", &Ca_sequence::sequence_align, nb::arg( "scores" ), nb::arg( "seq" ),
                    "Perform sequence alignment between the given chain scores "
                    "and the given sequence." )
-      .def_static( "sequence_match", &Ca_sequence::sequence_match, nb::arg( "scores" ),
-                   nb::arg( "seq" ),
+      .def_static( "sequence_match", &Ca_sequence::sequence_match, nb::arg( "scores" ), nb::arg( "seq" ),
                    "Return a scored list of sequence matches between a set of "
                    "LLK scores and available sequence ranges." )
-      .def_static( "sequence_chain", &Ca_sequence::sequence_chain, nb::arg( "chain" ),
-                   nb::arg( "seq" ),
+      .def_static( "sequence_chain", &Ca_sequence::sequence_chain, nb::arg( "chain" ), nb::arg( "seq" ),
                    "Sequence a chain based on the map LLK target, and available "
                    "sequence ranges." )
-      .def_static( "sequence_apply", &Ca_sequence::sequence_apply, nb::arg( "chain" ),
-                   nb::arg( "seq" ), nb::arg( "flags" ),
+      .def_static( "sequence_apply", &Ca_sequence::sequence_apply, nb::arg( "chain" ), nb::arg( "seq" ),
+                   nb::arg( "flags" ),
                    "Apply matching sequence to chain, taking account any "
                    "existing sequence." )
-      .def_static( "sequence", &Ca_sequence::sequence, nb::arg( "chain" ), nb::arg( "seq" ),
-                   nb::arg( "reliability" ),
+      .def_static( "sequence", &Ca_sequence::sequence, nb::arg( "chain" ), nb::arg( "seq" ), nb::arg( "reliability" ),
                    "Run sequencing, combine sequence, and apply matching "
                    "sequence to chain." )
-
-      .def_static( "set_semet", &Ca_sequence::set_semet, nb::arg( "semet" ),
-                   "Set flag to translate MET to MSE." )
-      .def_static( "set_prior_model", &Ca_sequence::set_prior_model, nb::arg( "mol" ),
-                   "Set prior model." )
-      .def_static( "set_cpus", &Ca_sequence::set_cpus, nb::arg( "ncpu" ),
-                   "Set number of cpu threads to use." )
-      .def_static( "set_use_ml_sequence_probability", &Ca_sequence::set_use_ml_sequence_probability,
-                   nb::arg( "flag" ), nb::arg( "hybrid" ) = false, "Set flag to use machine learning sequence probability." )
-      .def( "__repr__",
-            []( const Ca_sequence& self ) { return "<buccaneer.Ca_sequence class.>"; } );
+      .def_static( "set_semet", &Ca_sequence::set_semet, nb::arg( "semet" ), "Set flag to translate MET to MSE." )
+      .def_static( "set_prior_model", &Ca_sequence::set_prior_model, nb::arg( "mol" ), "Set prior model." )
+      .def_static( "set_cpus", &Ca_sequence::set_cpus, nb::arg( "ncpu" ), "Set number of cpu threads to use." )
+      .def_static( "set_use_ml_sequence_probability", &Ca_sequence::set_use_ml_sequence_probability, nb::arg( "flag" ),
+                   nb::arg( "hybrid" ) = false, "Set flag to use machine learning sequence probability." )
+      .def( "__repr__", []( const Ca_sequence &self ) { return "<buccaneer.Ca_sequence class.>"; } );
 
   using Class = Ca_sequence::Sequence_data;
   nb::class_<Class>(casequence, "Sequence_data",

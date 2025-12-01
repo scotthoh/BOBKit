@@ -438,6 +438,17 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
           nb::for_setter( "Set model." ), nb::rv_policy::reference, "Get/Set model." )
       //.def( "set_model", [](MiniMol& self, MModel mol) { self.model() = mol; },
       //      nb::rv_policy::reference_internal, "Set model." )
+      .def_static( "getID_str",
+          []( const String &model_num, const gemmi::CRA &cra, const std::string &entity ) {
+            return GemmiStructure::GetID_str( model_num, cra, entity );
+          },
+          nb::arg( "modelnum" ), nb::arg( "cra" ), nb::arg( "entity" ),
+          "Return a string ID for atom, residue, chain or model. e.g. /1/C/LYS.ins/NZ[N]:altloc" )
+      .def_static( "get_id_str", 
+            []( const int &num, const gemmi::CRA &cra, const std::string &entity ) {
+            return GemmiStructure::GetID_str( String( num ), cra, entity );
+          },nb::arg("modelnum"), nb::arg("cra"), nb::arg("entity"),
+          "Return a string ID for atom, residue, chain or model. e.g. /1/C/LYS.ins/NZ[N]:altloc")
       .def( "__getstate__", [](const MiniMol &m) {
         return nb::make_tuple(m.spacegroup().symbol_hm(), m.cell(), m.model());
       })

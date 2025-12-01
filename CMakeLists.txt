@@ -63,6 +63,13 @@ else()
 endif()
 
 if (NOT BUILD_OWN_FFTW3)
+  if(DEFINED VENV_INSTALL_DIR)
+    set(TMP_CMAKE_LIB_PATH ${CMAKE_LIBRARY_PATH})
+    set(CMAKE_LIBRARY_PATH ${VENV_INSTALL_DIR}/lib)
+    message(STATUS ${CMAKE_LIBRARY_PATH})
+    message(STATUS ${CMAKE_INSTALL_PREFIX})
+    message(STATUS ${CMAKE_INCLUDE_PATH})
+  endif()
   message(STATUS "Finding FFTW3 package.")
   #set(BUILD_OWN_FFTW3 OFF CACHE BOOL "" FORCE)
   find_package(PkgConfig REQUIRED)
@@ -70,6 +77,7 @@ if (NOT BUILD_OWN_FFTW3)
   if(FFTW_FOUND)
     message(STATUS "Found FFTW3 - ${FFTW_LINK_LIBRARIES}")
     message(STATUS "FFTW3 include dir - ${FFTW_INCLUDE_DIRS}")
+    set(CMAKE_LIBRARY_PATH ${TMP_CMAKE_LIB_PATH})
   elseif()
     set(BUILD_OWN_FFTW3 ON CACHE BOOL "" FORCE)
   endif()
@@ -124,7 +132,7 @@ else()
     COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
     OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nb_cmake_dir)
   list(APPEND CMAKE_PREFIX_PATH "${nb_cmake_dir}")
-  find_package(nanobind 2.2.0 CONFIG REQUIRED)
+  find_package(nanobind 2.4.0 CONFIG REQUIRED)
   message(STATUS "Found nanobind ${nanobind_VERSION}: ${NB_DIR}")
   ## use pybind11-config (if available) to determine pybind11_DIR
   #execute_process(COMMAND pybind11-config --cmakedir OUTPUT_VARIABLE pybind11_DIR)
@@ -203,22 +211,27 @@ endif()
 #set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
 set(FFTW3_INCDIR "${VENV_INSTALL_DIR}/include")
 set(FFTW3_LIBDIR "${VENV_INSTALL_DIR}/lib")
+message(STATUS "FFTW3 lib : " ${FFTW3_LIBDIR}/${lib_fftw_name})
 set_target_properties(fftw3::fftw3 PROPERTIES
                       IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
                       #INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
 )
 add_dependencies(fftw3::fftw3 project_fftw)
+#set(fftw3_extlib fftw3::fftw3)
 else()
 set(FFTW3_INCDIR "${FFTW_INCLUDE_DIRS}")
 set(FFTW3_LIBDIR "${FFTW_LIBRARY_DIRS}")
 #cmake_path(GET FFTW3_LIBRARY PARENT_PATH FFTW3_LIBDIR)
-if (BUILD_SHARED_LIBS)
- add_library(fftw3::fftw3 SHARED IMPORTED)
-else()
- add_library(fftw3::fftw3 STATIC IMPORTED)
-endif()
-set_target_properties(fftw3::fftw3 PROPERTIES IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
+add_library(fftw3::fftw3 ALIAS PkgConfig::FFTW)
+#if (BUILD_SHARED_LIBS)
+#add_library(project_fftw SHARED IMPORTED)
+#else()
+#add_library(project_fftw STATIC IMPORTED)
+#endif()
+#add_library(fftw3::fftw3 ALIAS project_fftw)
+##add_dependencies(fftw3::fftw3 project_fftw)
+#set_target_properties(project_fftw PROPERTIES IMPORTED_LOCATION ${FFTW_LINK_LIBRARIES})
+#                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif() # if(BUILD_OWN_FFTW3)
 
 # install gemmi
@@ -240,10 +253,10 @@ ExternalProject_add(project_gemmi
                     #PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
                     #"${gemmi_src_path}/CMakeLists.txt"
                     BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
-                    INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} --prefix=${VENV_INSTALL_DIR}
+                    INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} #--prefix=${VENV_INSTALL_DIR}
                     INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
                     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
-                    CMAKE_ARGS -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=ON)
+                    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENV_INSTALL_DIR} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DBUILD_GEMMI_PROGRAM=OFF -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=OFF)
 
 if(BUILD_SHARED_LIBS)
 add_library(gemmi::gemmi_cpp SHARED IMPORTED)
@@ -303,7 +316,11 @@ add_library(clipper::gemmi STATIC IMPORTED)
 add_library(clipper::minimol STATIC IMPORTED)
 add_library(clipper::cif STATIC IMPORTED)
 endif()
-add_dependencies(project_clipper project_gemmi project_fftw )
+if (BUILD_OWN_FFTW3)
+  add_dependencies(project_clipper project_gemmi project_fftw )
+else()
+  add_dependencies(project_clipper project_gemmi)
+endif()
 set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
 set_target_properties(clipper::core PROPERTIES
                       IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
@@ -365,12 +382,12 @@ install(TARGETS buccaneer_lib LIBRARY DESTINATION "${VENV_INSTALL_DIR}/lib")
 file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
 list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_map_io.cpp")
 list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_container.cpp")
-list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_gemmi.cpp")
+#list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_gemmi.cpp")
 
 
 # nanobind module
 if(USE_PYTHON)
-nanobind_add_module(buc_py NOMINSIZE ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
+nanobind_add_module(buc_py ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
 add_dependencies(buc_py project_gemmi project_clipper buccaneer_lib)
 
 target_include_directories(buc_py PUBLIC
@@ -380,12 +397,12 @@ target_include_directories(buc_py PUBLIC
                            ${CMAKE_SOURCE_DIR}/include
                           )
 
-target_link_directories(buc_py PRIVATE
-                        ${VENV_INSTALL_DIR}/lib
-                        ${FFTW3_LIBDIR}
-                        ${clipper_bin_path}
-                        ${gemmi_bin_path})
-
+#target_link_directories(buc_py PRIVATE
+#                        ${VENV_INSTALL_DIR}/lib
+#                        ${FFTW3_LIBDIR}
+#                        ${clipper_bin_path}
+#                        ${gemmi_bin_path})
+#
 target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib 
 clipper::cif
 clipper::contrib
@@ -453,7 +470,7 @@ elseif(GENERATE_STUBS)
         bobkit_${target}_stub
         MODULE ${MODNAME}
         PYTHON_PATH ${py_dir}
-        DEPENDS buc_py project_gemmi
+        DEPENDS buc_py #project_gemmi
         OUTPUT ${py_dir}/bobkit/${target}.pyi
         )
     else()
@@ -474,6 +491,7 @@ elseif(GENERATE_STUBS)
   add_nanostub(util true true)
   add_nanostub(data true false)
   add_nanostub(mm true false)
+
   #nanobind_add_stub(
   #  bobkit_stub
   #  MODULE bobkit

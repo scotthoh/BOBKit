@@ -6,6 +6,7 @@
 
 #include "commons.h"
 #include <clipper/clipper-gemmi.h>
+#include <gemmi/mtz.hpp>
 #include "arrays.h"
 #include <clipper/clipper.h>
 //#include <nanobind/ndarray.h>

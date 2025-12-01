@@ -7,8 +7,6 @@ import itertools as _IT
 __all__ = [
     "read_structure",
     "write_structure",
-    "get_coordinates_from_predicted_instance",
-    "MapParameters",
 ]
 
 from bobkit.buccaneer import (
@@ -612,6 +610,7 @@ class HelperMTStackNetOsaka:
         fix_origin: bool = True,
         mapin_path: str = "NONE",
         write_npy: bool = False,
+        write_allpoints_npy: bool = False,
         seqlen: int = 0,
         verbose: int = 0,
         # shiftback=True,
@@ -671,6 +670,8 @@ class HelperMTStackNetOsaka:
             xyz[i] = xyz[i] * mp.spacing[i]
         points = (xyz + offsets) * (density > 0)
         points = points[:, density > 0].T
+        if write_allpoints_npy:
+            _np.save("aa_all_points.npy", points, allow_pickle=False)
         # if shiftback:
         #    points -= self.corrections.shiftback
         # tr = self.get_translation_from_cutout()
@@ -887,7 +888,7 @@ class HelperMTStackNetOsaka:
             atm = _MAtom.null()
             matom = _MAtom(atm)
             matom.element = "C"
-            matom.set_id("CA")
+            matom.id = "CA"
             matom.b_iso = 40.0
             matom.occupancy = 1.0
             matom.pos = _Coord_orth(aa_instance_coordinates[i])
@@ -896,7 +897,7 @@ class HelperMTStackNetOsaka:
             res.insert(matom, -1)
             chn.insert(res, -1)
             mmodel.insert(chn, -1)
-        mol.set_model(mmodel)
+        mol.model = mmodel
         _ProteinTools.chain_label(mol, True)
 
     def coord_frac_to_ca_atom(self, aa_instance_frac: _List, mol: _MiniMol):
@@ -915,7 +916,7 @@ class HelperMTStackNetOsaka:
             atm = _MAtom.null()
             matom = _MAtom(atm)
             matom.element = "C"
-            matom.set_id("CA")
+            matom.id = "CA"
             # matom.set_name("CA")
             matom.b_iso = 40.0
             matom.occupancy = 1.0
@@ -925,7 +926,7 @@ class HelperMTStackNetOsaka:
             chn.insert(res, -1)
             mmodel.insert(chn, -1)
             # print("len model ", len(mmodel))
-        mol.set_model(mmodel)
+        mol.model = mmodel
         _ProteinTools.chain_label(mol, True)
 
     def map_grid_to_ca_atom(
@@ -952,7 +953,7 @@ class HelperMTStackNetOsaka:
             atm = _MAtom.null()
             matom = _MAtom(atm)
             matom.element = "C"
-            matom.set_id("CA")
+            matom.id = "CA"
             # matom.set_name("CA")
             matom.b_iso = 40.0
             matom.occupancy = 1.0
@@ -963,7 +964,7 @@ class HelperMTStackNetOsaka:
             chn.insert(res, -1)
             mmodel.insert(chn, -1)
             # print("len model ", len(mmodel))
-        mol.set_model(mmodel)
+        mol.model = mmodel
         _ProteinTools.chain_label(mol, True)
 
     def check_is_seqprob_set(self):

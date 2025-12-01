@@ -9,7 +9,8 @@
 #include <nanobind/stl/bind_vector.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/tuple.h>
-
+#include <clipper/clipper-gemmi.h>
+#include <gemmi/model.hpp>
 using namespace clipper;
 
 void add_atomlist( nb::module_ &m ) {
@@ -129,6 +130,11 @@ void add_atomlist( nb::module_ &m ) {
       //.def( "__init__", [](Atom_list *alist, const std::vector<Atom>&v) {
       //  new (alist) Atom_list(v);
       //})
+      .def_static( "as_atomlist", []( gemmi::Model &mdl ) {
+        GemmiAtom_list ga(mdl.all());
+        return new Atom_list(ga);
+        //std::cout << mdl.chains.size() << std::endl;
+      })
       .def( "__getstate__", [](const Atom_list &a) {
         return nb::make_tuple(static_cast<const std::vector<Atom>&>(a));
       })

@@ -9,6 +9,7 @@
 #include "commons.h"
 #include "arrays.h"
 #include <nanobind/operators.h>
+#include <nanobind/stl/vector.h>
 
 //! Makeup class to hold a vector of LLK_map_target used in cbuccaneer.
 /*! Simple hack to pass vectors as reference to C++ side and gets updated.

@@ -21,7 +21,7 @@ class Configuration:
     normalise: bool = True
 
 class PrepareKaggleDataset:
-    def __init__(self, datafile_path: str, structure_path: str, config: Configuration = Configuration(), column_names: Union[str, None] = None):
+    def __init__(self, datafile_path: str, structure_path: str, config: Configuration = Configuration(), column_names: Union[str, List, None] = None):
         self.input_data = Path(datafile_path)
         self.input_model = Path(structure_path)
         self.config = config
@@ -39,9 +39,24 @@ class PrepareKaggleDataset:
             cell = clipper.Cell(mtz.cell.parameters)
             spg = clipper.Spacegroup(mtz.spacegroup_number)
             f_phi = clipper.HKL_data_F_phi_float(hklinfo)
-            f_phi.import_from_gemmi(mtz, self.column_names, True)
+            f_phi.import_from_gemmi(mtz, ",".join(self.column_names), True)
             grid = clipper.Grid_sampling(spg, cell, reso, sample_rate)
             xmap.init(clipper.Spacegroup(mtz.spacegroup_number), cell, grid)
+            xmap.fft_from(f_phi)
+        elif self.input_data.suffix == ".cif":
+            cif = clipper.CIFfile()
+            cif.open_read(str(self.input_data))
+            reso = cif.resolution()
+            cell = cif.cell
+            spg = cif.spacegroup
+            hklinfo = clipper.HKL_info()
+            cif.import_hkl_info(hklinfo)
+            f_phi = clipper.HKL_data_F_phi_float(hklinfo)
+            cif.import_hkl_data(f_phi, self.column_names)
+            cif.close_read()
+            sample_rate = reso.limit() / self.config.spacing
+            grid = clipper.Grid_sampling(spg, cell, reso, sample_rate)
+            xmap.init(spg, cell, grid)
             xmap.fft_from(f_phi)
         else:
             gmap = gemmi.read_ccp4_map(str(self.input_data))
@@ -122,7 +137,7 @@ def prepare_maps(
     phase: str = "PHWT",
     config: Configuration = Configuration(),
 ):
-    column_names = amplitude + ", " + phase
+    column_names = {amplitude, phase}
     done = np.array(([False] * len(file_list)))
     count = 0
     for inputdata, inputstructure in zip(file_list, struture_list):

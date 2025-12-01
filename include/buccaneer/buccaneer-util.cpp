@@ -306,3 +306,13 @@ void BuccaneerLog::profile()
                 << " s" << std::endl;
         }
 }
+
+void BuccaneerLog::profile( clipper::String &msg )
+{
+  if (prof.size() > 0)
+  {
+    msg += "\nProfile:\n";
+    for (int i = 0; i < prof.size(); i++)
+      msg += prof[i].first + ": " + clipper::String(prof[i].second, 8) + " s\n";
+  }
+}

@@ -14,9 +14,9 @@ from .logger import log2file
 from .set_parameters import BuccaneerParams, BucArgParse
 import datetime
 # from sklearn.cluster import DBSCAN
-from os import getcwd
+from os import getcwd, environ
 from typing import List
-import os
+# from functools import wraps
 faulthandler.enable()
 
 
@@ -96,8 +96,8 @@ class Buccaneer:
         # get reference data
         hkls_ref = clipper.HKL_info()
         hkls_ref.init(
-            clipper.Spacegroup.from_gemmi_spacegroup(mtz.spacegroup),
-            clipper.Cell.from_gemmi_cell(mtz.cell),
+            clipper.Spacegroup(mtz.spacegroup.ccp4),
+            clipper.Cell(mtz.cell.parameters),
             self.resol,
             True,
         )
@@ -109,8 +109,8 @@ class Buccaneer:
         ref_hl.import_from_gemmi(mtz, self.args.ipcol_ref_hl, True)
         hkls_wrk = clipper.HKL_info()
         hkls_wrk.init(
-            clipper.Spacegroup.from_gemmi_spacegroup(mtzwrk.spacegroup),
-            clipper.Cell.from_gemmi_cell(mtzwrk.cell),
+            clipper.Spacegroup(mtzwrk.spacegroup.ccp4),
+            clipper.Cell(mtzwrk.cell.parameters),
             self.resol,
             True,
         )
@@ -149,7 +149,7 @@ class Buccaneer:
             llktgt, hkls_wrk, wrk_pw, wrk_hl, wrk_fp, wrk_fwrk
         )
         # initial number of fragments/residues to find
-        vol = xwrk.cell.volume / float(xwrk.spacegroup.num_symops())
+        vol = xwrk.cell.volume / float(xwrk.spacegroup.num_symops)
         nres = int(vol / 320.0)  # 320A^3/residue on average (inc solvent)
         self.args.nfrag = min(self.args.nfrag, int((self.args.nfragr * nres) / 100))  # noqa: E501
 
@@ -181,7 +181,7 @@ class Buccaneer:
             ValueError("Missing work model!")
             sys.stdout.flush()
         # store a copy of the input model
-        mol_wrk_in = mol_wrk.copy()
+        mol_wrk_in = mol_wrk.clone()
         # prepare known structure
         knownstruc = buccaneer.KnownStructure(
             mol_wrk_in,
@@ -214,6 +214,17 @@ class Buccaneer:
             ca_num (int): Number of C-alphas/residues.
         """
         cls._print_steps_Casummaries(step, ca_num)
+
+    # def run_buccaneer_step(self, func):
+    #    @wraps(func)
+    #    def wrapper(*args, **kwds):
+    #        func(*args, **kwds)
+    #        self._print_steps_Casummaries(
+    #                "after growing",
+    #                len(mol_wrk.select("*/*/CA").atom_list()),
+    #            )
+    #            sys.stdout.flush()
+    #            self.log.log("GROW", mol_wrk, self.args.verbose > 9)
 
     def u_aniso_correction(
         self,
@@ -563,11 +574,11 @@ class Buccaneer:
         """
         camerge = buccaneer.Ca_merge(seq_rel)
         Buccaneer.print_steps_Casummaries(
-            "before model merge", mol_wrk.select("*/*/CA").atom_list().size()
+            "before model merge", len(mol_wrk.select("*/*/CA").atom_list())
         )
         camerge(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
         Buccaneer.print_steps_Casummaries(
-            "after model merge", mol_wrk.select("*/*/CA").atom_list().size()
+            "after model merge", len(mol_wrk.select("*/*/CA").atom_list())
         )
         # print(
         #    " C-alphas before model merge: {0}".format(
@@ -603,12 +614,12 @@ class Buccaneer:
         """
         Buccaneer.print_steps_Casummaries(
             "before model filter",
-            mol_wrk.select("*/*/CA").atom_list().size(),
+            len(mol_wrk.select("*/*/CA").atom_list()),
         )
         buccaneer.Ca_filter.filter(mol_wrk, xwrk, model_filter_sig)
         Buccaneer.print_steps_Casummaries(
             "after model filter",
-            mol_wrk.select("*/*/CA").atom_list().size(),
+            len(mol_wrk.select("*/*/CA").atom_list()),
         )
         sys.stdout.flush()
         log.log("FLT ", mol_wrk, verbose > 9)
@@ -665,33 +676,36 @@ class Buccaneer:
             knownstruc (buccaneer.KnownStructure): KnownStructure object
         """  # noqa: E501
         seq_wrk = self.get_work_sequence()
-        mol_wrk_in = mol_wrk.copy()
+        mol_wrk_in = mol_wrk.clone()
         cafind, osaka = self.prepare_ca_find(xwrk, seq_wrk, llktgt)
         # merge models
         if self.args.merge:
-            Buccaneer.merge_models(
+            buccaneer.Ca_merge.merge(
                 mol_wrk,
                 xwrk,
                 llkcls,
                 seq_wrk,
                 self.args.seq_rel,
-                self.args.verbose,
-                self.log,
+                stdout=sys.stdout,
             )
+            sys.stdout.flush()
+            self.log.log("MRG ", mol_wrk, self.args.verbose > 9)
+            sys.stdout.flush()
         # filter input model
         if self.args.model_filter:
-            self._print_steps_Casummaries(
-                "before model filter",
-                mol_wrk.select("*/*/CA").atom_list().size(),
-            )
-            buccaneer.Ca_filter.filter(mol_wrk, xwrk, self.args.model_filter_sig)  # fmt: skip # noqa: E501
-            self._print_steps_Casummaries(
-                "after model filter",
-                mol_wrk.select("*/*/CA").atom_list().size(),
-            )
-            sys.stdout.flush()
-            self.log.log("FLT ", mol_wrk, self.args.verbose > 9)
-            sys.stdout.flush()
+            Buccaneer.filter_model(mol_wrk, xwrk, self.args.model_filter_sig, self.args.verbose, self.log)
+            #self._print_steps_Casummaries(
+            #    "before model filter",
+            #    len(mol_wrk.select("*/*/CA").atom_list()),
+            #)
+            #buccaneer.Ca_filter.filter(mol_wrk, xwrk, self.args.model_filter_sig)  # fmt: skip # noqa: E501
+            #self._print_steps_Casummaries(
+            #    "after model filter",
+            #    len(mol_wrk.select("*/*/CA").atom_list()),
+            #)
+            #sys.stdout.flush()
+            #self.log.log("FLT ", mol_wrk, self.args.verbose > 9)
+            #sys.stdout.flush()
         # augment input model with mr model
         if self.args.mr_model:
             result = buccaneer.Ca_merge.merge_mr(
@@ -718,10 +732,10 @@ class Buccaneer:
             sys.stdout.flush()
             # find C-alphas by slow likelihood/fast secondary structure search
             if self.args.find:
-                self._print_steps_Casummaries(
-                    "before finding",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
+                # self._print_steps_Casummaries(
+                #    "before finding",
+                #    len(mol_wrk.select("*/*/CA").atom_list()),
+                # )
                 cafind(
                     mol_wrk,
                     knownstruc,
@@ -732,7 +746,7 @@ class Buccaneer:
                 )
                 self._print_steps_Casummaries(
                     "after finding",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
+                    len(mol_wrk.select("*/*/CA").atom_list()),
                 )
                 sys.stdout.flush()
                 self.log.log("FIND", mol_wrk, self.args.verbose > 9)
@@ -740,32 +754,17 @@ class Buccaneer:
                 sys.stdout.flush()
             # grow Ca
             if self.args.grow:
-                cagrow = buccaneer.Ca_grow(25)
-                cagrow(mol_wrk, xwrk, llktgt)
-                self._print_steps_Casummaries(
-                    "after growing",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
-                sys.stdout.flush()
+                buccaneer.Ca_grow.grow(mol_wrk, xwrk, llktgt, 25, ncpus=self.args.ncpu, stdout=sys.stdout)
                 self.log.log("GROW", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # join Ca
             if self.args.join:
-                cajoin = buccaneer.Ca_join(2.0, 2.0)
-                cajoin(mol_wrk)
-                self._print_steps_Casummaries(
-                    "after joining",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
-                sys.stdout.flush()
+                buccaneer.Ca_join.join(mol_wrk, 2.0, 2.0, stdout=sys.stdout)
                 self.log.log("JOIN", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # link Ca
             if self.args.link:
-                calnk = buccaneer.Ca_link(10.0, 24)
-                calnk(mol_wrk, xwrk, llktgt)
-                self._print_steps_Casummaries("linked", calnk.num_linked)
-                sys.stdout.flush()
+                buccaneer.Ca_link.link(mol_wrk, xwrk, llktgt, 10.0, 24, stdout=sys.stdout)
                 self.log.log("LINK", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
                 util.write_structure(mol_wrk, "linked.pdb", cif_format=False)
@@ -773,7 +772,7 @@ class Buccaneer:
             if self.args.seqnc:
                 # caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, corrections)
                 if self.use_ml_seq and self.args.aa_instance_directory != "NONE":  # fmt: skip # noqa: E501
-                    #print(f"Grid in corrections : {osaka.map_params.grid}")  # fmt: skip # noqa: E501
+                    # print(f"Grid in corrections : {osaka.map_params.grid}")  # fmt: skip # noqa: E501
                     osaka(mol_wrk, correlation_mode=self.args.correl)
                     util.write_out_model_with_seq(
                         mol_wrk, "testwriteout_model_with_seqprob.pdb"
@@ -790,60 +789,78 @@ class Buccaneer:
                     "sequenced", caseq.num_sequenced()
                 )  # noqa: E501
                 history = caseq.format()
-                sys.stdout.flush()
+                # sys.stdout.flush()
                 self.log.log("SEQU", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
-                osaka.print_seq_dat(mol_wrk)
+                # osaka.print_seq_dat(mol_wrk)
             # correct
             if self.args.corct:
-                cacor = buccaneer.Ca_correct(12)
-                cacor(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
-                self._print_steps_Casummaries("corrected", cacor.num_corrected)
-                sys.stdout.flush()
+                buccaneer.Ca_correct.correct(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk, 12, stdout=sys.stdout)
+                # buccaneer.Ca_correct.correct(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk, 12, show_summary=True)
+                # cacor = buccaneer.Ca_correct(12)
+                # cacor(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
+                # self._print_steps_Casummaries("corrected", cacor.num_corrected)
+                # sys.stdout.flush()
                 self.log.log("CORR", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # filter
             if self.args.filtr:
-                cafiltr = buccaneer.Ca_filter(1.0)
-                cafiltr(mol_wrk, xwrk)
-                self._print_steps_Casummaries(
-                    "after filtering",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
-                sys.stdout.flush()
+                buccaneer.Ca_filter.filter(mol_wrk, xwrk, 1.0, True, stdout=sys.stdout)
+                # buccaneer.Ca_filter.filter(mol_wrk, xwrk, 1.0, True, show_summary=True)
+                # cafiltr = buccaneer.Ca_filter(1.0)
+                # cafiltr(mol_wrk, xwrk)
+                # self._print_steps_Casummaries(
+                #    "after filtering",
+                #    len(mol_wrk.select("*/*/CA").atom_list()),
+                # )
+                # sys.stdout.flush()
                 self.log.log("FILT", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # ncs build
             if self.args.ncsbd:
-                cancsbuild = buccaneer.Ca_ncsbuild(self.args.seq_rel, 1.0, 12)
-                cancsbuild(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
-                self._print_steps_Casummaries(
-                    "after NCS build",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
+                buccaneer.Ca_ncsbuild.ncsbuild(
+                    mol_wrk,
+                    xwrk,
+                    llkcls.get_vector(),
+                    seq_wrk,
+                    self.args.seq_rel,
+                    1.0,
+                    12,
+                    stdout=sys.stdout,
                 )
-                sys.stdout.flush()
+                # buccaneer.Ca_ncsbuild.ncsbuild(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk, self.args.seq_rel, 1.0, 12, show_summary=True)
+                # cancsbuild = buccaneer.Ca_ncsbuild(self.args.seq_rel, 1.0, 12)
+                # cancsbuild(mol_wrk, xwrk, llkcls.get_vector(), seq_wrk)
+                # self._print_steps_Casummaries(
+                #    "after NCS build",
+                #    len(mol_wrk.select("*/*/CA").atom_list()),
+                # )
+                # sys.stdout.flush()
                 self.log.log("NCSB", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # prune
             if self.args.prune:
-                caprune = buccaneer.Ca_prune(3.0)
-                caprune(mol_wrk, xwrk)
-                self._print_steps_Casummaries(
-                    "after pruning",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
-                sys.stdout.flush()
+                buccaneer.Ca_prune.prune(mol_wrk, xwrk, 3.0, stdout=sys.stdout)
+                # caprune = buccaneer.Ca_prune(3.0)
+                # caprune(mol_wrk, xwrk)
+                # self._print_steps_Casummaries(
+                #    "after pruning",
+                #    len(mol_wrk.select("*/*/CA").atom_list()),
+                # )
+                # sys.stdout.flush()
                 self.log.log("PRUN", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
             # build
             if self.args.build:
-                cabuild = buccaneer.Ca_build(self.args.newrestype)
-                cabuild(mol_wrk, xwrk)
-                self._print_steps_Casummaries(
-                    "after rebuilding",
-                    mol_wrk.select("*/*/CA").atom_list().size(),
-                )
-                sys.stdout.flush()
+                buccaneer.Ca_build.build(mol_wrk, xwrk, self.args.newrestype, False, stdout=sys.stdout)
+                # buccaneer.Ca_build.build(mol_wrk, xwrk, self.args.newrestype, False, show_summary=True)
+                # cabuild = buccaneer.Ca_build(self.args.newrestype)
+                # cabuild(mol_wrk, xwrk)
+                # self._print_steps_Casummaries(
+                #    "after rebuilding",
+                #    len(mol_wrk.select("*/*/CA").atom_list()),
+                # )
+                # sys.stdout.flush()
                 self.log.log("REBU", mol_wrk, self.args.verbose > 9)
                 sys.stdout.flush()
 
@@ -924,7 +941,7 @@ class Buccaneer:
             gfile.write_cif(self.args.get_outfile_name(cifout=True))
 
         if self.args.verbose > 8:
-            self.log.profile()
+            self.log.profile(stdout=sys.stdout)
         # end buccaneer
 
 
@@ -944,10 +961,10 @@ def main(args: List[str] = None, shell: bool = True):
     parsed_args = parser.parse_args(raw_args)
     parser.print_command_with_args()
     buc_params = BuccaneerParams(parsed_args)
-    if "CLIBD" not in os.environ:
-        venv_path = os.environ.get("VIRTUAL_ENV")
-        os.environ["CLIB"] = venv_path + "/lib"
-        os.environ["CLIBD"] = venv_path + "/lib/data"
+    if "CLIBD" not in environ:
+        venv_path = environ.get("VIRTUAL_ENV")
+        environ["CLIB"] = venv_path + "/lib"
+        environ["CLIBD"] = venv_path + "/lib/data"
     
     # if "CLIB" not in os.environ:
     # setting EM reference data

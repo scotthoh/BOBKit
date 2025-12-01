@@ -51,10 +51,26 @@ void declare_ca_find(nb::module_ &m) {
       .export_values();
 
   ca_find.def( nb::init<int, double>(), nb::arg( "n_find" ) = 500, nb::arg( "resol" ) = 1.0 )
-      .def( "__call__", &Ca_find::operator(), nb::arg( "mol" ), nb::arg( "knownstruc" ),
-            nb::arg( "xmap" ), nb::arg( "llktarget" ),
-            nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "modelindex" ) = 0,
+      .def( "__call__", &Ca_find::operator(), nb::arg( "mol" ), nb::arg( "knownstruc" ), nb::arg( "xmap" ),
+            nb::arg( "llktarget" ), nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "modelindex" ) = 0,
             "Find Ca using density." )
+      .def_static(
+          "find",
+          []( MiniMol &mol, const KnownStructure &knownstruc, const clipper::Xmap<float> &xmap,
+              const LLK_map_target &llktarget, const Ca_find::TYPE &type, int &modelind, int &nfind, double &resol, int &cpus,
+              const nb::object &pystream ) -> bool {
+            Ca_find cafind( nfind );
+            cafind.set_cpus( cpus );
+            bool success = cafind( mol, knownstruc, xmap, llktarget, type, modelind );
+            std::string m = " C-alphas after finding    : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
+            if ( pystream.is_valid() ) to_pystream(m, pystream);
+            else  std::cout << m;
+            return success;
+          },
+          nb::arg( "mol" ), nb::arg( "knownstruc" ), nb::arg( "xmap" ), nb::arg( "llktarget" ),
+          nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "modelindex" ) = 0, nb::arg( "nfind" ) = 500,
+          nb::arg( "resol" ) = 1.0, nb::arg( "ncpus" ) = 1, nb::arg( "stdout" ) = nullptr,
+          "Static function to find Ca using density, with an option to print summary." )
       //.def(
       //    "__call__",
       //    []( Ca_find& self, clipper::MiniMol& mol, const KnownStructure& knownstruc,
@@ -76,19 +92,16 @@ void declare_ca_find(nb::module_ &m) {
       //    nb::arg( "mol" ), nb::arg( "knownstruc" ), nb::arg( "xmap" ), nb::arg( "llktarget" ),
       //    nb::arg( "centroids" ), nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD,
       //    nb::arg( "modelindex" ) = 0, "Find Ca using centroids and density." )
-      .def_static( "set_cpus", &Ca_find::set_cpus, nb::arg( "ncpus" ),
-                   "Set number of cpu threads to use." )
+      .def_static( "set_cpus", &Ca_find::set_cpus, nb::arg( "ncpus" ), "Set number of cpu threads to use." )
       .def( "set_starting_instance_coords", &Ca_find::set_starting_instance_coords,
             //( void( Ca_find::* )( const std::vector<clipper::Coord_orth>&, const Xmap<float>&,
             //      const LLK_map_target& llktgt, const Ca_find::TYPE type ) ) &
             //    Ca_find::set_starting_instance_coords,
-            nb::arg( "aa_instance" ), nb::arg( "xmap" ), nb::arg("llktarget"),
-            nb::arg("type") = Ca_find::TYPE::LIKELIHOOD, nb::arg("refine_coords") = false,
+            nb::arg( "aa_instance" ), nb::arg( "xmap" ), nb::arg( "llktarget" ),
+            nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "refine_coords" ) = false,
             "Set starting instance coordinates from a list of orthogonal coordinates of amino acid "
             "instances." )
-      .def( "__repr__", []( const Ca_find& self ) {
-        return "<buccaneer.Ca_find class>";
-      } );
+      .def( "__repr__", []( const Ca_find &self ) { return "<buccaneer.Ca_find class>"; } );
 }
 
 void declare_search_threaded(nb::module_ &m) {

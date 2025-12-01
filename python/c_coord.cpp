@@ -12,10 +12,13 @@
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/list.h>
 #include <nanobind/stl/tuple.h>
+//#include <gemmi/math.hpp>
 
 using namespace clipper;
 
 void add_coords( nb::module_ &m ) {
+  //auto tr = nb::module_::import_("gemmi").attr("Transform");
+
   nb::class_<Resolution>( m, "Resolution" )
       .def( nb::init<>() )
       .def( nb::init<const double &>(), nb::arg( "resolution" ), "Constructor." )
@@ -87,7 +90,8 @@ void add_coords( nb::module_ &m ) {
           nb::arg( "rot" ), nb::arg( "trn" ), "Constructor from rotation and translation(list/arrays)." )
       .def_static(
           "from_gemmi_transform", []( const gemmi::Transform &rtop ) { return GEMMI::transform( rtop ); },
-          nb::arg( "rtop" ), "Convert gemmi::Transform to RTop_orth." )
+          nb::arg( "rtop" ), //nb::sig( "def from_gemmi_transform(self, rtop: gemmi.Transform, /) -> bobkit.clipper.RTop_orth" ),
+          "Convert gemmi::Transform to RTop_orth." )
       .def_static(
           "to_gemmi_transform", []( const RTop_orth &rtop ) { return GEMMI::transform( rtop ); }, nb::arg( "rtop" ),
           "Convert RTop_orth to gemmi::Transform." )
