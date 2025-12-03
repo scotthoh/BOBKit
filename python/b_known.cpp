@@ -26,5 +26,6 @@ void add_knownstructure(nb::module_ &m) {
            "Prune model where is clashes with known model.")
       .def_static("parse", &KnownStructure::parse, nb::arg("arg"),
                   "Parse and store and input argument.")
-      .def("debug", &KnownStructure::debug, "Print out selected atoms.");
+      .def("debug", nb::overload_cast<>(&KnownStructure::debug, nb::const_), "Print out selected atoms.")
+      .def("debug", nb::overload_cast<clipper::String &>(&KnownStructure::debug, nb::const_), "Redirect print out of selected atoms.");
 }

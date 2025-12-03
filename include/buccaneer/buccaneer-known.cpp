@@ -203,3 +203,15 @@ void KnownStructure::debug() const
     }
   }
 }
+
+void KnownStructure::debug( clipper::String &msg ) const
+{
+  for ( int chn = 0; chn < knownall.size(); chn++ ) {
+    for ( int res = 0; res < knownall[chn].size(); res++ ) {
+      for ( int atm = 0; atm < knownall[chn][res].size(); atm++ ) {
+        const double r = dynamic_cast<const PROP&>(knownall[chn][res][atm].get_property("RADI")).value();
+        msg += "/" + knownall[chn].id() + "/" + knownall[chn][res].id() + "/" + knownall[chn][res][atm].id() + " : " + clipper::String(r) + "\n";
+      }
+    }
+  }
+}

@@ -189,7 +189,9 @@ class Buccaneer:
             self.args.nprad,
         )
         if self.args.verbose >= 1:
-            knownstruc.debug()
+            msg = ""
+            knownstruc.debug(msg)
+            print(msg)
         buccaneer.ProteinTools.split_chains_at_gap(mol_wrk)
         return mol_wrk, mol_mr, knownstruc
 

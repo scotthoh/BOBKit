@@ -23,6 +23,7 @@ class KnownStructure {
   //! Parse and store an input argument
   static std::pair<clipper::String,double> parse( clipper::String arg );
   void debug() const;
+  void debug( clipper::String &msg ) const;
  private:
   typedef clipper::Property<double> PROP;
   clipper::MiniMol known;

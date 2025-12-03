@@ -21,7 +21,7 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   nb::class_<clipper::Message_fatal>( mbk, "Message_fatal" )
     .def_prop_ro( "text", &clipper::Message_fatal::text )
     .def_prop_ro( "level", &clipper::Message_fatal::level );
-  
+
   //nb::class_<clipper::Message_base>( mbk, "Message_base" )
   //  .def_prop_ro( "text", &clipper::Message_base::text )
   //  .def_prop_ro( "level", &clipper::Message_base::level );

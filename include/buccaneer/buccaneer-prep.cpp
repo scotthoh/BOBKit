@@ -83,11 +83,9 @@ bool Ca_prep::operator() ( LLK_map_target& llktgt, std::vector<LLK_map_target>& 
 
   if (debug_)
     std::cout << "Target:" << std::endl << llktgt.format() << std::endl;
-  std::cout << "before prep_llk num samples " << llktgt.num_samples() << std::endl;
-  // convert to llk
-  llktgt.prep_llk();
-  std::cout << "after prep_llk num samples " << llktgt.num_samples() << std::endl;
   
+    // convert to llk
+  llktgt.prep_llk();
   if ( seqnc_ )
     for ( int t = 0; t < nside; t++ ) llkcls[t].prep_llk();
 

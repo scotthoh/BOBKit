@@ -8,6 +8,8 @@ import dataclasses
 import functools
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from pathlib import Path
+import requests
+import os
 
 @dataclasses.dataclass
 class Configuration:
@@ -23,11 +25,31 @@ class Configuration:
 class PrepareKaggleDataset:
     def __init__(self, datafile_path: str, structure_path: str, config: Configuration = Configuration(), column_names: Union[str, List, None] = None):
         self.input_data = Path(datafile_path)
-        self.input_model = Path(structure_path)
+        self.input_model = structure_path
         self.config = config
         self.column_names = column_names
         self.xmap = self._read_file_to_xmap()
-        self.structure = util.read_structure(structure_path)
+        self.structure = self._get_structure_from_url(structure_path)  # util.read_structure(structure_path)
+
+    def _get_structure_from_url(self, pdbid: str):
+        dataurl = "https://www.ebi.ac.uk/pdbe/entry-files/download"
+        url = dataurl + f"/{pdbid}"
+        fname = pdbid
+        try:
+            response = requests.get(url, stream=True, timeout=5)
+            if response.status_code == 200:
+                with open(fname, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:  # filter out keep-alive chunks
+                            f.write(chunk)
+            else:
+                print(f"{url} does not exists")
+        except requests.RequestException as e:
+            print("Error : ", e)
+        structure = util.read_structure(fname)
+        os.remove(fname)
+
+        return structure
 
     def _read_file_to_xmap(self):
         xmap = clipper.Xmap_float()
@@ -129,7 +151,7 @@ class PrepareKaggleDataset:
         return starting_array, output_file
 
 
-def prepare_maps(
+def prepare_maps_old(
     file_list: Union[List[Path], List[str]],
     struture_list: Union[List[Path], List[str]],
     output_path: str,
@@ -155,22 +177,57 @@ def prepare_maps(
         for fname in notprocessed:
             print(fname)
 
+def prepare_maps(pdbids: Union[List[Path], List[str]], datapath: str, output_path: str, config: Configuration = Configuration()):
+    """Make numpy arrays from map and save all 3 arrays in npz file with 3 keys: 
+    volume, label_ncaco, label_ncac
 
+    Args:
+        pdbids (Union[List[Path], List[str]]): List of pdb ids
+        datapath (str): Full path to input data maps
+        output_path (str): Full output path
+        config (Configuration, optional): Configuration dataclass containing parameters. Defaults to Configuration().
+    """
+    done = np.array(([False]*len(pdbids)))
+    count = 0
+    data_path = Path(datapath)
+    # https://www.ebi.ac.uk/pdbe/entry-files/5re0_updated.cif
+    # url_prefix = "https://www.ebi.ac.uk/pdbe/entry-files"
+    for pdbid in pdbids:
+        print(f"Preparing {pdbid}")
+        pdbfile = pdbid + "_updated.cif"
+        #pdb_path = url_prefix + f"/{pdb_id}_updated.cif"
+        inmap_path = data_path / f"{pdbid}.ccp4"
+        prepare_kaggle = PrepareKaggleDataset(inmap_path, pdbfile, configuration)
+        starting_array, output_file = prepare_kaggle.make_map_grids(output_path, write_npz=True)
+        done[count] = output_file.exists()
+        count += 1
 
 if __name__ == "__main__":
     import sys
     flist = sys.argv[1]
-    output_path = sys.argv[2]
+    data_path = sys.argv[2]
+    output_path = sys.argv[3]
+    # flist file contain 1 column of pdb codes or pdbid.ccp4
     with open(flist, 'r') as fopen:
-        file_list = []
-        st_list = []
+        pdbids = []
         lines = fopen.readlines()
         for line in lines:
-            f, s = line.strip().split(',')
-            file_list.append(f.strip())
-            st_list.append(s.strip())
+            f = line.strip().split(',')[0].split('.')
+            pdbids.append(f.strip())
+    configuration = Configuration(1, 0.7, 128, 64, 2, 2.0, True)
 
-    prepare_maps(file_list, st_list, output_path)
+    prepare_maps(pdbids, data_path, output_path, configuration)
+
+    #with open(flist, 'r') as fopen:
+    #    file_list = []
+    #    st_list = []
+    #    lines = fopen.readlines()
+    #    for line in lines:
+    #        f, s = line.strip().split(',')
+    #        file_list.append(f.strip())
+    #        st_list.append(s.strip())
+
+    #prepare_maps(file_list, st_list, output_path)
     # def prepare_map_slices(self, work_array: np.ndarray, slices: List[List[int]]):
     #    channels = self.config.channels
     #    box_size = self.config.box_size

@@ -63,7 +63,7 @@ pybuccaneer = "bobkit._scripts.buccaneer:main"
 
 [tool.scikit-build.cmake.define]
 BUCCANEER_PROFILE = "ON"
-BUILD_OWN_FFTW3 = "ON"
+BUILD_OWN_FFTW3 = "OFF"
 GENERATE_STUBS = "ON"
 
 # Get version from python/version.hpp file
