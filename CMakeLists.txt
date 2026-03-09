@@ -479,7 +479,7 @@ elseif(GENERATE_STUBS)
         MODULE bobkit
         PYTHON_PATH ${py_dir}
         MARKER_FILE ${py_dir}/bobkit/py.typed
-        DEPENDS buc_py project_gemmi
+        DEPENDS buc_py project_clipper project_gemmi
         OUTPUT ${py_dir}/bobkit/__init__.pyi
       )
     endif()
