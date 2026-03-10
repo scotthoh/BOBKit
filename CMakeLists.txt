@@ -288,7 +288,7 @@ ExternalProject_add(project_clipper
                     BINARY_DIR ${clipper_bin_path}
                     #GIT_REPOSITORY https://github.com/scotthoh/clipper-gemmi.git
                     GIT_REPOSITORY https://ccp4forge.rc-harwell.ac.uk/ccp4/clipper.git
-                    GIT_TAG b1fce0e931043aaf6c466cae1354842d511a230d
+                    GIT_TAG 620f9ee16a007c585a76d8192c68d32a7dd77730
                     #GIT_TAG origin/large_maps_support
                     UPDATE_COMMAND ""
                     BUILD_IN_SOURCE false
