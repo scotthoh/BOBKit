@@ -43,7 +43,7 @@ jobs:
         python3 -m pip install pytest
         # python3 -m pip install sphinx sphinx-inline-tabs
         # run tests twice: without and with numpy
-        python3 -m pytest discover -s tests/
+        python3 -m pytest tests/
     #- uses: actions/upload-artifact@v4
     #  with:
     #    name: bobkit-macos15

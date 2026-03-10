@@ -445,15 +445,9 @@ add_custom_command(TARGET buc_py PRE_BUILD
   BYPRODUCTS ${py_dir}/bobkit/_scripts
 )
 
-
-#execute_process(
-#  COMMAND ${Python_EXECUTABLE} -c "import scipy"
-#  RESULT_VARIABLE scipy_import_result
-#)
-#if(NOT scipy_import_result EQUAL 0)
-#  message(FATAL_ERROR "Python cannot import scipy during build")
-#endif()
-
+if (BUILD_SHARED_LIBS)
+  set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
+endif()
 
 if (GENERATE_STUBS AND CMAKE_CROSSCOMPILING)
   message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
@@ -491,52 +485,22 @@ elseif(GENERATE_STUBS)
   add_nanostub(util true true)
   add_nanostub(data true false)
   add_nanostub(mm true false)
-
-  #nanobind_add_stub(
-  #  bobkit_stub
-  #  MODULE bobkit
-  #  PYTHON_PATH ${py_dir}
-  #  DEPENDS buc_py project_gemmi
-  #  MARKER_FILE ${py_dir}/bobkit/py.typed
-  #  OUTPUT ${py_dir}/bobkit/__init__.pyi
-  #  )
-  #nanobind_add_stub(
-  #  bobkit_clipper_stub
-  #  MODULE bobkit.clipper
-  #  PYTHON_PATH ${py_dir}
-  #  DEPENDS buc_py project_gemmi
-  #  OUTPUT ${py_dir}/bobkit/clipper.pyi
-  #  )
-  #nanobind_add_stub(
-  #  bobkit_buccaneer_stub
-  #  MODULE bobkit.buccaneer
-  #  PYTHON_PATH ${py_dir}
-  #  DEPENDS buc_py project_gemmi
-  #  OUTPUT ${py_dir}/bobkit/buccaneer.pyi
-  #  )
-  #set(sep ":")
-  #if (WIN32)
-  #  set(setp ";")
-  #endif()
-  #add_custom_command(TARGET buc_py POST_BUILD COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=$<TARGET_FILE_DIR:buc_py>${sep}$ENV{PYTHONPATH}"
-  #${Python_EXECUTABLE} -m pybind11_stubgen bobkit
-  #--enum-class-locations=Ignore)
 endif()
 # here 21Jan
 
 
-if (BUILD_SHARED_LIBS)
-  set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
-endif()
+
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.py"
               "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/buccaneer.py"
               "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/util.py"
               DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
 #install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_buccaneer.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 #install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_util.py" DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/_scripts" DESTINATION "${Python_SITEARCH}/bobkit"
         FILES_MATCHING PATTERN "*.py" )
 install(TARGETS buc_py DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
+
 if (GENERATE_STUBS AND NOT CMAKE_CROSSCOMPILIING)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/__init__.pyi"
                 "${CMAKE_CURRENT_BINARY_DIR}/${py_dir}/bobkit/clipper.pyi"

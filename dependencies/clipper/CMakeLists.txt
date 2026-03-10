@@ -72,6 +72,7 @@ if(MSVC)
 endif()
 if (BUILD_SHARED_LIBRARIES)
   set_target_properties(clipper-core PROPERTIES INSTALL_RPATH "${origin}/${REL_RPATH}")
+  set_property(TARGET clipper-core APPEND PROPERTY BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 install(TARGETS clipper-core
         ARCHIVE DESTINATION lib
@@ -105,6 +106,7 @@ set_target_properties(clipper-contrib PROPERTIES PRIVATE_HEADER "${clipper-contr
 set_property(TARGET clipper-contrib PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (BUILD_SHARED_LIBS)
   set_target_properties(clipper-contrib PROPERTIES INSTALL_RPATH "${origin}/${REL_RPATH}")
+  set_property(TARGET clipper-contrib APPEND PROPERTY BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 install(TARGETS clipper-contrib
         ARCHIVE DESTINATION lib
@@ -135,6 +137,7 @@ set_target_properties(clipper-gemmi PROPERTIES PRIVATE_HEADER "${clipper-gemmi_h
 set_property(TARGET clipper-gemmi PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (BUILD_SHARED_LIBS)
   set_target_properties(clipper-gemmi PROPERTIES INSTALL_RPATH "${origin}/${REL_RPATH}")
+  set_property(TARGET clipper-gemmi APPEND PROPERTY BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 install(TARGETS clipper-gemmi
         ARCHIVE DESTINATION lib
@@ -178,6 +181,7 @@ if(MSVC)
 endif()
 if(BUILD_SHARED_LIBS)
   set_target_properties(clipper-minimol PROPERTIES INSTALL_RPATH "${origin}/${REL_RPATH}")
+  set_property(TARGET clipper-minimol APPEND PROPERTY BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 install(TARGETS clipper-minimol
         ARCHIVE DESTINATION lib
@@ -215,6 +219,7 @@ set_target_properties(clipper-cif PROPERTIES PRIVATE_HEADER "${clipper-cif_heade
 set_property(TARGET clipper-cif PROPERTY POSITION_INDEPENDENT_CODE ON)
 if(BUILD_SHARED_LIBS)
   set_target_properties(clipper-cif PROPERTIES INSTALL_RPATH "${origin}/${REL_RPATH}")
+  set_property(TARGET clipper-cif APPEND PROPERTY BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 install(TARGETS clipper-cif
         ARCHIVE DESTINATION lib
