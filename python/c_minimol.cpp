@@ -10,6 +10,7 @@
 #include <nanobind/make_iterator.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/vector.h>
 
 // #include <gemmi/model.hpp>
 
@@ -435,7 +436,9 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
           []( MiniMol &self, MModel mol ) { self.model() = mol; },
           nb::for_getter( nb::sig("def model(self, /) -> MModel" )),
           nb::for_setter( nb::sig("def model(self, mol: MModel, /) -> None" )), nb::for_getter( "Get model." ),
-          nb::for_setter( "Set model." ), nb::rv_policy::reference, "Get/Set model." )
+          nb::for_setter( "Set model." ), nb::rv_policy::reference_internal, "Get/Set model." )
+      .def( "get_model", [](const MiniMol& self) { return static_cast<const MModel&>(self.model()); }, nb::rv_policy::reference_internal, "Get model" )
+      .def( "set_model", [](MiniMol &self, MModel mdl) { self.model() = mdl; }, nb::rv_policy::reference_internal, "Set model")
       //.def( "set_model", [](MiniMol& self, MModel mol) { self.model() = mol; },
       //      nb::rv_policy::reference_internal, "Set model." )
       .def_static( "getID_str",
@@ -454,7 +457,7 @@ void init_minimol( nb::module_ &m, nb::module_ &mm ) {
       })
       .def( "__setstate__", [](MiniMol &m, nb::tuple &t) {
         if (t.size()< 3)
-          throw std::runtime_error("Invalid state, must have 6 elements");
+          throw std::runtime_error("Invalid state, must have 3 elements");
         
         Spacegroup spg(Spgr_descr(nb::cast<std::string>(t[0]), Spgr_descr::TYPE::HM));
         new (&m) MiniMol(spg, nb::cast<Cell>(t[1]));

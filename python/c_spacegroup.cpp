@@ -44,6 +44,12 @@ void declare_spgr_descr( nb::module_ &m ) {
       .def_prop_ro( "hash", &Spgr_descr::hash, "Return the hash code for the spacegroup." )
       .def( "__hash__", &Spgr_descr::hash )
       .def( "__repr__", []( const Spgr_descr &self ) { return "<clipper.Spgr_descr " + self.symbol_hm() + " >"; } )
+      .def( "__getstate__", []( const Spgr_descr &self ) {
+        return self.spacegroup_number();
+      })
+      .def( "__setstate__", [](Spgr_descr &self, const int num) {
+        new (&self) Spgr_descr(num); 
+      })
       .doc() = "Spacegroup description.\nThe spacegroup description "
                "is a compact description of a spacegroup. It may be "
                "initialised from Hall or H-M symbols, a string of symops "
@@ -206,6 +212,12 @@ void declare_spacegroup( nb::module_ &m ) {
       //    "Convert CLIPPER to GEMMI spacegroup." )
       .def( "__repr__", []( const Spacegroup &self ) { return "<clipper.Spacegroup " + self.symbol_hm() + " >"; } )
       .def( "__str__", &Spacegroup::symbol_hm )
+      .def( "__getstate__", [](const Spacegroup &self) {
+        return self.descr();
+      })
+      .def( "__setstate__", [](Spacegroup &self, const Spgr_descr &descr) {
+        new (&self) Spacegroup(descr);
+      })
       .def( "debug", &Spacegroup::debug, "Output debug details." )
       .doc() = "Spacegroup object.\nThe spacegroup object is a full "
                "description of a spacegroup, including all the most "

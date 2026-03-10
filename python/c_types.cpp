@@ -9,6 +9,9 @@
 #include <clipper/core/clipper_types.h>
 #include <nanobind/make_iterator.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/tuple.h>
+#include <nanobind/stl/vector.h>
+
 
 // #include <clipper/core/clipper_types.h>
 // change printVec to printVec with template<class T>
@@ -42,6 +45,10 @@ template <class T> std::string printSMat( Mat33sym<T> m ) {
 
 template <class T> auto mat33_to_array( Mat33<T> &self ) {
   return nb::ndarray<nb::numpy, T, nb::shape<3, 3>, nb::c_contig>( &self( 0, 0 ), { 3, 3 }, nb::handle() );
+}
+
+template <class T> auto vec3_to_array( Vec3<T> &self ) {
+  return nb::ndarray<nb::numpy, T, nb::ndim<3>, nb::c_contig>( &self[0], {3}, nb::handle() );
 }
 
 void check_index( const int i, const int j ) {
@@ -86,6 +93,7 @@ template <class T> void declare_vec3( nb::module_ &m, const std::string &name ) 
       .def( "__setstate__", [](V3 &self, const std::tuple<T, T, T> &t) {
         new (&self) Vec3(std::get<0>(t), std::get<1>(t), std::get<2>(t));
       })
+      .def_prop_ro( "array", &vec3_to_array<T>, nb::rv_policy::reference_internal )
       //.def(
       //    "as_array",
       //    [](const V3 &self) {
@@ -319,7 +327,7 @@ template <class T> void declare_rtop( nb::module_ m, const std::string &name ) {
       .def( "equals", &RT::equals, nb::arg( "m" ), nb::arg( "tol" ), "Test equality with some tolerance." )
       .def_prop_rw(
           "rot", []( const RT &self ) { return self.rot(); }, []( RT &self, const Mat33<T> &rot ) { self.rot() = rot; },
-          nb::for_getter( "Get rotation. Use .rot().as_array() to return as numpy array." ),
+          nb::for_getter( "Get rotation. Use .rot.array to return as numpy array." ),
           nb::for_setter( "Set rotation." ) )
       .def_prop_rw(
           "trn", []( const RT &self ) { return self.trn(); }, []( RT &self, const Vec3<T> &trn ) { self.trn() = trn; },
@@ -429,7 +437,7 @@ void add_clipper_types( nb::module_ &m ) {
   declare_mat33<int>( m, "int" );
   declare_rtop<int>( m, "int" );
   declare_array2d<int>( m, "int" );
-
+  
   declare_vec3<double>( m, "double" );
   declare_mat33<double>( m, "double" );
   declare_mat33sym<double>( m, "double" );

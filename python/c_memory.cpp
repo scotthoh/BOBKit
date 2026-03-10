@@ -9,8 +9,15 @@
 #include <clipper/core/clipper_memory.h>
 #include <clipper/core/clipper_sysdep.h>
 #include <nanobind/trampoline.h>
+#include <nanobind/stl/vector.h>
 
 using namespace clipper;
+
+// quick class for storing an atom coordinate and sequence probabilities scores, instead of Ca_group
+struct Ca_sequence_data_single_atom {
+  Coord_orth pos;
+  std::vector<double> data;
+};
 
 // trampoline class for property base
 class PyProperty_base : public Property_base {
@@ -57,6 +64,13 @@ template <class T> void declare_property( nb::module_ &m, const std::string &nam
 //          return "<clipper.Property_double>";
 //        });
 //
+void declare_caseq_prob( nb::module_ &m ) {
+  nb::class_<Ca_sequence_data_single_atom>( m, "Ca_sequence_data_single_atom" )
+    .def( nb::init<>() )
+    .def_rw("pos", &Ca_sequence_data_single_atom::pos)
+    .def_rw("data", &Ca_sequence_data_single_atom::data)
+    .doc() = "Class to hold a single coordinate and sequence data.";
+}
 
 void declare_property_manager( nb::module_ &m ) {
   nb::class_<PropertyManager>( m, "PropertyManager" )
@@ -87,10 +101,12 @@ void add_clipper_memory( nb::module_ &m ) {
   // These are the ones used in Clipper
   // Other types can be added by using the example binding above if needed.
   declare_property_base( m );
+  declare_caseq_prob( m );
   declare_property<std::string>( m, "string" );
   declare_property<int>( m, "int" );
   declare_property<float>( m, "float" );
   declare_property<double>( m, "double" );
   declare_property<Ca_sequence::Sequence_data>(m, "sequence_data");
+  declare_property<Ca_sequence_data_single_atom>(m, "sequence_data_single_atom");
   declare_property_manager( m );
 }

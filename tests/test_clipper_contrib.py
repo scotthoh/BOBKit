@@ -1,12 +1,14 @@
 import faulthandler
 import pytest
+import pathlib
 import os
 import bobkit.clipper as clipper
 import bobkit.data as data
 import numpy as np
+from datetime import datetime
 
 try:
-    from contrib_test_data import contrib_vals, contrib_tols
+    from test_data.contrib_test_data import contrib_vals, contrib_tols
 except ImportError:
     print("Did not managed to get contrib data")
 faulthandler.enable()
@@ -28,13 +30,14 @@ def data_atomlist():
 
 
 @pytest.fixture(scope="module")
-def data_contribs():
-    cwd = os.path.dirname(__file__)
-    contrib_datafile = os.path.join(cwd, "contrib_test_data.py")
+def data_contribs(request):
+    testdir = pathlib.Path(request.module.__file__).parent.parent / "test_data"
+    #cwd = os.path.dirname(__file__)
+    contrib_datafile = str(testdir / "contrib_test_data.py")  # os.path.join(cwd, "test_data/contrib_test_data.py")
     globals_dict = {}
     with open(contrib_datafile, "r", encoding="utf-8") as f:
         src = f.read()
-    exec(compile(src, "path/to/file_with_lists.py", "exec"), globals_dict)
+    exec(compile(src, "err_data_contrib.txt", "exec"), globals_dict)
     contrib_vals = globals_dict["contrib_vals"]
     contrib_tols = globals_dict["contrib_tols"]
     return (contrib_vals, contrib_tols)
@@ -361,22 +364,25 @@ class Test_Contrib():
                 weight.set_data(c - tg.min, 1.0)
             c.next(tg)
 
-        # conv1 = clipper.Convolution_search_slow_float(xmap)
+        # convolution search not exposed to nanobind for now
+        #conv1 = clipper.Convolution_search_slow_float(xmap)
         # conv2 = clipper.Convolution_search_fft_float(xmap)
-        # conv1(r1, target)
+        # #conv1(r1, target)
         # conv2(r2, target)
-        # ix = r1.first()
-        # while not ix.last():
-        #    self.compare_values("CONVOL", r1[ix], r2[ix], 0.0001)
-        #    ix.next()
-        # srch1 = clipper.FFFear_slow_float(xmap)
+        # #ix = r1.first()
+        # #while not ix.last():
+        # #    self.compare_values("CONVOL", r1[ix], r2[ix], 0.0001)
+        # #    ix.next()
+        # #srch1 = clipper.FFFear_slow_float(xmap)
         # srch2 = clipper.FFFear_fft_float(xmap)
-        # srch1(r1, target, weight)
+        # #srch1(r1, target, weight)
         # srch2(r2, target, weight)
         # ix = r1.first()
-        # while not ix.last():
-        #    self.compare_values("FFFEAR", r1[ix], r2[ix], 0.001)
-        #    ix.next()
+        # with open("fffear_output_test.log", "w") as wopen:
+        #     while not ix.last():
+        #     #   self.compare_values("FFFEAR", r1[ix], r2[ix], 0.001)
+        #         wopen.write(f"{r2[ix]:.3f}/n")
+        #         ix.next()
 
     def test_anisotropic_scaling(self, data_fsig_obj):
         # something wrong here not passing test

@@ -125,7 +125,7 @@ void declare_nxoperator(nb::module_ &m)
                "which maps the orthogonal frame of the crystal space onto the "
                "orthogonal frame of the NXmap space.\n"
                "The object calculates and stores optimised transformations between "
-               "the crystallgoraphic frame (described either in fractional or grid "
+               "the crystallographic frame (described either in fractional or grid "
                "coordinates), and the NXmap grid. Fast paths are generated "
                "automatically if the grids are related.";
   add_get_map_data_methods<NX_operator, float, NXmap<float>>(nx_op, "nxmap_data");
@@ -201,4 +201,5 @@ void add_nxmap_operator(nb::module_ &m) {
   declare_nxoperator(m);
   declare_nxmap_operator<ftype32>(m, "float");
   declare_nxmap_operator<ftype64>(m, "double");
+  declare_nxmap_operator<int>(m, "int");
 }

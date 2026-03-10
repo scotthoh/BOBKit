@@ -18,7 +18,7 @@ class TestXmap:
         """Test if the array returned from Xmap is correctly filled
         """
         grid = clipper.Grid_sampling(10, 10, 10)
-        a = np.zeros((grid.nu, grid.nv, grid.nw))
+        a = np.zeros((grid.nu, grid.nv, grid.nw), dtype=np.float32)
         # fill a
         count = 0
         axis_pos = [0, 1, 2]

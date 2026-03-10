@@ -12,6 +12,7 @@
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/list.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/vector.h>
 //#include <gemmi/math.hpp>
 
 using namespace clipper;
@@ -252,7 +253,7 @@ void add_coords( nb::module_ &m ) {
             "Test if done in storage order (see index())." )
       .def( "index", &Coord_grid::index, nb::arg( "grid" ), "Grid indexing operator." )
       .def( "deindex", [](Coord_grid &self, const Grid &g, const itype64& ind) {
-        self.deindex(g, ind);
+        return self.deindex(g, ind);
       },
         //&Coord_grid::deindex, nb::arg( "grid" ), nb::arg( "index" ),
         "Grid deindexing operator." )
@@ -351,7 +352,7 @@ void add_coords( nb::module_ &m ) {
       .def( "__getstate__", [](const Coord_frac &self) {
         return nb::make_tuple(self.u(), self.v(), self.w());
       })
-      .def( "__setstate__", [](Coord_orth &self, const std::tuple<ftype, ftype, ftype> &t) {
+      .def( "__setstate__", [](Coord_frac &self, const std::tuple<ftype, ftype, ftype> &t) {
         new (&self) Coord_frac(std::get<0>(t), std::get<1>(t), std::get<2>(t));
       })
       .def( -nb::self )
@@ -450,7 +451,7 @@ void add_coords( nb::module_ &m ) {
       .def( "in_grid", &Grid::in_grid, nb::arg( "grid" ), "Determin if a point is in the grid." )
       .def( "index", &Grid::index, nb::arg( "grid" ), "Grid indexing operator." )
       .def( "deindex", [](Grid &self, const itype64& ind) {
-        self.deindex(ind);
+        return self.deindex(ind);
       },
          //&Grid::deindex, nb::arg( "index" ),
          "Grid deindexing operator." )
@@ -474,6 +475,9 @@ void add_coords( nb::module_ &m ) {
       .def( "matrix_frac_grid", &Grid_sampling::matrix_frac_grid,
             "Return matrix which converts fractional to grid coordinates." )
       .def( "is_null", &Grid_sampling::is_null, "Test if object has been initialised." )
+      .def( "__setstate__", [](Grid_sampling &self, const std::tuple<int, int, int> &t) {
+        new (&self) Grid_sampling(std::get<0>(t), std::get<1>(t), std::get<2>(t));
+      })
       .doc() = "Grid sampling of a unit cell.\nThis class represents the grid "
                "sampling of a unit cell. It is otherwise identical to its parent, "
                "clipper::Grid_cell, but has an additional constructor which takes a "
@@ -516,7 +520,7 @@ void add_coords( nb::module_ &m ) {
       .def( "in_grid", &Grid_range::in_grid, nb::arg( "grid" ), "Determine if a point is in the grid." )
       .def( "index", &Grid_range::index, nb::arg( "c" ), "Grid indexing operator." )
       .def( "deindex", [](Grid_range &self, const itype64& ind) {
-        self.deindex(ind);
+        return self.deindex(ind);
       },
         //&Grid_range::deindex, nb::arg( "index" ),
         "Grid deindexing operator." )

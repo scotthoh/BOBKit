@@ -9,6 +9,8 @@
 #include <clipper/core/cell.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/array.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/vector.h>
 
 using namespace clipper;
 
@@ -72,6 +74,9 @@ void declare_cell( nb::module_ &m ) {
   cell.def( nb::init<>(), "Null constructor, must initialise later." )
       .def( nb::init<const Cell_descr &>(), nb::arg( "Cell_descr" ), "Constructor from Cell descriptor" )
       //.def("init", &Cell::init, nb::arg("Cell_description"))
+      .def( "__init__", []( Cell *cell, const double &a, const double &b, const double &c, const double &alpha, const double &beta, const double &gamma) {
+        new ( cell ) Cell( Cell_descr( a, b, c, alpha, beta, gamma ) );
+      })
       .def( "__init__",
           []( Cell *c, std::array<double, 6> &params ) {
               new ( c ) Cell( Cell_descr( params[0], params[1], params[2], params[3], params[4], params[5] ) );
@@ -111,6 +116,16 @@ void declare_cell( nb::module_ &m ) {
             return nb::make_tuple( c.a(), c.b(), c.c(), c.alpha_deg(), c.beta_deg(), c.gamma_deg() );
           },
           "Return a tuple of Cell parameters." )
+      .def( "__getstate__", [](const Cell &cell) {
+        return nb::make_tuple(cell.a(), cell.b(), cell.c(), cell.alpha(), cell.beta(), cell.gamma());
+      })
+      .def( "__setstate__", [](Cell &cell, nb::tuple &t) {
+        if ( t.size()<6 )
+          throw std::runtime_error("Invalid_state, must have 6 elements");
+        
+        new (&cell) Cell(Cell_descr(nb::cast<ftype>(t[0]),nb::cast<ftype>(t[1]), nb::cast<ftype>(t[2]),
+                         nb::cast<ftype>(t[3]), nb::cast<ftype>(t[4]), nb::cast<ftype>(t[5])));
+      })
       .doc() = "Cell object.\n"
                "The Cell class is the fully functional description of the unit "
                "cell. In addition to the cell parameters, it stores derived "
