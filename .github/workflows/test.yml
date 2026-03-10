@@ -19,7 +19,7 @@ jobs:
       matrix:
         python-version: ["3.11"]
     env:
-      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON;-DGENERATE_STUBS=OFF"
+      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON"
       SKBUILD_BUILD_TARGETS: "all"
     steps:
     - uses: actions/checkout@v4
