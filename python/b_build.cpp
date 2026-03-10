@@ -27,7 +27,7 @@ void add_ca_build( nb::module_ &m ) {
           /*&Ca_build::build,*/ nb::arg( "mol" ), nb::arg( "xmap" ), nb::arg( "newrestype" ) = "ALA",
           nb::arg( "flexible" ) = false, nb::arg( "stdout" ) = nullptr,
           "Build Ca chains using density, static function with an option to print summary." )
-      .def( "__call__", &Ca_build::operator(), nb::arg( "mol" ), nb::arg( "xmap" ), "Build Ca chains using density." )
+      .def( "__call__", &Ca_build::operator(), nb::arg( "mol" ), nb::arg( "xmap" ),"Build Ca chains using density." )
       .def( "__repr__", []( const Ca_build &self ) { return "<buccaneer.Ca_build class>"; } )
       .doc() = "Class for building Ca chains using density.";
 }

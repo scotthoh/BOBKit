@@ -31,6 +31,7 @@ class Ca_find {
   void set_starting_instance_coords( const std::vector<clipper::Coord_orth>& aa_instance,
                                      const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget,
                                      const TYPE type = LIKELIHOOD, const bool refine_coords = false );
+  void get_initial_results(std::vector<clipper::Coord_orth>& refined_aa_instance, const clipper::Xmap<float> &xmap);
   // void set_starting_centroid_coords( const std::vector<clipper::Coord_map>& aa_instance ) {
   // aa_
   // }
@@ -64,6 +65,7 @@ class Ca_find {
   std::vector<clipper::RTop_orth> ops;
   std::vector<SearchResult> results;
   std::vector<clipper::Coord_grid> aa_instance_positions;
+  Score_list<clipper::RTop_orth> initial_score_list;
   bool has_aa_instance = false;
   static int ncpu;
 };

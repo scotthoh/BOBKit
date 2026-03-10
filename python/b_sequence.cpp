@@ -10,7 +10,6 @@
 #include <clipper/clipper.h>
 #include <nanobind/operators.h>
 
-
 using namespace clipper;
 
 void declare_ca_sequence(nb::module_ &m) {

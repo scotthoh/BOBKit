@@ -101,6 +101,12 @@ void declare_ca_find(nb::module_ &m) {
             nb::arg( "type" ) = Ca_find::TYPE::LIKELIHOOD, nb::arg( "refine_coords" ) = false,
             "Set starting instance coordinates from a list of orthogonal coordinates of amino acid "
             "instances." )
+      .def( "get_initial_results", [](Ca_find &self, const clipper::Xmap<float> &xmap) {
+        std::vector<clipper::Coord_orth> co;
+        self.get_initial_results(co, xmap);
+        return co;
+      }
+      )
       .def( "__repr__", []( const Ca_find &self ) { return "<buccaneer.Ca_find class>"; } );
 }
 
