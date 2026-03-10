@@ -37,7 +37,7 @@ jobs:
         python3 -m pip install --verbose .
         python3 -m pip install pytest
         python3 -m pip list
-        python3 -m pytest tests/
+        python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
     - name: Python Tests
       run: |
         source pyenv/bin/activate

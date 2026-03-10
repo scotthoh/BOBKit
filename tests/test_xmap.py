@@ -12,6 +12,16 @@ import numpy as np
 import gemmi
 import time
 
+@pytest.fixture(scope="module")
+def gemmi_map(request):
+    testdir = pathlib.Path(request.module.__file__).parent.parent / "test_data"
+    #cwd = os.path.dirname(__file__)
+    mapfile = str(testdir / "7ins.ccp4")
+    gm = gemmi.read_ccp4_map(mapfile)
+    xm1 = clipper.Xmap_float()
+    xm1.import_from_gemmi(gm)
+    return xm1, gm, gm.grid.array
+
 
 class TestXmap:
     def test_xmap_array(self):
@@ -116,10 +126,11 @@ class TestXmap:
             print(cg, xmap[ix], a[cg.u, cg.v, cg.w]) #, xm_array[cg.u, cg.v, cg.w] )
             ix.next()
 
-    def from_file(self):
-        gm = gemmi.read_ccp4_map("/Users/swh514/Work/data/7ins.ccp4")
-        xm1 = clipper.Xmap_float()
-        xm1.import_from_gemmi(gm)
+    def from_file(self, gemmi_map):
+        #gm = gemmi.read_ccp4_map("/Users/swh514/Work/data/7ins.ccp4")
+        #xm1 = clipper.Xmap_float()
+        #xm1.import_from_gemmi(gm)
+        xm1, gm, gma = gemmi_map
         ix = xm1.first()
         gma = gm.grid.array
         print("test0")
@@ -178,10 +189,11 @@ class TestXmap:
             print(cg, arr[cg.u,cg.v,cg.w])
             ix.next()
 
-    def test_xmap_array_time(self):
-        gm = gemmi.read_ccp4_map("/Users/swh514/Work/data/7ins.ccp4")
-        xm1 = clipper.Xmap_float()
-        xm1.import_from_gemmi(gm)
+    def test_xmap_array_time(self, gemmi_map):
+        xm1, gm, gma = gemmi_map
+        #gm = gemmi.read_ccp4_map("/Users/swh514/Work/data/7ins.ccp4")
+        #xm1 = clipper.Xmap_float()
+        #xm1.import_from_gemmi(gm)
         start = time.perf_counter_ns()
         xm1_arr = xm1.array
         end = time.perf_counter_ns()
