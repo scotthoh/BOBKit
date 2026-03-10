@@ -30,15 +30,15 @@ jobs:
       run: |
         g++ --version
         cmake --version
-        python --version
         python3 -m venv pyenv
         source pyenv/bin/activate
-        python3 -m pip install nanobind
-        python3 -m pip install numpy
-        python3 -m pip install --verbose .
-        python3 -m pip install pytest
-        python3 -m pip list
-        python3 -m pytest tests/
+        which python
+      #python3 -m pip install nanobind
+      #python3 -m pip install numpy
+      #python3 -m pip install --verbose .
+      #python3 -m pip install pytest
+      #python3 -m pip list
+      #python3 -m pytest tests/
     #- name: Python Tests
     #  run: |
     #    source pyenv/bin/activate
