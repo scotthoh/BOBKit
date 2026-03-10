@@ -447,6 +447,8 @@ add_custom_command(TARGET buc_py PRE_BUILD
 
 if (BUILD_SHARED_LIBS)
   set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
+  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${clipper_bin_path}")
+  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${gemmi_bin_path}")
 endif()
 
 if (GENERATE_STUBS AND CMAKE_CROSSCOMPILING)
