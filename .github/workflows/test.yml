@@ -19,7 +19,7 @@ jobs:
       matrix:
         python-version: ["3.11"]
     env:
-      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON;"
+      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON;-DGENERATE_STUBS=OFF"
       SKBUILD_BUILD_TARGETS: "all"
     steps:
     - uses: actions/checkout@v4
@@ -31,6 +31,7 @@ jobs:
       run: |
         g++ --version
         cmake --version
+        python --version
         python3 -m venv pyenv
         source pyenv/bin/activate
         python3 -m pip install nanobind
