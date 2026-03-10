@@ -63,7 +63,10 @@ class Buccaneer:
             hkls_wrk (clipper.HKL_info): Work HKL info object
         """  # noqa: E501
         buccaneer.Ca_prep.set_cpus(self.args.ncpu)
-        buccaneer.Ca_find.set_cpus(self.args.ncpu)
+        if self.args.use_ml_find:
+            buccaneer.Ca_find.set_cpus(self.args.ncpu+1)
+        else:
+            buccaneer.Ca_find.set_cpus(self.args.ncpu)
         buccaneer.Ca_grow.set_cpus(self.args.ncpu)
         buccaneer.Ca_sequence.set_cpus(self.args.ncpu)
         buccaneer.Ca_sequence.set_semet(self.args.semet)
@@ -350,10 +353,11 @@ class Buccaneer:
                     dtype=np.float32,
                 )
             )
-            ccp4.grid.unit_cell = clipper.Cell.to_gemmi_cell(hkls_ref.cell)
-            ccp4.grid.spacegroup = clipper.Spacegroup.to_gemmi_spacegroup(
-                hkls_ref.spacegroup
-            )
+            ccp4.grid.unit_cell = gemmi.UnitCell(*hkls_ref.cell.parameters)
+            ccp4.grid.spacegroup = gemmi.SpaceGroup(hkls_ref.spacegroup.spacegroup_number())
+            #clipper.Spacegroup.to_gemmi_spacegroup(
+            #    hkls_ref.spacegroup
+            #)
             ccp4.update_ccp4_header()
             xref.export_to_gemmi(ccp4)
             ccp4.write_ccp4_map(self.args.refmapout)
@@ -424,10 +428,8 @@ class Buccaneer:
                     dtype=np.float32,
                 )
             )
-            ccp4.grid.unit_cell = clipper.Cell.to_gemmi_cell(hkls_wrk.cell)
-            ccp4.grid.spacegroup = clipper.Spacegroup.to_gemmi_spacegroup(
-                hkls_wrk.spacegroup
-            )
+            ccp4.grid.unit_cell = gemmi.UnitCell(*hkls_wrk.cell.parameters)
+            ccp4.grid.spacegroup = gemmi.SpaceGroup(hkls_wrk.spacegroup.spacegroup_number())
             ccp4.update_ccp4_header()
             xwrk.export_to_gemmi(ccp4)
             ccp4.write_ccp4_map(self.args.mapout)
@@ -484,49 +486,91 @@ class Buccaneer:
                 )
         if self.args.aa_instance_directory != "NONE" and self.args.use_ml_find:
             print("Using amino acid instance!\n")
+            self.log.log("CHECK1")
             osaka = util.HelperMTStackNetOsaka(
                 datapath=self.args.aa_instance_directory,
+                filenames=util.MLOutputFilenames(),
                 workcell=wrkcell,
                 ncpu=self.args.ncpu,
+                verbose=self.args.verbose>8,
             )
+            self.log.log("MTS1")
             osaka.set_map_parameters(
-                self.args.mapin,
-                fix_axis_positions=True,
-                fix_origin=True,
-                shiftback=False,
+                xwrk=xwrk,
+                initial_model=self.args.original_model,
+                #fix_axis_positions=True,
+                #fix_origin=True,
+                #shiftback=False,
             )
+            self.log.log("SET")
+            #if (osaka.map_params.shiftback == 0.).all() and self.args.original_model != "NONE":
+            #    initial_model = util.read_structure(self.args.original_model)
+            #    cutout_model = util.read_structure(self.args.aa_instance_directory + "/cutout.pdb")
+            #    osaka.get_rt_from_models(initial_model, cutout_model)
             seqlen = 0
-            for i in range(0, seq_wrk.size()):
-                seqlen += len(seq_wrk[i].sequence) * seqlen_multiplier
+            if len(seqlen_multiplier) > 1 and len(seqlen_multiplier) == seq_wrk.size():  # noqa: E501
+                for i in range(0, seq_wrk.size()):
+                    seqlen += len(seq_wrk[i].sequence) * seqlen_multiplier[i]
+            else:
+                for i in range(0, seq_wrk.size()):
+                    seqlen += len(seq_wrk[i].sequence) * seqlen_multiplier[0]
+            
+            #coordlist = np.load("/Users/swh514/Work/data/akos/1ayz/1ayz_final_ca_coords.npy")
+            #aa_instance_coords = []
+            #for c in coordlist:
+            #    aa_instance_coords.append(clipper.Coord_orth(*c))
             aa_instance_coords = osaka.get_map_coords_from_predicted_instance(
-                mode="kmeans",
-                mapin_path=self.args.mapin,
-                fix_origin=True,
+                mode=self.args.cluster_method, #"kmeans",
+                #mapin_path=self.args.mapin,
+                #fix_origin=True,
                 write_npy=True,
                 seqlen=seqlen,
-                verbose=self.args.verbose,
+                log=self.log,
             )
+            self.log.log("GET")
+            print("len of aainstance : ", len(aa_instance_coords))
+            sys.stdout.flush()
             inst_mol = clipper.MiniMol(xwrk.spacegroup, xwrk.cell)
             osaka.map_coords_to_ca_atom(aa_instance_coords, inst_mol)
+            #osaka(inst_mol, correlation_mode=self.args.correl, single_atom=True)
+            #aa_list = []
+            #reslist = []
+            #util.write_out_model_with_seq(inst_mol)
+            #for chn in inst_mol.model:
+            #    for r in chn:
+            #        aa = r["CA"]
+            #        aa_list.append(aa.pos.array)
+            #        reslist.append(r.type)
+            #rtop = clipper.RTop_orth(osaka.map_params.rotation, osaka.map_params.translation)
+            #build_mol = util.build_rotated_aa(np.ndarray(aa_list), self.args.aa_instance_directory+"density.npy", reslist, xwrk, rtop) #, threshold: float = 1.0):
+            #util.write_structure(build_mol, "build_rotated_mol.pdb", cif_format=False)
+            #exit()
             util.write_structure(
                 inst_mol,
                 "instance_mol.pdb",
                 cif_format=False,
             )
+            self.log.log("WRITE")
+            #if osaka.check_is_seqprob_set():
+            #    util.write_out_model_with_seq(inst_mol, "test_instmol_with_seqprob.pdb")
             print(len(aa_instance_coords))
-            if len(aa_instance_coords) > self.args.nfrag:
-                cafind = buccaneer.Ca_find(
-                    len(aa_instance_coords),
-                    self.resol.limit(),
-                )
-            else:
-                cafind = buccaneer.Ca_find(self.args.nfrag, self.resol.limit())
+            #if len(aa_instance_coords) > self.args.nfrag:
+            #    cafind = buccaneer.Ca_find(
+            #        len(aa_instance_coords),
+            #        self.resol.limit(),
+            #    )
+            #else:
+            cafind = buccaneer.Ca_find(self.args.nfrag, self.resol.limit())
+            self.log.log("SETCAF")
             # cafind = buccaneer.Ca_find(args.nfrag, resol.limit())
             print("set starting instance")
             sys.stdout.flush()
-            cafind.set_starting_instance_coords(aa_instance_coords, xwrk,
+            cafind.set_starting_instance_coords(aa_instance_coords,
+                                                xwrk,
                                                 llktgt,
-                                                self.args.findtype, True)
+                                                self.args.findtype,
+                                                bool(self.args.cluster_method == "none"))
+            self.log.log("SETINST")
             print("after set starting instance")
             sys.stdout.flush()
         else:
@@ -539,18 +583,21 @@ class Buccaneer:
             ):
                 osaka = util.HelperMTStackNetOsaka(
                     datapath=self.args.aa_instance_directory,
+                    filenames=util.MLOutputFilenames(),
                     workcell=wrkcell,
                     ncpu=self.args.ncpu,
+                    verbose=self.args.verbose>8,
                 )
                 osaka.set_map_parameters(
-                    self.args.mapin,
-                    fix_axis_positions=True,
-                    fix_origin=True,
-                    shiftback=False,
+                    xwrk=xwrk,
+                    initial_model=self.args.original_model,
+                    #fix_axis_positions=True,
+                    #fix_origin=True,
+                    #shiftback=False,
                 )
             else:
                 osaka = util.HelperMTStackNetOsaka()
-
+        self.log.log("MTSN")
         return cafind, osaka
 
     @staticmethod
@@ -679,7 +726,9 @@ class Buccaneer:
         """  # noqa: E501
         seq_wrk = self.get_work_sequence()
         mol_wrk_in = mol_wrk.clone()
-        cafind, osaka = self.prepare_ca_find(xwrk, seq_wrk, llktgt)
+        cafind, osaka = self.prepare_ca_find(
+            xwrk, seq_wrk, llktgt, self.args.sequence_multiplier
+        )
         # merge models
         if self.args.merge:
             buccaneer.Ca_merge.merge(
@@ -696,18 +745,18 @@ class Buccaneer:
         # filter input model
         if self.args.model_filter:
             Buccaneer.filter_model(mol_wrk, xwrk, self.args.model_filter_sig, self.args.verbose, self.log)
-            #self._print_steps_Casummaries(
+            # self._print_steps_Casummaries(
             #    "before model filter",
             #    len(mol_wrk.select("*/*/CA").atom_list()),
-            #)
-            #buccaneer.Ca_filter.filter(mol_wrk, xwrk, self.args.model_filter_sig)  # fmt: skip # noqa: E501
-            #self._print_steps_Casummaries(
+            # )
+            # buccaneer.Ca_filter.filter(mol_wrk, xwrk, self.args.model_filter_sig)  # fmt: skip # noqa: E501
+            # self._print_steps_Casummaries(
             #    "after model filter",
             #    len(mol_wrk.select("*/*/CA").atom_list()),
-            #)
-            #sys.stdout.flush()
-            #self.log.log("FLT ", mol_wrk, self.args.verbose > 9)
-            #sys.stdout.flush()
+            # )
+            # sys.stdout.flush()
+            # self.log.log("FLT ", mol_wrk, self.args.verbose > 9)
+            # sys.stdout.flush()
         # augment input model with mr model
         if self.args.mr_model:
             result = buccaneer.Ca_merge.merge_mr(
@@ -774,10 +823,10 @@ class Buccaneer:
             if self.args.seqnc:
                 # caseq_ml = buccaneer.Ca_sequence_ml(aa_pred, corrections)
                 if self.use_ml_seq and self.args.aa_instance_directory != "NONE":  # fmt: skip # noqa: E501
-                    # print(f"Grid in corrections : {osaka.map_params.grid}")  # fmt: skip # noqa: E501
-                    osaka(mol_wrk, correlation_mode=self.args.correl)
+                    #print(f"Grid in corrections : {osaka.map_params.grid}")  # fmt: skip # noqa: E501
+                    osaka(mol_wrk, correlation_mode=self.args.correl)  # noqa: E501
                     util.write_out_model_with_seq(
-                        mol_wrk, "testwriteout_model_with_seqprob.pdb"
+                        mol_wrk.clone(), "testwriteout_model_with_seqprob.pdb"
                     )
                     if not osaka.check_is_seqprob_set():
                         print("SEQPROB not set!")
@@ -942,7 +991,7 @@ class Buccaneer:
         if self.args.write_cif:
             gfile.write_cif(self.args.get_outfile_name(cifout=True))
 
-        if self.args.verbose > 8:
+        if self.args.profiling:
             self.log.profile(stdout=sys.stdout)
         # end buccaneer
 

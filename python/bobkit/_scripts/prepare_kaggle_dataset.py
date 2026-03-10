@@ -29,7 +29,7 @@ class PrepareKaggleDataset:
         self.config = config
         self.column_names = column_names
         self.xmap = self._read_file_to_xmap()
-        self.structure = self._get_structure_from_url(structure_path)  # util.read_structure(structure_path)
+        self.structure = self._get_structure_from_url(structure_path)  # util.read_structure(structure_path)  
 
     def _get_structure_from_url(self, pdbid: str):
         dataurl = "https://www.ebi.ac.uk/pdbe/entry-files/download"
