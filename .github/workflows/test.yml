@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: "3.11"
+        python-version: ["3.11"]
     env:
       SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON;"
       SKBUILD_BUILD_TARGETS: "all"
@@ -26,6 +26,7 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: "pip"
     - name: Build wheel and install
       run: |
         g++ --version
