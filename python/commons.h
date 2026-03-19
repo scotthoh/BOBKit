@@ -4,6 +4,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <gemmi/math.hpp>
+#include <memory>
 
 namespace nb = nanobind;
 constexpr auto rv_ri = nb::rv_policy::reference_internal;
