@@ -1,30 +1,25 @@
-// Wrapper for buccaneer-util
+// Nanobind bindings of some useful methods
 // Author: S.W.Hoh
-// (C) 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include <clipper/minimol/minimol_seq.h>
-#include <pybind11/pybind11.h>
-
+#include "commons.h"
+#include "arrays.h"
 #include "buccaneer/buccaneer-util.h"
-#include "helper_functions.h"
-#include "type_conversions.h"
 
-void test_array( const std::vector<double>& a ) { std::cout << &a << std::endl; }
+using namespace clipper;
 
-void declare_test_array( py::module& m ) { m.def( "test_array", &test_array, py::arg( "array" ) ); }
-
-void init_utils( py::module& m ) {
-  // py::class_<BuccaneerUtil>( m, "Util", "Utility functions." )
+void add_utils( nb::module_ & m ) {
+  // nb::class_<BuccaneerUtil>( m, "Util", "Utility functions." )
   //.def_static("set_reference", &BuccaneerUtil::set_reference,
-  //             py::arg("mtz"), py::arg("pdb"),
+  //             nb::arg("mtz"), nb::arg("pdb"),
   //             "Set reference MTZ and PDB, only work when CCP4's CLIBD "
   //             "environment path is set.")
-  //.def_static("read_model", &BuccaneerUtil::read_model, py::arg("mol"),
-  //             py::arg("file"), py::arg("verbose") = true,
+  //.def_static("read_model", &BuccaneerUtil::read_model, nb::arg("mol"),
+  //             nb::arg("file"), nb::arg("verbose") = true,
   //             "Read model and export to minimol.")
-  declare_test_array( m );
   m.def(
       "read_structure",
       []( const std::string& fpath, bool enable_messages ) {
@@ -41,7 +36,7 @@ void init_utils( py::module& m ) {
       // maybe should update clipper to exchange with gemmi
       // return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
       // },
-      py::arg( "filepath" ) = "undefined", py::arg( "enable_user_messages" ) = true,
+      nb::arg( "filepath" ) = "undefined", nb::arg( "enable_user_messages" ) = true,
       "Reads a coordinate file and return a structure in MiniMol." );
   m.def(
       "read_structure",
@@ -58,8 +53,8 @@ void init_utils( py::module& m ) {
       //  maybe should update clipper to exchange with gemmi
       //  return std::unique_ptr<MiniMol>(new MiniMol(mmol)); }, // pymmol;
       //  },
-      py::arg( "minimol" ), py::arg( "filepath" ) = "undefined",
-      py::arg( "enable_user_messages" ) = true,
+      nb::arg( "minimol" ), nb::arg( "filepath" ) = "undefined",
+      nb::arg( "enable_user_messages" ) = true,
       "Reads a coordinate file and store structure into MiniMol" );
   m.def(
       "write_structure",
@@ -75,5 +70,5 @@ void init_utils( py::module& m ) {
         else
           gfile.write_file( filename + "pdb" );
       },
-      py::arg( "minimol" ), py::arg( "filepath" ) = "undefined", py::arg( "cif_format" ) = true );
+      nb::arg( "minimol" ), nb::arg( "filepath" ) = "undefined", nb::arg( "cif_format" ) = true );
 }

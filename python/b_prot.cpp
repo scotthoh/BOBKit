@@ -1,58 +1,55 @@
-// Wrapper for buccaneer-prot
+// Nanobind bindings for buccaneer-pro
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
 #include "buccaneer/buccaneer-prot.h"
-#include <pybind11/cast.h>
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
+#include "commons.h"
+#include "arrays.h"
+#include <nanobind/operators.h>
+#include <nanobind/stl/bind_vector.h>
+#include <nanobind/make_iterator.h>
 
-#include "helper_functions.h"
-#include "type_conversions.h"
 
-namespace py = pybind11;
 using namespace clipper;
 
-void declare_ca_group(py::module &m) {
-  py::class_<Ca_group>(m, "Ca_group")
-      .def(py::init<>())
-      .def(py::init<const Coord_orth &, const Coord_orth &,
+void declare_ca_group(nb::module_ &m) {
+  nb::class_<Ca_group>(m, "Ca_group")
+      .def(nb::init<>())
+      .def(nb::init<const Coord_orth &, const Coord_orth &,
                     const Coord_orth &>(),
-           py::arg("n"), py::arg("ca"), py::arg("c"),
+           nb::arg("n"), nb::arg("ca"), nb::arg("c"),
            "Constructor from atom coordinates.")
       // constructor from list/array of coordinates N, CA, C
-      .def(py::init([](const std::array<ftype, 3> &n,
+      .def("__init__", [](Ca_group *Cag, const std::array<ftype, 3> &n,
                        const std::array<ftype, 3> &ca,
                        const std::array<ftype, 3> &c) {
              Coord_orth N(n[0], n[1], n[2]);
              Coord_orth CA(ca[0], ca[1], ca[2]);
              Coord_orth C(c[0], c[1], c[2]);
-             return std::unique_ptr<Ca_group>(new Ca_group(N, CA, C));
-           }),
-           py::arg("n"), py::arg("ca"), py::arg("c"),
+             new ( Cag ) Ca_group(N, CA, C);
+           },
+           nb::arg("n"), nb::arg("ca"), nb::arg("c"),
            "Constructor from atom coordinates.")
-      .def(py::init<const MResidue &>(), "Initialise from monomer.")
+      .def(nb::init<const MResidue &>(), "Initialise from monomer.")
       .def("is_null", &Ca_group::is_null, "Return true if group is null.")
-      .def_property_readonly("coord_n", &Ca_group::coord_n,
+      .def_prop_ro("coord_n", &Ca_group::coord_n,
                              "Get N atom coordinate.")
-      .def_property_readonly("coord_ca", &Ca_group::coord_ca,
+      .def_prop_ro("coord_ca", &Ca_group::coord_ca,
                              "Get C-alpha atom coordinate.")
-      .def_property_readonly("coord_c", &Ca_group::coord_c,
+      .def_prop_ro("coord_c", &Ca_group::coord_c,
                              "Get C atom coordinate.")
-      .def_property_readonly("coord_cb", &Ca_group::coord_cb,
+      .def_prop_ro("coord_cb", &Ca_group::coord_cb,
                              "Get C-beta atom coordinate.")
       .def("rtop_from_std_ori", &Ca_group::rtop_from_std_ori,
            "Get operator generating this group from standard orientation.")
       .def("rtop_beta_carbon", &Ca_group::rtop_beta_carbon,
            "Get operator centering C-beta standard orientation.")
-      .def("next_ca_group", &Ca_group::next_ca_group, py::arg("psi"),
-           py::arg("phi"), "Generate next Ca_group using Ramachandran angles.")
-      .def("prev_ca_group", &Ca_group::prev_ca_group, py::arg("phi"),
-           py::arg("psi"),
+      .def("next_ca_group", &Ca_group::next_ca_group, nb::arg("psi"),
+           nb::arg("phi"), "Generate next Ca_group using Ramachandran angles.")
+      .def("prev_ca_group", &Ca_group::prev_ca_group, nb::arg("phi"),
+           nb::arg("psi"),
            "Generate previous Ca_group using Ramachandran angles")
       .def_static("std_coord_ca", &Ca_group::std_coord_ca,
                   "Return standard C-alpha atom coordinate")
@@ -75,13 +72,13 @@ void declare_ca_group(py::module &m) {
       "the operator to generate the group from a standard orientation, and "
       "to generate the next or previous residue given two Ramachandran "
       "angles (one of this residue and one of the new one). ";
-  // py::bind_vector<std::deque<Ca_group>>(m, "DequeCagroup");
+  // nb::bind_vector<std::deque<Ca_group>>(m, "DequeCagroup");
 }
 
-void declare_ca_chain(py::module &m) {
+void declare_ca_chain(nb::module_ &m) {
   // Have to manually bind some of the deque member functions.
-  py::class_<Ca_chain>(m, "Ca_chain")
-      .def(py::init<>())
+  nb::class_<Ca_chain>(m, "Ca_chain")
+      .def(nb::init<>())
       // from buccaneer
       .def("ramachandran_phi", &Ca_chain::ramachandran_phi,
            "Return Ramachandran phi for any residue except first in a chain.")
@@ -117,15 +114,15 @@ void declare_ca_chain(py::module &m) {
       .def(
           "__iter__",
           [](Ca_chain &self) {
-            return py::make_iterator(self.begin(), self.end());
+            return nb::make_iterator<nb::rv_policy::reference_internal>( nb::type<Ca_chain>(), "iterator", self.begin(), self.end());
           },
-          py::keep_alive<0, 1>())
+          nb::keep_alive<0, 1>())
       .def(
           "__reversed__",
           [](Ca_chain &self) {
-            return py::make_iterator(self.rbegin(), self.rend());
+            return nb::make_iterator<nb::rv_policy::reference_internal>( nb::type<Ca_chain>(), "iterator", self.rbegin(), self.rend());
           },
-          py::keep_alive<0, 1>())
+          nb::keep_alive<0, 1>())
       // modifiers
       .def(
           "append", [](Ca_chain &self, Ca_group &c) { self.push_back(c); },
@@ -185,46 +182,46 @@ void declare_ca_chain(py::module &m) {
       "residue.";
 }
 
-void declare_pr_group(py::module &m) {
-  py::class_<Pr_group> pr_group(m, "Pr_group");
+void declare_pr_group(nb::module_ &m) {
+  nb::class_<Pr_group> pr_group(m, "Pr_group");
 
-  py::enum_<Pr_group::TYPE>(pr_group, "TYPE", "Atom types used in constructor.")
+  nb::enum_<Pr_group::TYPE>(pr_group, "TYPE", "Atom types used in constructor.")
       .value("CaCN", Pr_group::TYPE::CaCN)
       .value("CaCO", Pr_group::TYPE::CaCO)
       .export_values();
 
-  pr_group.def(py::init<>())
-      .def(py::init<const Coord_orth &, const Coord_orth &, const Coord_orth &,
+  pr_group.def(nb::init<>())
+      .def(nb::init<const Coord_orth &, const Coord_orth &, const Coord_orth &,
                     const Pr_group::TYPE &>(),
-           py::arg("ca"), py::arg("c"), py::arg("other"), py::arg("type"),
+           nb::arg("ca"), nb::arg("c"), nb::arg("other"), nb::arg("type"),
            "Constructor from atom coordinates (Ca, C, N[+1] or Ca, C, O).")
       // constructor from list/array of coordinates
-      .def(py::init([](const std::array<ftype, 3> &ca,
+      .def("__init__", [](Pr_group *Prg, const std::array<ftype, 3> &ca,
                        const std::array<ftype, 3> &c,
                        const std::array<ftype, 3> &thirdatom,
                        const Pr_group::TYPE &type) {
              Coord_orth CA(ca[0], ca[1], ca[2]);
              Coord_orth C(c[0], c[1], c[2]);
              Coord_orth other(thirdatom[0], thirdatom[1], thirdatom[2]);
-             return std::unique_ptr<Pr_group>(new Pr_group(CA, C, other, type));
-           }),
-           py::arg("ca"), py::arg("c"), py::arg("other"), py::arg("type"),
+             new (Prg) Pr_group(CA, C, other, type);
+           },
+           nb::arg("ca"), nb::arg("c"), nb::arg("other"), nb::arg("type"),
            "Constructor from atom coordinates (Ca, C, N[+1] or Ca, C, O).")
-      .def_property_readonly("coord_ca", &Pr_group::coord_ca,
+      .def_prop_ro("coord_ca", &Pr_group::coord_ca,
                              "Get C-alpha atom coordinate.")
-      .def_property_readonly("coord_c", &Pr_group::coord_c,
+      .def_prop_ro("coord_c", &Pr_group::coord_c,
                              "Get C atom coordinate.")
-      .def_property_readonly("coord_n_next", &Pr_group::coord_n_next,
+      .def_prop_ro("coord_n_next", &Pr_group::coord_n_next,
                              "Get next N atom coordinate.")
       .def("coord_o", &Pr_group::coord_o, "Generate O atom coordinate.")
       .def("coord_ca_next", &Pr_group::coord_ca_next,
            "Get next C-alpha atom coordinate.")
       .def("rtop_from_std_ori", &Pr_group::rtop_from_std_ori,
            "Get operator generating this group from standard orientation.")
-      .def("next_pr_group", &Pr_group::next_pr_group, py::arg("phi"),
-           py::arg("psi"), "Generate next Pr_group using Ramachandran angles.")
-      .def("prev_pr_group", &Pr_group::prev_pr_group, py::arg("psi"),
-           py::arg("phi"),
+      .def("next_pr_group", &Pr_group::next_pr_group, nb::arg("phi"),
+           nb::arg("psi"), "Generate next Pr_group using Ramachandran angles.")
+      .def("prev_pr_group", &Pr_group::prev_pr_group, nb::arg("psi"),
+           nb::arg("phi"),
            "Generate previous Pr_group using Ramachandran angles.")
       .def("__repr__",
            [](const Pr_group &self) {
@@ -241,7 +238,7 @@ void declare_pr_group(py::module &m) {
       "given two Ramachandran angles.";
 }
 
-void init_buccaneer_prot(py::module &m) {
+void add_buccaneer_prot(nb::module_ &m) {
   declare_ca_group(m);
   declare_ca_chain(m);
   declare_pr_group(m);

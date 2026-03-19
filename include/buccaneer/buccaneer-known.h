@@ -6,7 +6,7 @@
 #define BUCCANEER_KNOWN
 
 #include <clipper/clipper.h>
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 
 //! Class for augmenting model with known model
@@ -23,6 +23,7 @@ class KnownStructure {
   //! Parse and store an input argument
   static std::pair<clipper::String,double> parse( clipper::String arg );
   void debug() const;
+  void debug( clipper::String &msg ) const;
  private:
   typedef clipper::Property<double> PROP;
   clipper::MiniMol known;

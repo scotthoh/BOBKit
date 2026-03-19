@@ -5,7 +5,7 @@
 #ifndef BUCCANEER_UTIL
 #define BUCCANEER_UTIL
 
-#include <clipper/clipper-minimol.h>
+#include <clipper/clipper-minimol-gemmi.h>
 
 
 class BuccaneerUtil {
@@ -24,6 +24,7 @@ class BuccaneerLog {
   clipper::String log( const clipper::MiniMol& mol, const clipper::MiniMol& mol_mr, const clipper::MMoleculeSequence& seq );
   void xml( const clipper::String& xml ) const;
   void profile();
+  void profile( clipper::String& msg );
   std::vector<double>  evaluate(const clipper::MiniMol& mol, const clipper::MiniMol& mol_mr, const clipper::MMoleculeSequence& seq);
  private:
   struct cycdat { int nfrgs, nchns, nseq, nres, nmax, nunq; double cres, cchn; };
