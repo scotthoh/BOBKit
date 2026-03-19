@@ -26,27 +26,4 @@ class Ca_build {
   bool flexible_;
 };
 
-//! Class for refining built amino acid fragment
-class Target_fn_refine_amino_acid_fragment : Target_fn_order_zero {
-public:
-  Target_fn_refine_amino_acid_fragment() {}
-  Target_fn_refine_amino_acid_fragment( const clipper::Xmap<float>& xmap, const double& rot_step, const double& trn_step);
-  ~Target_fn_refine_amino_acid_fragment() {}
-  int num_params() const { return 6; }
-  ////! evaluate target function for given rotation
-  //double operator() ( const clipper::RTop_orth& rtop ) const;
-  //! evaluate target function for EulerXYZr offset from rotation
-  double operator() ( const std::vector<double>& args ) const;
-  //! \internal convert params to rotation
-  clipper::RTop_orth rtop_orth( const std::vector<double>& args ) const;  
-  //! refine rotation
-  clipper::RTop_orth refine( const clipper::MMonomer& res );
- private:
-  const clipper::Xmap<float>* xmap_;
-  double rot_step_, trn_step_;
-  clipper::RTop_orth rtop_;
-  clipper::MMonomer tgt_res_;
-  double map_mean_, map_std_;
-};
-
 #endif

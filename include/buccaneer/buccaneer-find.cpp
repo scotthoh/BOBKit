@@ -7,38 +7,6 @@
 
 int Ca_find::ncpu = 0;
 
-// new methods for refinement of calpha positions from starting centroid
-
-//double Target_fn_refine_calpha::operator()( const std::vector<double>& args ) const {
-//  clipper::Coord_orth coord( args[0], args[1], args[2] );
-//  return -xmap_->interp<clipper::Interp_cubic>( coord.coord_frac( xmap_->cell() ) );
-//}
-//
-//clipper::Coord_orth Target_fn_refine_calpha::refine( const clipper::Coord_orth& coord ) {
-//  std::vector<double> args{ coord.x(), coord.y(), coord.z() };
-//  std::vector< std::vector<double> > args_init;
-//
-//  args_init.push_back( args );
-//  args[0] = coord.x() + step_;
-//  args[1] = coord.y();
-//  args[2] = coord.z();
-//  args_init.push_back( args );
-//  args[0] = coord.x();
-//  args[1] = coord.y() + step_;
-//  args[2] = coord.z();
-//  args_init.push_back( args );
-//  args[0] = coord.x();
-//  args[1] = coord.y();
-//  args[2] = coord.z() + step_;
-//  args_init.push_back( args );
-//
-//  double tol = 0.005 * ( *this )( args_init[0] );
-//  Optimiser_simplex opt_simp( tol, 100, opt_type_ );
-//  if ( debug_mode_ ) opt_simp.debug();
-//  std::vector< double > args_refined = opt_simp( *this, args_init );
-//
-//  return clipper::Coord_orth( args_refined[0], args_refined[1], args_refined[2] );
-//}
 
 Target_fn_refine_llk_map_target::Target_fn_refine_llk_map_target( const clipper::Xmap<float>& xmap, const LLK_map_target& llktarget, const double& rot_step, const double& trn_step )
 {
@@ -543,8 +511,28 @@ void Ca_find::set_starting_instance_coords( const std::vector<clipper::Coord_ort
     //for (int i =0 ; i < results.size(); i++)
     //  std::cout << results[i].score << ", " << results[i].rot << ", " << results[i].trn << std::endl;
     // convert to Z scores
-    for ( int i = 0; i < results.size(); i++ )
+      // now create a long scores list from the maps of results
+    double zwt = 2.0;  // EXPECTED Z-DIFF BETWEEN CORRECT AND RANDOM SCORES
+    Score_list<clipper::RTop_orth> score_long( nfind );
+    //for ( int i = 0; i < results.size(); i++ )
+    for ( int i = 0; i < results.size(); i++ ) {
+      // convert to Z scores first
       results[i].score = ( results[i].score - zstats.mean() ) / zstats.std_dev();
+      clipper::RTop_orth  rtop = ops[ results[i].rot ];
+      clipper::Coord_grid cg = grid.deindex( results[i].trn );
+      rtop.trn() = xmap.coord_orth( cg.coord_map() );
+      double score = zwt*results[i].score; //+ prior.get_data(cg);
+      score_long.add( score, rtop );
+    }
+
+    // now refine the best matches
+    initial_score_list.init( score_long.size() );
+    for ( int i = 0; i < score_long.size(); i++ ) {
+      Target_fn_refine_llk_map_target tgt( xmap, llktarget, 0.2, 0.2 );
+      clipper::RTop_orth rtop = tgt.refine( score_long[i] );
+      double score = llktarget.llk( xmap, rtop );
+      initial_score_list.add( score, rtop );
+    }
   }
   
 //
@@ -589,6 +577,18 @@ void Ca_find::set_starting_instance_coords( const std::vector<clipper::Coord_ort
 //   return true;
 // }
 //
+
+void Ca_find::get_initial_results(std::vector<clipper::Coord_orth> &refined_aa_instance, const clipper::Xmap<float> &xmap) {
+  auto grid = xmap.grid_sampling();
+  refined_aa_instance.clear();
+  refined_aa_instance.resize(initial_score_list.size());
+  for (int i =0; i < initial_score_list.size(); i++) {
+    clipper::Coord_orth co = initial_score_list[i] * Ca_group::std_coord_ca();
+    //clipper::Coord_orth co = xmap.coord_orth( grid.deindex( results[i].trn ).coord_map() );
+    refined_aa_instance[i] = co;
+  }
+}
+
 void Ca_find::search_op( std::vector<SearchResult>& results, clipper::Xmap<float> xmap1, const clipper::Xmap<int>& xlookp1, const clipper::FFFear_fft<float>& srch, const LLK_map_target& llktarget, const std::vector<clipper::RTop_orth>& ops, int op )
 {
   typedef clipper::Xmap<float>::Map_reference_index MRI;

@@ -173,24 +173,24 @@ ${WRK_DIR}/checkouts/clipper/clipper/gemmi/clipper_gemmi_model.h
 )
 
 # changed minimol_io to minimol_io_seq, minimol_io_mmdb, minimol_io_gemmi
+#${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_mmdb.cpp
 set(clipper-minimol_sources
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/container_minimol.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol.cpp	
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_data.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_seq.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_gemmi.cpp
-#${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_mmdb.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_seq.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_utils.cpp
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/test_minimol_gemmi.cpp
 )
 
+#${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_mmdb.h
 set(clipper-minimol_headers
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/container_minimol.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_data.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_gemmi.h
-#${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_mmdb.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_io_seq.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_seq.h
 ${WRK_DIR}/checkouts/clipper/clipper/minimol/minimol_utils.h

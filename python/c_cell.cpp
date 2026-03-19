@@ -1,88 +1,67 @@
-// Wrapper for clipper cell
+// Nanobind bindings for clipper cell.h
 // Author: S.W.Hoh
-// 2023 -
+// 2025 -
 // York Structural Biology Laboratory
 // The University of York
 
-#include <sstream>
-#include <string>
-
-#include <gemmi/unitcell.hpp>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
-#include <clipper/clipper-gemmi.h>
+#include "commons.h"
+//#include <clipper/clipper-gemmi.h>
 #include <clipper/core/cell.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/vector.h>
 
-#include "helper_functions.h"
-#include "type_conversions.h"
-
-namespace py = pybind11;
 using namespace clipper;
 
-void declare_metric_tensor(py::module &m) {
-  py::class_<Metric_tensor> metric_tensor(m, "Metric_tensor");
-  metric_tensor.def(py::init<>())
-      .def(py::init<const ftype &, const ftype &, const ftype &, const ftype &,
-                    const ftype &, const ftype &>(),
-           py::arg("a"), py::arg("b"), py::arg("c"), py::arg("alpha"),
-           py::arg("beta"), py::arg("gamma"),
-           "Constructor: takes parameters of normal or inverse cell.")
-      .def("lengthsq",
-           (ftype(Metric_tensor::*)(const Vec3<> &) const) &
-               Metric_tensor::lengthsq,
-           "Apply metric to vector.")
-      .def("lengthsq",
-           (ftype(Metric_tensor::*)(const Vec3<int> &) const) &
-               Metric_tensor::lengthsq,
-           "Apply metric to int vector.")
-      .def("format", &Metric_tensor::format,
-           "Return formatted string representation.")
-      .def("__str__", [](const Metric_tensor &self) { return self.format(); })
-      .doc() =
-      "The metric tensor is used to determine a distance in real or reciprocal"
-      "space using fraction coordinates or Miller indices. It is symmetrical, "
-      "so only the upper triangle is stored with the off-diagonal elements "
-      "doubled.";
+// std::string six_params(double a, double b, double c, double alp, double bet, double gam) {
+//     char buf[128];
+//
+// }
+
+void declare_metric_tensor( nb::module_ &m ) {
+  nb::class_<Metric_tensor> metric_tensor( m, "Metric_tensor" );
+  metric_tensor.def( nb::init<>() )
+      .def( nb::init<const double &, const double &, const double &, const double &, const double &, const double &>(),
+            nb::arg( "a" ), nb::arg( "b" ), nb::arg( "c" ), nb::arg( "alpha" ), nb::arg( "beta" ), nb::arg( "gamma" ),
+            "Constructor: takes parameters of normal or inverse cell." )
+      .def( "lengthsq", ( double ( Metric_tensor::* )( const Vec3<> & ) const ) & Metric_tensor::lengthsq,
+            "Apply metric to vector." )
+      .def( "lengthsq", ( double ( Metric_tensor::* )( const Vec3<int> & ) const ) & Metric_tensor::lengthsq,
+            "Apply metric to int vector." )
+      .def( "format", &Metric_tensor::format, "Return formatted string representation." )
+      .def( "__str__", []( const Metric_tensor &self ) { return self.format(); } )
+      .def( "__repr__", []( const Metric_tensor &self ) { return "< clipper.Metric_tensor " + self.format() + " >"; } )
+      .doc() = "The metric tensor is used to determine a distance in real or reciprocal"
+               "space using fraction coordinates or Miller indices. It is symmetrical, "
+               "so only the upper triangle is stored with the off-diagonal elements "
+               "doubled.";
 }
-void declare_cell_descr(py::module &m) {
-  py::class_<Cell_descr> cell_descr(m, "Cell_descr");
-  cell_descr.def(py::init<>())
-      .def(py::init<const ftype &, const ftype &, const ftype &, const ftype &,
-                    const ftype &, const ftype &>(),
-           py::arg("a"), py::arg("b"), py::arg("c"), py::arg("alpha"),
-           py::arg("beta"), py::arg("gamma"),
-           "Constructor from cell parameters.")
-      .def(py::init([](const py::array_t<ftype> &params) {
-             return std::unique_ptr<Cell_descr>(
-                 new Cell_descr(params.at(0), params.at(1), params.at(2),
-                                params.at(3), params.at(4), params.at(5)));
-           }),
-           "Constructor from cell parameters (list/numpy array).")
-      .def_property_readonly("a", &Cell_descr::a, "Get a.")
-      .def_property_readonly("b", &Cell_descr::b, "Get b.")
-      .def_property_readonly("c", &Cell_descr::c, "Get c.")
-      .def_property_readonly("alpha", &Cell_descr::alpha, "Get alpha.")
-      .def_property_readonly("beta", &Cell_descr::beta, "Get beta.")
-      .def_property_readonly("gamma", &Cell_descr::gamma, "Get gamma.")
-      .def_property_readonly("alpha_deg", &Cell_descr::alpha_deg,
-                             "Get alpha in degrees.")
-      .def_property_readonly("beta_deg", &Cell_descr::beta_deg,
-                             "Get beta in degrees.")
-      .def_property_readonly("gamma_deg", &Cell_descr::gamma_deg,
-                             "Get gamma in degrees.")
-      .def("format", &Cell_descr::format,
-           "Return formatted string representation.")
-      .def("__str__", [](const Cell_descr &self) { return self.format(); })
-      .def("__repr__",
-           [](const Cell_descr &self) {
-             std::stringstream stream;
-             stream << "<Cell(" << self.a() << ", " << self.b() << ", ";
-             stream << self.c() << ", " << self.alpha_deg() << ", ";
-             stream << self.beta_deg() << ", " << self.gamma_deg() << ")>";
-             return stream.str();
-           })
+
+void declare_cell_descr( nb::module_ &m ) {
+  nb::class_<Cell_descr> cell_descr( m, "Cell_descr" );
+  cell_descr.def( nb::init<>() )
+      .def( nb::init<const double &, const double &, const double &, const double &, const double &, const double &>(),
+            nb::arg( "a" ), nb::arg( "b" ), nb::arg( "c" ), nb::arg( "alpha" ) = 90., nb::arg( "beta" ) = 90.,
+            nb::arg( "gamma" ) = 90., "Constructor from cell parameters." )
+      .def(
+          "__init__",
+          []( Cell_descr *cdes, std::array<double, 6> &arr ) {
+            new ( cdes ) Cell_descr( arr[0], arr[1], arr[2], arr[3], arr[4], arr[5] );
+          },
+          "Constructor from cell parameters (list/numpy array)." )
+      .def_prop_ro( "a", &Cell_descr::a, "Get a." )
+      .def_prop_ro( "b", &Cell_descr::b, "Get b." )
+      .def_prop_ro( "c", &Cell_descr::c, "Get c." )
+      .def_prop_ro( "alpha", &Cell_descr::alpha, "Get alpha." )
+      .def_prop_ro( "beta", &Cell_descr::beta, "Get beta." )
+      .def_prop_ro( "gamma", &Cell_descr::gamma, "Get gamma." )
+      .def_prop_ro( "alpha_deg", &Cell_descr::alpha_deg, "Get alpha in degrees." )
+      .def_prop_ro( "beta_deg", &Cell_descr::beta_deg, "Get beta in degrees." )
+      .def_prop_ro( "gamma_deg", &Cell_descr::gamma_deg, "Get gamma in degrees." )
+      .def( "format", &Cell_descr::format, "Return formatted string representation." )
+      .def( "__str__", []( const Cell_descr &self ) { return self.format(); } )
+      .def( "__repr__", []( const Cell_descr &self ) { return "< clipper." + self.format().trim() + " >"; } )
       .doc() = "Cell description (automatically converts to radians)"
                "The cell description is a compact description of a cell, "
                "containing just the cell parameters. It is usually used to "
@@ -90,71 +69,63 @@ void declare_cell_descr(py::module &m) {
                "functionality.";
 }
 
-void declare_cell(py::module &m) {
-  py::class_<Cell, Cell_descr> cell(m, "Cell");
-  cell.def(py::init<>(), "Null constructor, must initialise later.")
-      .def(py::init<const Cell_descr &>(), py::arg("Cell_description"),
-           "Constructor from Cell descriptor")
-      .def(py::init([](const py::array_t<ftype> &params) {
-        return std::unique_ptr<Cell>(
-            new Cell(Cell_descr(params.at(0), params.at(1), params.at(2),
-                           params.at(3), params.at(4), params.at(5))));
-      }),
-      "Constructor from cell parameters (list/numpy array).")
-      .def("init", &Cell::init, py::arg("Cell_description"))
+void declare_cell( nb::module_ &m ) {
+  nb::class_<Cell, Cell_descr> cell( m, "Cell" );
+  cell.def( nb::init<>(), "Null constructor, must initialise later." )
+      .def( nb::init<const Cell_descr &>(), nb::arg( "Cell_descr" ), "Constructor from Cell descriptor" )
+      //.def("init", &Cell::init, nb::arg("Cell_description"))
+      .def( "__init__", []( Cell *cell, const double &a, const double &b, const double &c, const double &alpha, const double &beta, const double &gamma) {
+        new ( cell ) Cell( Cell_descr( a, b, c, alpha, beta, gamma ) );
+      })
+      .def( "__init__",
+          []( Cell *c, std::array<double, 6> &params ) {
+              new ( c ) Cell( Cell_descr( params[0], params[1], params[2], params[3], params[4], params[5] ) );
+            } )
       .def(
-          "init", [](Cell &self, const Cell_descr &cd) { self.init(cd); },
-          py::arg("Cell_description"), "Initialise with Cell descriptor.")
+          "init", []( Cell &self, const Cell_descr &cdes ) { self.init( cdes ); }, nb::arg( "Cell_descr" ),
+          "Initialise with Cell descriptor." )
+      //.def(
+      //    "init", []( Cell &self, const gemmi::UnitCell &c ) { self.init( GEMMI::cell( c ).descr() ); },
+      //    nb::arg( "cell" ), "Initialise with GEMMI UnitCell." )
       .def(
-          "init",
-          [](Cell &self, const gemmi::UnitCell &c) {
-            self.init(GEMMI::cell(c).descr());
+          "init", []( Cell &self, const Cell &c ) { self.init( c.descr() ); }, nb::arg( "cell" ),
+          "Initialise with Cell descriptor." )
+      // from clipper-gemmi
+      //.def_static(
+      //    "to_gemmi_cell", []( const Cell &c ) { return GEMMI::cell( c ); }, "Convert CLIPPER cell to GEMMI Unitcell." )
+      //.def_static(
+      //    "from_gemmi_cell", []( const gemmi::UnitCell &c ) { return GEMMI::cell( c ); },
+      //    "Convert GEMMI Unitcell to CLIPPER Cell." )
+      .def_prop_ro( "a_star", &Cell::a_star, "Get a*" )
+      .def_prop_ro( "b_star", &Cell::b_star, "Get b*" )
+      .def_prop_ro( "c_star", &Cell::c_star, "Get c*" )
+      .def_prop_ro( "alpha_star", &Cell::alpha_star, "Get alpha*" )
+      .def_prop_ro( "beta_star", &Cell::beta_star, "Get beta*" )
+      .def_prop_ro( "gamma_star", &Cell::gamma_star, "Get gamma*" )
+      .def_prop_ro( "description", &Cell::descr, "Return cell dimensions." )
+      .def_prop_ro( "volume", &Cell::volume, "Return cell volume." )
+      .def( "debug", &Cell::debug, "Output class details." )
+      .def( "equals", &Cell::equals, nb::arg( "cell" ), nb::arg( "tol" ) = 1.0, "Test equality with another cell." )
+      .def_prop_ro( "matrix_orth", &Cell::matrix_orth, "Return orthogonalisation matrix" )
+      .def_prop_ro( "matrix_frac", &Cell::matrix_frac, "Return fractionalisation matrix" )
+      .def_prop_ro( "metric_real", &Cell::metric_real, "Return real space metric tensor." )
+      .def_prop_ro( "metric_reci", &Cell::metric_reci, "Return reciprocal space metric tensor." )
+      .def_prop_ro(
+          "parameters",
+          []( const Cell &c ) {
+            return nb::make_tuple( c.a(), c.b(), c.c(), c.alpha_deg(), c.beta_deg(), c.gamma_deg() );
           },
-          py::arg("cell"), "Initialise with GEMMI UnitCell.")
-      .def(
-          "init", [](Cell &self, const Cell &c) { self.init(c.descr()); },
-          py::arg("cell"), "Initialise with Cell descriptor.")
-
-      .def_static(
-          "to_gemmi_cell", [](const Cell &c) { return GEMMI::cell(c); },
-          "Convert clipper Cell to GEMMI Unitcell.")
-      .def_static(
-          "from_gemmi_cell",
-          [](const gemmi::UnitCell &c) { return GEMMI::cell(c); },
-          "Convert GEMMI Unitcell from clipper Cell.")
-      .def_property_readonly("a_star", &Cell::a_star, "Get a*")
-      .def_property_readonly("b_star", &Cell::b_star, "Get b*")
-      .def_property_readonly("c_star", &Cell::c_star, "Get c*")
-      .def_property_readonly("alpha_star", &Cell::alpha_star, "Get alpha*")
-      .def_property_readonly("beta_star", &Cell::beta_star, "Get beta*")
-      .def_property_readonly("gamma_star", &Cell::gamma_star, "Get gamma*")
-      .def_property_readonly("description", &Cell::descr,
-                             "Return cell dimensions.")
-      .def_property_readonly("volume", &Cell::volume, "Retuen cell volume.")
-      .def_property_readonly("debug", &Cell::debug, "Output class details.")
-      .def("equals", &Cell::equals, py::arg("cell"), py::arg("tol") = 1.0,
-           "Test equality with another cell.")
-      .def_property_readonly("matrix_orth", &Cell::matrix_orth,
-                             "Return orthogonalisation matrix")
-      .def_property_readonly("matrix_frac", &Cell::matrix_frac,
-                             "Return fractionalisation matrix")
-      .def_property_readonly("metric_real", &Cell::metric_real,
-                             "Return real space metric tensor.")
-      .def_property_readonly("metric_reci", &Cell::metric_reci,
-                             "Return reciprocal space metric tensor.")
-      .def(py::pickle(
-          [](const Cell &c) { // __getstate__
-            return py::make_tuple(c.a(), c.b(), c.c(), c.alpha(), c.beta(), c.gamma());  
-          },
-          [](py::tuple t) { // __setstate__
-            if (t.size() < 6)
-              throw std::runtime_error("Invalid state, must have 4 elements!");
-            
-            Cell c(Cell_descr(t[0].cast<ftype>(), t[1].cast<ftype>(), t[2].cast<ftype>(),
-                              t[3].cast<ftype>(), t[4].cast<ftype>(), t[5].cast<ftype>()));
-            return c;
-          }
-      ))
+          "Return a tuple of Cell parameters." )
+      .def( "__getstate__", [](const Cell &cell) {
+        return nb::make_tuple(cell.a(), cell.b(), cell.c(), cell.alpha(), cell.beta(), cell.gamma());
+      })
+      .def( "__setstate__", [](Cell &cell, nb::tuple &t) {
+        if ( t.size()<6 )
+          throw std::runtime_error("Invalid_state, must have 6 elements");
+        
+        new (&cell) Cell(Cell_descr(nb::cast<ftype>(t[0]),nb::cast<ftype>(t[1]), nb::cast<ftype>(t[2]),
+                         nb::cast<ftype>(t[3]), nb::cast<ftype>(t[4]), nb::cast<ftype>(t[5])));
+      })
       .doc() = "Cell object.\n"
                "The Cell class is the fully functional description of the unit "
                "cell. In addition to the cell parameters, it stores derived "
@@ -162,8 +133,8 @@ void declare_cell(py::module &m) {
                "fractionalising matrices, and the metric tensors.";
 }
 
-void init_cell(py::module &m) {
-  declare_metric_tensor(m);
-  declare_cell_descr(m);
-  declare_cell(m);
+void add_cell( nb::module_ &m ) {
+  declare_metric_tensor( m );
+  declare_cell_descr( m );
+  declare_cell( m );
 }

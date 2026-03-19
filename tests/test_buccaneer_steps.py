@@ -49,6 +49,6 @@ class TestCaJoin:
         flag, mmol = get_grow_cif_instance
         cajoin = buccaneer.Ca_join(2.0, 2.0)
 
-        assert len(mmol.model()) == 99
+        assert len(mmol.model) == 99
         cajoin(mmol)
-        assert len(mmol.model()) == 20
+        assert len(mmol.model) == 20

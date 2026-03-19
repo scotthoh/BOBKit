@@ -672,6 +672,32 @@ class BucArgParse:
             ),
         )
         _GROUP.add_argument(
+            "--sequence-multiplier",
+            dest="sequence_multiplier",
+            type=str,
+            default="1",
+            metavar="X",
+            help=(
+                "Comma separated multipliers in integer to apply to each "
+                "chain in order of the sequences given in input sequence file."
+            ),
+        )
+
+        _GROUP.add_argument(
+            "--original-model",
+            dest="original_model",
+            type=str,
+            default="NONE",
+            metavar="X",
+            help=("Original model for calculating rotational-translation operator for cutmap.")
+        )
+        _GROUP.add_argument(
+            "--profile",
+            dest="profile",
+            action="store_true",
+            help="Turn on profiling.",
+        )
+        _GROUP.add_argument(
             "--verbose",
             dest="verbose",
             type=int,
@@ -679,8 +705,17 @@ class BucArgParse:
             metavar="Verbose",
             help="Set verbosity level.",
         )
-
-
+        _GROUP.add_argument(
+            "--cluster-method",
+            dest="cluster_method",
+            default="kmeans",
+            choices=["kmeans", "dbscan", "none"],
+            metavar="kmeans | dbscan | none",
+            help=("Specify clustering method to use to get the centroids from ML input "
+                  "for probable positions of amino acid instances. If 'none' is specified, "
+                  "no clustering of points is performed.")
+        )
+    
 @dataclass
 class BuccaneerParams:
     """Class to hold arguments needed to run Buccaneer"""
@@ -741,6 +776,7 @@ class BuccaneerParams:
     semet: bool  # further options
     use_ml_find: bool
     sequence_method: str
+    cluster_method: str
     shiftback: bool
     optemp: bool  # false
     # fast mode Ca_find.TYPE.SECSTRUC else Ca_find.TYPE.LIKELIHOOD
@@ -759,6 +795,8 @@ class BuccaneerParams:
     mr_model_seed: bool  # = False
     mr_filter_sig: float  # = 3.0
     modelindex: int  # 0
+    sequence_multiplier: List[int]  # [1]
+    original_model: str
 
     def __init__(self, args: argparse.Namespace = None):
         if args is not None:
@@ -780,11 +818,14 @@ class BuccaneerParams:
         aa_instance_directory: str = "NONE",
         use_ml_find: bool = False,
         sequence_method: str = "default",
+        cluster_method: str = "kmeans",
         shifback: bool = False,
         outfile_name: str = "buccaneer_build.pdb",
         xmlout: str = "summary.xml",
         write_pdb: bool = True,
         write_cif: bool = True,
+        sequence_multiplier: List[int] = [1],
+        profile: bool = False,
         verbose: int = 0,
     ):
         self.mtzin = mtzin
@@ -795,6 +836,7 @@ class BuccaneerParams:
         self.aa_instance_directory = aa_instance_directory
         self.use_ml_find = use_ml_find
         self.sequence_method = sequence_method
+        self.cluster_method = cluster_method
         self.shiftback = shifback
         self.verbose = verbose
         self.title = title
@@ -831,10 +873,8 @@ class BuccaneerParams:
         self.moffset = 0.0
         self.set_output_intermediate_models()
         self.set_known_structure()
-        if verbose >= 5:
-            self.profiling = True
-        else:
-            self.profiling = False
+        self.sequence_multiplier = sequence_multiplier
+        self.profiling = profile
 
     def set_parameters_with_commandline_args(self, args: BucArgParse):
         self.mtzin = args.mtzin
@@ -845,6 +885,7 @@ class BuccaneerParams:
         self.aa_instance_directory = args.aa_instance_directory
         self.use_ml_find = args.use_ml_find
         self.sequence_method = args.sequence_method
+        self.cluster_method = args.cluster_method
         self.shiftback = args.shiftback
         self.verbose = args.verbose
         self.title = args.title
@@ -909,10 +950,9 @@ class BuccaneerParams:
         self.set_output_intermediate_models(args.output_intermediates)
         self.set_known_structure(args.known_structure)
         self.verbose = args.verbose
-        if self.verbose >= 5:
-            self.profiling = True
-        else:
-            self.profiling = False
+        self.set_sequence_multiplier(args.sequence_multiplier)
+        self.original_model = args.original_model
+        self.profiling = args.profile
 
     def set_outfile(self, outfile_name: str = "buccaneer_build"):
         self.outfile_name = outfile_name
@@ -1127,6 +1167,10 @@ class BuccaneerParams:
         else:
             self.known_ids = []
 
+    def set_sequence_multiplier(self, seqmult: str = "1"):
+        # comma separated str, split them
+        multi = seqmult.split(",")
+        self.sequence_multiplier = [int(x) for x in multi]
 
 # if __name__ == "__main__":
 #    import sys
