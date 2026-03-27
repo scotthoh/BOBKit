@@ -35,7 +35,6 @@ jobs:
         python3 -m pip install pytest
         python3 -m pip list
         python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
-p
 
   ubuntu2404:
     name: "Test build on Ubuntu 24.04"
