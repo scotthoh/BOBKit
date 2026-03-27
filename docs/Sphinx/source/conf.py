@@ -10,12 +10,13 @@ import os
 import re
 from datetime import datetime
 
-pybuc_path = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../python")
-)
-sys.path.insert(0, pybuc_path)
+#pybuc_path = os.path.abspath(
+#    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../python")
+#)
+#sys.path.insert(0, pybuc_path)
 
-with open(os.path.join(pybuc_path, "version.hpp")) as f:
+#with open(os.path.join(pybuc_path, "version.hpp")) as f:
+with open(os.path.join("../../../python/version.hpp")) as f:
     for line in f:
         vline = re.search(
             '#define BOBKIT_VERSION "(?P<value>[0-9dev.-]+)"', line
