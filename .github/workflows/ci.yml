@@ -45,8 +45,9 @@ jobs:
         python3 -m pip install pytest
         python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
     - uses: actions/upload-artifact@v6
+      if: matrix.python-version == '3.11'
       with:
-        name: bobkit-macos15
+        name: bobkit-macos15-py311
         path: |
           ./bobkit-*.whl
         retention-days: 14
