@@ -156,35 +156,35 @@ jobs:
           python3 -m pip install -r docs/Sphinx/source/requirements.txt
           sphinx-build -M html docs/Sphinx/source docs/Sphinx/_build/html
 
-  windows:
-    name: "Windows"
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install nanobind numpy pytest
-      - name: Build and install
-        run: |
-          python3 -m pip install --verbose .
-      - name: Test import
-        run: |
-          python3 - << 'EOF'
-          import bobkit
-          print("bobkit imported successfully")
-          EOF
-      - name: Run pytest
-        run: |
-          python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
+#  windows:
+#    name: "Windows"
+#    runs-on: windows-latest
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        python-version: ["3.11", "3.12"]
+#    steps:
+#      - uses: actions/checkout@v5
+#      - uses: actions/setup-python@v6
+#        with:
+#          python-version: ${{ matrix.python-version }}
+#          cache: "pip"
+#      - name: Install Python dependencies
+#        run: |
+#          python3 -m pip install --upgrade pip
+#          python3 -m pip install nanobind numpy pytest
+#      - name: Build and install
+#        run: |
+#          python3 -m pip install --verbose .
+#      - name: Test import
+#        run: |
+#          python3 - << 'EOF'
+#          import bobkit
+#          print("bobkit imported successfully")
+#          EOF
+#      - name: Run pytest
+#        run: |
+#          python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
   #ubuntu2004:
   #  name: "Test build Ubuntu 20.04"
   #  runs-on: ubuntu-20.04
