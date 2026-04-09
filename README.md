@@ -1,4 +1,8 @@
 # BOBKit - **B**ioMacromolecular M**o**del **B**uilding **Kit**
+![CI](https://github.com/scotthoh/bobkit/actions/workflows/ci.yml/badge.svg)
+![Python Versions](https://img.shields.io/badge/python-3.11%20|%203.12-blue)
+![License](https://img.shields.io/github/license/scotthoh/bobkit)
+
 ## **Buccaneer**
 Buccaneer is a C++ software for statistical protein chain tracing. It identifies connected alpha-carbon positions using a likelihood-based density target.
 
