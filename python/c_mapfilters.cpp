@@ -75,8 +75,8 @@ template <class T> void declare_mapfilters( nb::module_ &m, const std::string &n
                " xmap2 = Xmap_float( xmap )\n"
                " ix = xmap2.first()\n"
                " while not ix.last():\n"
-               "   xmap2[ix] = pow( xmap2[ix], 2.0 )\n"
-               "   ix.next()\n\n"
+               "     xmap2[ix] = pow( xmap2[ix], 2.0 )\n"
+               "     ix.next()\n\n"
                " # now calculate local mean, local mean squared\n"
                " fn = MapFilterFn_step( filter_radius )\n"
                " fltr = MapFilter_slow_float( fn, 1.0, MapFilter_slow_float.Relative )\n"
@@ -86,8 +86,8 @@ template <class T> void declare_mapfilters( nb::module_ &m, const std::string &n
                " # calculate std deviation\n"
                " ix = lmean.first()\n"
                " while not ix.last():\n"
-               "   lsigm[ix] = sqrt( lsigm[ix] - pow( lmean[ix], 2.0 ) )\n"
-               "   ix.next()\n"
+               "     lsigm[ix] = sqrt( lsigm[ix] - pow( lmean[ix], 2.0 ) )\n"
+               "     ix.next()\n\n"
                "This would be a useful step in solvent mask determination, for example.";
 
   using MFFft = MapFilter_fft<T>;

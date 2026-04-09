@@ -7,3 +7,4 @@ Python API Reference
    buccaneer_pyapi
    clipper_pyapi
    proteindb_pyapi
+   util_pyapi
