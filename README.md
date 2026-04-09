@@ -3,11 +3,12 @@
 Buccaneer is a C++ software for statistical protein chain tracing. It identifies connected alpha-carbon positions using a likelihood-based density target.
 
 ## **BOBKit**
-BOBKit is the python bindings for Buccaneer. We have used pybind11 for this project for now.
+BOBKit is the python bindings for Buccaneer. We are using nanobind for this project.
 Individual steps from Buccaneer can be run as python methods with the appropriate arguments.
-Currently, it requires GEMMI to be built using the same compiler for the python bindings to work properly. This will 
+Currently, it requires GEMMI to be built using the same compiler for the python bindings to work properly. 
 
 ## **Installing**
+Tested on Ubuntu 24.04 and MacOS15 with python3.11.
 1. Clone the repository to your local machine.
 
    `git clone https://github.com/scotthoh/BOBKit.git`
@@ -24,7 +25,7 @@ Currently, it requires GEMMI to be built using the same compiler for the python 
 
    `source bobkit_env/bin/activate`
 
-5. Installing BOBKit modules using pip.* This will first download, compile and install required dependencies (FFTW3 v3.3.4, GEMMI v0.6.4, and a branch of Clipper library from CCP4 repository) before installing the BOBKit python bindings.
+5. Installing BOBKit modules using pip.* This will first download, compile and install required dependencies (FFTW3 v3.3.4, GEMMI v0.7.3, and a branch of Clipper library from CCP4 repository) before installing the BOBKit python bindings.
 
    `python3 -m pip install .`
 
