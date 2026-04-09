@@ -174,7 +174,7 @@ jobs:
           python3 -m pip install nanobind numpy pytest
       - name: Build and install
         run: |
-          python3 -m pip install --versbose .
+          python3 -m pip install --verbose .
       - name: Test import
         run: |
           python3 - << 'EOF'
