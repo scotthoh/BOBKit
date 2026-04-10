@@ -3,7 +3,7 @@
 Finding C-alphas
 ================
 
-This stage aims to locate a few very probably C-alpha positions in the electron-density map
+This stage aims to locate a few very probably oriented C-alpha positions in the electron-density map
 using a search target based on a 4 Å sphere centred on the C-alpha atom. A six-dimensional
 search in both position and orientation is performed and the highest scoring matches are 
 assumed to be correct. These C-alpha positions will be used as seed points from which longer

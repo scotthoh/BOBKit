@@ -1,0 +1,223 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+      - development
+
+jobs:
+  macos15:
+    name: "macOS 15"
+    runs-on: macos-15
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON"
+      SKBUILD_BUILD_TARGETS: "all"
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: "pip"
+    - name: Build and install package
+      run: |
+        python3 -m venv pyenv
+        source pyenv/bin/activate
+        python3 -m pip install wheel
+        python3 -m pip wheel -v .
+        python3 -m pip install bobkit-*.whl
+    - name: Test import
+      run: |
+          source pyenv/bin/activate
+          python3 - << 'EOF'
+          import bobkit
+          print("bobkit imported successfully")
+          EOF
+    - name: Run pytest
+      run: |
+        source pyenv/bin/activate
+        python3 -m pip install pytest
+        python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
+    - uses: actions/upload-artifact@v6
+      if: matrix.python-version == '3.11'
+      with:
+        name: bobkit-macos15-py311
+        path: |
+          ./bobkit-*.whl
+        retention-days: 14
+
+  ubuntu2404:
+    name: "Test build on Ubuntu 24.04"
+    runs-on: ubuntu-24.04
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON"
+      SKBUILD_BUILD_TARGETS: "all"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install nanobind numpy pytest
+      - name: build and test
+        run: |
+          g++ --version
+          cmake --version
+          python3 -m pip install --verbose .
+          # python3 -m venv pyenv
+          # source pyenv/bin/activate
+          # python3 -m pip install nanobind
+          # python3 -m pip install numpy
+      - name: Test import
+        run: |
+          #source pyenv/bin/activate
+          python3 - << 'EOF'
+          import bobkit
+          print("bobkit imported successfully")
+          EOF
+      - name: PyTesting
+        run: |
+          #source pyenv/bin/activate
+          #python3 -m pip install pytest
+          python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
+      - name: Test build docs
+        run: |
+          #source pyenv/bin/activate
+          python3 -m pip install -r docs/Sphinx/source/requirements.txt
+          sphinx-build -M html docs/Sphinx/source docs/Sphinx/_build/html
+
+  ubuntu2204:
+    name: "Test build on Ubuntu 22.04"
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      SKBUILD_CMAKE_ARGS: "-DEXTRA_WARNINGS=ON"
+      SKBUILD_BUILD_TARGETS: "all"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install nanobind numpy pytest
+      - name: build and test
+        run: |
+          g++ --version
+          cmake --version
+          python3 -m pip install --verbose .
+          # python3 -m venv pyenv
+          # source pyenv/bin/activate
+          # python3 -m pip install nanobind
+          # python3 -m pip install numpy
+      - name: Test import
+        run: |
+          #source pyenv/bin/activate
+          python3 - << 'EOF'
+          import bobkit
+          print("bobkit imported successfully")
+          EOF
+      - name: PyTesting
+        run: |
+          #source pyenv/bin/activate
+          #python3 -m pip install pytest
+          python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
+      - name: Test build docs
+        run: |
+          #source pyenv/bin/activate
+          python3 -m pip install -r docs/Sphinx/source/requirements.txt
+          sphinx-build -M html docs/Sphinx/source docs/Sphinx/_build/html
+
+#  windows:
+#    name: "Windows"
+#    runs-on: windows-latest
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        python-version: ["3.11", "3.12"]
+#    steps:
+#      - uses: actions/checkout@v5
+#      - uses: actions/setup-python@v6
+#        with:
+#          python-version: ${{ matrix.python-version }}
+#          cache: "pip"
+#      - name: Install Python dependencies
+#        run: |
+#          python3 -m pip install --upgrade pip
+#          python3 -m pip install nanobind numpy pytest
+#      - name: Build and install
+#        run: |
+#          python3 -m pip install --verbose .
+#      - name: Test import
+#        run: |
+#          python3 - << 'EOF'
+#          import bobkit
+#          print("bobkit imported successfully")
+#          EOF
+#      - name: Run pytest
+#        run: |
+#          python3 -m pytest tests/ --ignore=tests/test_nxmap.py --ignore=tests/test_xmap.py
+  #ubuntu2004:
+  #  name: "Test build Ubuntu 20.04"
+  #  runs-on: ubuntu-20.04
+  #  if: "!contains(github.event.head_commit.message, '[skip ci]')"
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - name: apt-get
+  #      run: |
+  #        sudo apt-get update
+  #        sudo apt-get install libz-dev python3-pip g++ gfortran python3-numpy
+  #    - name: install pybind11
+  #      run: |
+  #        python3 -m pip install pybind11
+  #    - name: build and test
+  #      run: |
+  #        g++ --version
+  #        cmake --version
+  #        sudo pip install --verbose .
+  #        #cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DUSE_PYTHON=1 -DPython_EXECUTABLE=python3 -DBUILD_SHARED_LIBS=OFF
+  #        #cmake --build build --config Debug -j2
+  #        #cmake --build build --config Debug --target check -j2
+  #        #sudo cmake --install build --config Debug
+          
+        #uses: actions/setup-python@v5
+        #with:
+        #  # Semantic version range syntax or exact version of a Python version
+        #  python-version: '3.8'
+        #  # Optional - x64 or x86 architecture, defaults to x64
+      
+      #- name: Add requirements
+      #  run: python -m pip install --upgrade wheel setuptools
+      #
+      #- name: Build and install
+      #  run: pip install --verbose .
+
+      

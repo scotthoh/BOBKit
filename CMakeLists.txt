@@ -169,11 +169,12 @@ if(BUILD_SHARED_LIBS)
   set(lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
   set(fftwconf_args "--enable-shared")
   if (USE_PYTHON)
-  if (DEFINED SKBUILD)
-    set(rpath_rel "../../../../${CMAKE_INSTALL_LIBDIR}")
-  else()
-    file(RELATIVE_PATH rpath_rel "${Python_SITEARCH}" "${VENV_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}")
-  endif()
+    if (DEFINED SKBUILD)
+      set(rpath_rel "../../../../${CMAKE_INSTALL_LIBDIR}")
+    else()
+      file(RELATIVE_PATH rpath_rel "${Python_SITEARCH}" "${VENV_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}")
+      mesage(STATUS "RPATH - " ${rpath_rel})
+    endif()
   endif()
 else()
   message(STATUS "static lib prefix" ${CMAKE_STATIC_LIBRARY_PREFIX})
@@ -211,11 +212,22 @@ endif()
 #set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
 set(FFTW3_INCDIR "${VENV_INSTALL_DIR}/include")
 set(FFTW3_LIBDIR "${VENV_INSTALL_DIR}/lib")
-message(STATUS "FFTW3 lib : " ${FFTW3_LIBDIR}/${lib_fftw_name})
-set_target_properties(fftw3::fftw3 PROPERTIES
-                      IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
-                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
-)
+if (EXISTS "${FFTW3_LIBDIR}/${lib_fftw_name}")
+  message(STATUS "FFTW3 lib : " ${FFTW3_LIBDIR}/${lib_fftw_name})
+else()
+  message(STATUS "FFTW3 not found")
+endif()
+if (WIN32 AND BUILD_SHARED_LIBS)
+    set_target_properties(fftw3::fftw3 PROPERTIES
+                        IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
+                        IMPORTED_IMPLIB ${FFTW3_LIBDIR}/"fftw3f.lib"
+    )
+else()  
+  set_target_properties(fftw3::fftw3 PROPERTIES
+                        IMPORTED_LOCATION ${FFTW3_LIBDIR}/${lib_fftw_name}
+                        #INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCDIR}
+  )
+endif()
 add_dependencies(fftw3::fftw3 project_fftw)
 #set(fftw3_extlib fftw3::fftw3)
 else()
@@ -265,9 +277,15 @@ add_library(gemmi::gemmi_cpp STATIC IMPORTED)
 endif()
 set(GEMMI_INCDIR "${VENV_INSTALL_DIR}/include")
 set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
-set_target_properties(gemmi::gemmi_cpp PROPERTIES
+
+if (WIN32 AND BUILD_SHARED_LIBS)
+  set_target_properties(gemmi::gemmi_cpp PROPERTIES
+                      IMPORTED_LOCATION "${VENV_INSTALL_DIR}/bin/${lib_gemmi_name}"
+                      IMPORTED_IMPLIB "${GEMMI_LIBDIR}/gemmi_cpp.lib")
+else()
+  set_target_properties(gemmi::gemmi_cpp PROPERTIES
                       IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${GEMMI_INCDIR})
+endif()
 add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
@@ -322,26 +340,26 @@ else()
   add_dependencies(project_clipper project_gemmi)
 endif()
 set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
-set_target_properties(clipper::core PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercore})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
+set(CLIPPER_LIBDIR "${VENV_INSTALL_DIR}/lib")
 add_dependencies(clipper::core project_clipper) # project_fftw)
-set_target_properties(clipper::contrib PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercontrib})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::contrib project_clipper) # project_fftw)
-set_target_properties(clipper::gemmi
-                      PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippergemmi})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::gemmi project_clipper project_gemmi)
-set_target_properties(clipper::minimol PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clipperminimol})
-                      #INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::minimol project_clipper project_gemmi)
-set_target_properties(clipper::cif PROPERTIES
-                      IMPORTED_LOCATION ${VENV_INSTALL_DIR}/lib/${lib_clippercif})
-                      #'INTERFACE_INCLUDE_DIRECTORIES ${CLIPPER_INCDIR})
 add_dependencies(clipper::cif project_clipper project_gemmi)
+
+if (WIN32 AND BUILD_SHARED_LIBS)
+  set_target_properties(clipper::core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clippercore} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-core.lib)
+  set_target_properties(clipper::contrib PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clippercontrib} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-contrib.lib)
+  set_target_properties(clipper::gemmi PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clippergemmi} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-gemmi.lib)
+  set_target_properties(clipper::minimol PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clipperminimol} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-minimol.lib)
+  set_target_properties(clipper::cif PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clippercif} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-cif.lib)
+else()
+  set_target_properties(clipper::core PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clippercore})
+  set_target_properties(clipper::contrib PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clippercontrib})
+  set_target_properties(clipper::gemmi PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clippergemmi})
+  set_target_properties(clipper::minimol PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clipperminimol})
+  set_target_properties(clipper::cif PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clippercif})
+endif()
 
 file(GLOB BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.cpp")
 file(GLOB BUCCANEER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.h")
@@ -350,7 +368,7 @@ list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cb
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/csequins.cpp")
 if(BUILD_SHARED_LIBS)
   add_library(buccaneer_lib SHARED ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
-  set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
+  set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "${origin}") #/${rpath_rel}")
 else()
 add_library(buccaneer_lib STATIC ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
 endif()

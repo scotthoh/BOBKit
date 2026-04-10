@@ -42,23 +42,26 @@ For example
    JOIN:     0.58 s
 
 
-Utility class
--------------
+Setting reference for Buccaneer
+-------------------------------
 .. autosummary::
 
-   bobkit.buccaneer.Util
+   bobkit.buccaneer.set_reference
 
-``bobkit.buccaneer.Util.set_reference()`` can be used to set file paths to reference data (MTZ & PDB).
+``bobkit.buccaneer.set_reference()`` can be used to set file paths to reference data (MTZ & PDB).
 
 .. doctest::
 
-   >>> from bobkit.buccaneer import Util
+   >>> from bobkit.buccaneer import set_reference
    >>> mtz_ref = ""
    >>> pdb_ref = ""
-   >>> Util.set_reference(mtz_ref, pdb_ref)
+   >>> set_reference(mtz_ref, pdb_ref)
 
-The utility class also consist of methods to read and write structure file(s).
-If ``bobkit.buccaneer.Util.read_structure()`` is called without passing it a 
+
+Utility submodule
+-----------------
+The utility submodule also consist of methods to read and write structure file(s).
+If ``bobkit.util.read_structure()`` is called without passing it a 
 ``bobkit.clipper.MiniMol`` instance, it will return a MiniMol instance containing 
 the structure read from the file given. Otherwise, the MiniMol instance is updated 
 with the strcuture read.
@@ -66,8 +69,9 @@ with the strcuture read.
 .. doctest::
 
    >>> from bobkit.clipper import MiniMol
+   >>> from bobkit.util import read_structure as read_structure
    >>> # Reading structure without passing in a MiniMol instance
-   >>> mmol = Util.read_structure("test_data/pdb5ni1_cryst1.pdb")
+   >>> mmol = read_structure("test_data/pdb5ni1_cryst1.pdb")
    PDB file: ../../test_data/pdb5ni1_cryst1.pdb
      Number of atoms read: 4579
         0     N    45.716   55.727   67.167
@@ -80,12 +84,13 @@ with the strcuture read.
         0     N    45.716   55.727   67.167
      4578     O    66.745   51.174   62.217
 
-To write a pdb/cif file from MiniMol, use ``bobkit.buccaneer.Util.write_structure()``.
+To write a pdb/cif file from MiniMol, use ``bobkit.util.write_structure()``.
 The corresponding file extension will be assigned within method.
 
 .. doctest::
-
+   
+   >>> from bobkit.util import write_structure as write_structure
    >>> # writing a pdb file
-   >>> Util.write_structure(mmol, "write_out.pdb", cif_format=False)
+   >>> write_structure(mmol, "write_out.pdb", cif_format=False)
    >>> # writing a cif file
-   >>> Util.write_structure(mmol, "write_out.cif", cif_format=True)
+   >>> write_structure(mmol, "write_out.cif", cif_format=True)

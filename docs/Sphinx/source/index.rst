@@ -55,7 +55,7 @@ These stages are exposed in python as classes. The associated methods
 can be reused individually in various stages of any model building
 workflows, provided that they given the correct input arguments.
 
-BOBKit is open source and portable, it has been tested on Linux (Ubuntu 20.04).
+BOBKit is open source and portable, it has been tested on Linux (Ubuntu 24.04) and MacOS-15.
 The python bindings are written for Python 3.
 
 This project is funded by the BBSRC Grant BB/X006492/1.
@@ -83,7 +83,7 @@ Contents
    :maxdepth: 2
 
    Preparing log-likelihood map targets <prep>
-   buccaneer_util
+   utils
 
 .. toctree::
    :caption: The 10 stages of Buccaneer

@@ -13,7 +13,7 @@ using namespace clipper;
 // Trampoline Class, from function_object_bases.h
 template <class T> class PyEDcalc_base : public EDcalc_base<T> {
 public:
-  NB_TRAMPOLINE( EDcalc_base<T>, 3 );
+  NB_TRAMPOLINE( EDcalc_base<T>, 2 );
 
   /* Trampoline (need one for each virtual function) */
   bool operator()( Xmap<T> &xmap, const Atom_list &atoms ) const override {
@@ -22,7 +22,7 @@ public:
   bool operator()( NXmap<T> &nxmap, const Atom_list &atoms ) const override {
     NB_OVERRIDE_PURE_NAME( "__call__", operator(), nxmap, atoms );
   }
-  ~PyEDcalc_base() { NB_OVERRIDE_PURE_NAME( "__del__", ~PyEDcalc_base() ); }
+  //~PyEDcalc_base() { NB_OVERRIDE_PURE_NAME( "__del__", ~PyEDcalc_base() ); }
 };
 
 template <class T> void declare_edcalc_base( nb::module_ &m, const std::string &name ) {

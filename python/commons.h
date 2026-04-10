@@ -4,6 +4,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <gemmi/math.hpp>
+#include <memory>
 
 namespace nb = nanobind;
 constexpr auto rv_ri = nb::rv_policy::reference_internal;
@@ -152,7 +153,7 @@ C &add_item(T &container, C child, int pos)
   return *container.insert(container.begin() + pos, std::move(child));
 }
 
-void to_pystream( std::string &msg, const nb::object &pystream ) {
+inline void to_pystream( std::string &msg, const nb::object &pystream ) {
   if ( nb::hasattr( pystream, "write" ) && nb::hasattr( pystream, "flush" ) ) {
     pystream.attr( "write" )( msg.c_str() );
     pystream.attr( "flush" )();
