@@ -18,22 +18,26 @@ void remove_sidechains( MiniMol &mol, const bool &keep_oxygen=true ) {
   for ( int chn = 0; chn < mold.size(); chn++ ) {
     MPolymer mp;
     for ( int res = 0; res < mold[chn].size(); res++ ) {
-      MMonomer mm;
+      //MMonomer mm;
+      clipper::String searchstr = "";
       int in = mold[chn][res].lookup( " N  ", clipper::MM::ANY );
       int ia = mold[chn][res].lookup( " CA ", clipper::MM::ANY );
       int ic = mold[chn][res].lookup( " C  ", clipper::MM::ANY );
       if ( in >= 0 && ia >= 0 && ic >= 0 ) {
-        mm.insert( mold[chn][res][in] );
-        mm.insert( mold[chn][res][ia] );
-        mm.insert( mold[chn][res][ic] );
+        searchstr = "N,CA,C";
+      //  mm.insert( mold[chn][res][in] );
+      //  mm.insert( mold[chn][res][ia] );
+      //  mm.insert( mold[chn][res][ic] );
       }
       if ( keep_oxygen ) {
         int io = mold[chn][res].lookup( " O  ", clipper::MM::ANY );
-        if ( io >= 0 ) mm.insert( mold[chn][res][io] );
+        if ( io >= 0 ) searchstr.append(",O"); //mm.insert( mold[chn][res][io] );
       }
+      auto mm = mold[chn][res].select(searchstr);
+      
       if ( mm.size() > 0 ) mp.insert( mm );
+    }  
     if ( mp.size() > 0 ) mol.insert( mp );
-    }
   }
 }
 
@@ -230,7 +234,7 @@ void declare_proteintools(nb::module_ &m) {
                   nb::arg("mol"), nb::arg("chains"),
                   "Insert Ca_chains to model.")
       .def_static("trim_to_protein", &ProteinTools::trim_to_protein,
-                  nb::arg("mol"), "Trim to protein backbone.")
+                  nb::arg("mol"), "Trim to protein only.")
       .def_static("remove_sidechain", [](MiniMol &mol, const bool &keepoxy) { remove_sidechains(mol, keepoxy); },
                   nb::arg("mol"), nb::arg("keep_oxygen") = true,
                   "Remove sidechains, leave only atoms with labels "
