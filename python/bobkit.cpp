@@ -69,6 +69,7 @@ NB_MODULE( bobkit_ext, mbk_ ) {
   add_clipper_tests( mc, mdata );
   add_cifdata_io( mc );
   
+  add_derivs( mc );
   add_rotation( mc );
   add_xmap( mc );
   add_nxmap( mc );

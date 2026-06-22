@@ -23,7 +23,7 @@ void add_ca_ncsbuild( nb::module_ &m ) {
             std::string m = " C-alphas after NCS build  : " + clipper::String( int( mol.select( "*/*/CA" ).atom_list().size() ), 7 ) + "\n";
             bool success = cancsbuild( mol, xmap, llkcls, seq );
             if ( pystream.is_valid() ) to_pystream(m, pystream);
-            std::cout << m;
+            else std::cout << m;
             return success;
           },
           nb::arg( "mol" ), nb::arg( "xmap" ), nb::arg( "llktarget" ), nb::arg( "seq" ), nb::arg( "reliability" ) = 0.5,

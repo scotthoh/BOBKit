@@ -9,13 +9,25 @@
 #include "arrays.h"
 #include <clipper/clipper-gemmi.h>
 #include <clipper/clipper.h>
+#include <clipper/clipper-contrib.h>
 #include <nanobind/operators.h>
+#include <nanobind/stl/vector.h>
+#include <chrono>
+
 // #include <nanobind/stl/stl_bind.h>
 
 using namespace clipper;
 
 // orthogonal cut out maps
 // rotational function on cutout box and interpolation
+
+template<class F>
+long long time_ms(F &&func) {
+    auto start = std::chrono::high_resolution_clock::now();
+    func();
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
 
 // template <class T> std::string display_repr(const Xmap<T> xmapclass) {
 template <class T> std::string display_repr( const Xmap<T> xmap ) {
@@ -106,6 +118,78 @@ void normalise(Xmap<T> &xmap) {
   Xmap_base::Map_reference_index ix(xmap);
   for (ix = xmap.first(); !ix.last(); ix.next() ) {
     xmap[ix] = (xmap[ix] - mapstat.mean()) / mapstat.std_dev();
+  }
+}
+
+template<class Derived, class I, class T>
+void interp_loop(const Derived &self, const std::vector<Coord_frac> &pos, std::vector<T> &data) {
+  for (size_t i = 0; i < pos.size(); ++i) {
+    data[i] = self.template interp<I>(pos[i]);
+  }
+}
+
+template<class Derived, class T>
+void call_interp_methods(const Derived &self, const std::vector<Coord_frac> &pos, std::vector<T> &data, int order) {
+  switch(order) {
+    case 0:
+      interp_loop<Derived, Interp_nearest, T>(self, pos, data);
+      break;
+    case 1:
+      interp_loop<Derived, Interp_linear, T>(self, pos, data);
+      break;
+    case 3:
+      interp_loop<Derived, Interp_cubic, T>(self, pos, data);
+      break;
+    default:
+      throw std::invalid_argument("Unsupported interpolation order {0=nearest, 1=linear, 3=cubic}!\n");
+  }
+}
+
+template<class Derived, class T>
+auto interp_values_frac(const Derived &self, const std::vector<Coord_frac> &pos, int order) {
+  std::vector<T> data;
+  data.resize(pos.size());
+  call_interp_methods<Derived, T>(self, pos, data, order);
+  return vector_to_numpy(std::move(data));
+}
+
+template<class Derived, class T>
+auto interp_values_orth(const Derived &self, const std::vector<Coord_orth> &co, int order) {
+  const auto cell = self.cell();
+  const size_t N = co.size();
+  std::vector<Coord_frac> cf;
+  cf.resize(N);
+  for (size_t i = 0; i < N; ++i) {
+    cf[i] = co[i].coord_frac(cell);
+  }
+  return interp_values_frac<Derived, T>(self, cf, order);
+}
+
+
+template<class Derived, class I, class T>
+void interp_loop_grad_orth(const Derived &self, const std::vector<Coord_orth> &pos, std::vector<T> &data, std::vector<Grad_orth<T>> &grad) {
+  auto const cell = self.cell();
+
+  for (size_t i = 0; i < pos.size(); ++i) {
+    Grad_frac<T> gfrac;
+    self.template interp_grad<I>(pos[i].coord_frac(cell), data[i], gfrac);
+    grad[i] = gfrac.grad_orth(cell);
+  }
+}
+
+template<class Derived, class I, class T>
+void interp_loop_grad(const Derived &self, const std::vector<Coord_frac> &pos, std::vector<T> &data, std::vector<Grad_frac<T>> &grad) {
+  for (size_t i = 0; i < pos.size(); ++i) {
+    self.template interp_grad<I>(pos[i], data[i], grad[i]);
+  }
+}
+
+template<class Derived, class I, class T>
+void interp_loop_curv_orth(const Derived &self, const std::vector<Coord_orth> &pos, std::vector<T> &data, std::vector<Grad_orth<T>> &grad, std::vector<Curv_orth<T>> &curv) {
+  auto const cell = self.cell();
+  auto const grid = self.grid();
+  for (size_t i = 0; i < pos.size(); ++i) {
+    self.template interp_grad<I>(pos[i], data[i], grad[i]);
   }
 }
 
@@ -263,32 +347,114 @@ template <class Derived, class T, class H> void apply_xmap_fft_methods( nb::clas
 
 template <class Derived, class T> void apply_xmap_interpolation_methods( nb::class_<Derived, Xmap_base> &pyclass ) {
   pyclass
-      .def( "interp_linear_frac",
-            []( const Derived &self, const Coord_frac &pos ) { return self.template interp<Interp_linear>( pos ); } )
-      .def( "interp_cubic_frac",
-            []( const Derived &self, const Coord_frac &pos ) { return self.template interp<Interp_cubic>( pos ); } )
-      .def( "interp_linear_orth",
-            []( const Derived &self, const Coord_orth &xyz ) {
-              return self.template interp<Interp_linear>( xyz.coord_frac( self.cell() ) );
-            } )
-      .def( "interp_cubic_orth",
-            []( const Derived &self, const Coord_orth &xyz ) {
-              return self.template interp<Interp_cubic>( xyz.coord_frac( self.cell() ) );
-            } )
-      .def( "interp_cubic_grad_frac",
-            []( const Derived &self, const Coord_frac &pos ) -> nb::tuple {
-              T val;
-              Grad_frac<T> grad;
-              self.template interp_grad<Interp_cubic>( pos, val, grad );
-              return nb::make_tuple( val, grad );
-            } )
-      .def( "interp_cubic_curv_frac", []( const Derived &self, const Coord_frac &pos ) -> nb::tuple {
-        T val;
-        Grad_frac<T> grad;
-        Curv_frac<T> curv;
-        self.template interp_curv<Interp_cubic>( pos, val, grad, curv );
-        return nb::make_tuple( val, grad, curv );
-      } );
+      // deprecated use interp_values, interp_value etc... removed in 0.16.0
+      // .def( "interp_linear_frac",
+      //       []( const Derived &self, const Coord_frac &pos ) { return self.template interp<Interp_linear>( pos ); }, "Get map value for fractional coord using linear interpolator")
+      // .def( "interp_cubic_frac",
+      //       []( const Derived &self, const Coord_frac &pos ) { return self.template interp<Interp_cubic>( pos ); }, "Get map value for fractional coord using cubic interpolator" )
+      // .def( "interp_linear_orth",
+      //       []( const Derived &self, const Coord_orth &xyz ) {
+      //         return self.template interp<Interp_linear>( xyz.coord_frac( self.cell() ) );
+      //       }, "Get map value for map coord using linear interpolator" )
+      // .def( "interp_cubic_orth",
+      //       []( const Derived &self, const Coord_orth &xyz ) {
+      //         return self.template interp<Interp_cubic>( xyz.coord_frac( self.cell() ) );
+      //       }, "Get map value for map coord using cubic interpolator" )
+      // .def( "interp_cubic_grad_frac",
+      //       []( const Derived &self, const Coord_frac &pos ) -> nb::tuple {
+      //         T val;
+      //         Grad_frac<T> grad;
+      //         self.template interp_grad<Interp_cubic>( pos, val, grad );
+      //         return nb::make_tuple( val, grad );
+      //       }, "Get map value and gradient for map coord using cubic interpolator" )
+      // .def( "interp_cubic_curv_frac", []( const Derived &self, const Coord_frac &pos ) -> nb::tuple {
+      //   T val;
+      //   Grad_frac<T> grad;
+      //   Curv_frac<T> curv;
+      //   self.template interp_curv<Interp_cubic>( pos, val, grad, curv );
+      //   return nb::make_tuple( val, grad, curv );
+      // }, "Get map value and curv for map coord using cubic interpolator" )
+      //.def( "benchmark_inside", [](const Derived &self, const std::vector<Coord_orth> &pos, int order) {
+      //  long long t_inside = time_ms([&]() {
+      //  std::vector<T> data;
+      //  data.resize(pos.size());
+      //  switch (order) {
+      //    case 0: interp_loop_orth<Derived, Interp_nearest, T>(self, pos, data);
+      //    //data.push_back(self.template interp<Interp_nearest>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //    case 1: interp_loop_orth<Derived, Interp_linear, T>(self, pos, data);//data.push_back(self.template interp<Interp_linear>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //    case 3: interp_loop_orth<Derived, Interp_cubic, T>(self, pos, data);//data.push_back(self.template interp<Interp_cubic>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //  }}
+      //   );
+      //   std::cout << "Convert inside loop " << t_inside << " ms\n";
+      //  
+      //  //return vector_to_numpy(std::move(data));
+      //})
+      //.def( "benchmark_outside", [](const Derived& self, const std::vector<Coord_orth> &pos, int order) {
+      //  long long t_outside = time_ms([&]() {
+      //  size_t N = pos.size();
+      //  auto cell = self.cell();
+      //  std::vector<Coord_frac> frac;
+      //  frac.resize(N);
+      //  std::vector<T> data;
+      //  data.resize(pos.size());
+      //  for (size_t i =0; i < N; ++i){
+      //    frac[i] = pos[i].coord_frac(cell);
+      //  }
+      //  switch (order) {
+      //    case 0: interp_loop<Derived, Interp_nearest, T>(self, frac, data);
+      //    //data.push_back(self.template interp<Interp_nearest>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //    case 1: interp_loop<Derived, Interp_linear, T>(self, frac, data);//data.push_back(self.template interp<Interp_linear>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //    case 3: interp_loop<Derived, Interp_cubic, T>(self, frac, data);//data.push_back(self.template interp<Interp_cubic>( pos.coord_frac( self.cell() ) ));
+      //            break;
+      //  }}
+      //  );
+      //  std::cout << "Convert outside loop " << t_outside << " ms\n";
+      //})
+      .def( "interp_values", [](const Derived &self, const std::vector<Coord_orth> &pos, int order) {
+        return interp_values_orth<Derived, T>(self, pos, order);
+      }, nb::arg("orthogonal_coordinates"), nb::arg("interpolation_order")=1, "Return interpolated values from a list of orthogonal coordinates of the given order (0=nearest, 1=linear, 3=cubic). Order defaults to 1." )
+      .def( "interp_values", [](const Derived &self, const std::vector<Coord_frac> &pos, int order) {
+        return interp_values_frac<Derived, T>(self, pos, order);
+        //std::vector<T> data;
+        //data.resize(pos.size());
+        //switch (order) {
+        //  case 0: interp_loop<Derived, Interp_nearest, T>(self, pos, data);// data.push_back(self.template interp<Interp_nearest>( pos ) );
+        //          break;
+        //  case 1: interp_loop<Derived, Interp_linear, T>(self, pos, data);//data.push_back(self.template interp<Interp_linear>( pos ) );
+        //          break;
+        //  case 3: interp_loop<Derived, Interp_cubic, T>(self, pos, data); //data.push_back(self.template interp<Interp_cubic>( pos ) );
+        //          break;
+        //  }
+        //  return vector_to_numpy(std::move(data));
+      }, nb::arg("fractional_coordinates"), nb::arg("interpolation_order")=1, "Return interpolated values from a list of fractional coordinates of the given order (0=nearest, 1=linear, 3=cubic). Order defaults to 1." );
+//      .def( "interp_values_grad", []( const Derived &self, const std::vector<Coord_orth> &pos, int order ) {
+//        std::vector<float> data;
+//        data.resize(pos.size());
+//        switch (order) {
+//          case 0: interp_loop_orth<Derived, Interp_nearest, T>(self, pos, data);
+//          //data.push_back(self.template interp<Interp_nearest>( pos.coord_frac( self.cell() ) ));
+//                  break;
+//          case 1: interp_loop_orth<Derived, Interp_linear, T>(self, pos, data);//data.push_back(self.template interp<Interp_linear>( pos.coord_frac( self.cell() ) ));
+//                  break;
+//          case 3: interp_loop_orth<Derived, Interp_cubic, T>(self, pos, data);//data.push_back(self.template interp<Interp_cubic>( pos.coord_frac( self.cell() ) ));
+//                  break;
+//        }
+//        return vector_to_numpy(std::move(data));
+//      } );
+      //.def( "interp_array_linear_orth", []( const Derived &self, const std::vector<Coord_orth> &pos ) {
+      //  std::vector<float> data;
+      //  data.reserve(pos.size());
+      //  std::cout << "inside" << std::endl;
+      //  for (Coord_orth co : pos) {
+      //    data.push_back(self.template interp<Interp_linear>( co.coord_frac( self.cell() ) ) );
+      //  }
+      //  return vector_to_numpy(std::move(data));
+      //} );
 } // apply_xmap_interpolation_methods
 
 template <class T> void declare_xmap( nb::module_ &m, const std::string &name ) {
@@ -354,6 +520,13 @@ template <class T> void declare_xmap( nb::module_ &m, const std::string &name ) 
             GEMMI::export_xmap(self, mapobj);
           },
           nb::arg( "target" ), "Export Xmap to gemmi.Ccp4Map." );
+  if constexpr (std::is_floating_point_v<T>) {
+    xmap.def("skeletonise", []( const XMClass& self ) {
+        auto xsk1 = std::make_unique<clipper::Xmap<int>>(self.spacegroup(), self.cell(), self.grid_sampling());
+        clipper::Skeleton_fast<int, T>(*xsk1, self);
+        return xsk1;
+      });
+  }
   // interpolators
   apply_xmap_interpolation_methods<XMClass, T>( xmap );
   // ffts

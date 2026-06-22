@@ -32,6 +32,7 @@ void init_sfweight( nb::module_ &m );
 void add_clipper_tests( nb::module_ &m, nb::module_ &mdata );  //1
 void add_cifdata_io( nb::module_ &m );
 
+void add_derivs( nb::module_ &m );
 void add_rotation( nb::module_ &m );  //1
 void add_xmap( nb::module_ &m );  //1
 void add_nxmap( nb::module_ &m );  //1

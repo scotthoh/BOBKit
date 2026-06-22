@@ -52,7 +52,9 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       if ( mm.exists_property("SEQDAT") ) mm.delete_property("SEQDAT");
       const int ntyp = llksample.size();
       std::vector<double> scores( ntyp, 0.0 );
-      
+      // use alpha to balance correlation scores from buccaneer and mlinput (if available, alpha=0.5), 
+      float alpha = 1.0;
+      if ( llksample[0].get_type() == "CORREL" ) alpha = 0.5;
       if ( seqprob_ ) {
         if ( mm.exists_property( "SEQPROB" ) ) {
           const Sequence_data& sp =
@@ -64,6 +66,7 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
           if ( hybrid_ ) {
             for ( int t = 0; t < ntyp; t++ ) {
               scores[t] += llksample[t].target( xmap, ca.rtop_beta_carbon() );
+              scores[t] *= alpha;
             }
           }
         }
@@ -78,11 +81,10 @@ void Ca_sequence::prepare_score( clipper::MMonomer& mm, const clipper::Xmap<floa
       mm.set_property( "SEQDAT", clipper::Property<Sequence_data>( sd ) );
     }
     // check
-    // const Sequence_data& sd =
-    //    static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQDAT" )
-    //    ).value();
-    // for ( int i = 0; i < sd.data.size(); i++ ) std::cout << clipper::String( sd.data[i] ) << ",
-    // "; std::cout << std::endl;
+    //const Sequence_data& sd =
+    //   static_cast<const clipper::Property<Sequence_data>&>( mm.get_property( "SEQDAT" )
+    //   ).value();
+    //for ( int i = 0; i < sd.data.size(); i++ ) std::cout << clipper::String( sd.data[i] ) << ", "; std::cout << std::endl;
   }
 }
 

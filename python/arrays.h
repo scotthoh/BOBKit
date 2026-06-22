@@ -13,6 +13,14 @@ template <typename T> using np_cpu_f_3darray = nb::ndarray<T, nb::ndim<3>, nb::d
 template <typename T, size_t M, size_t N>
 using cpu_c_2darray = nb::ndarray<T, nb::shape<M, N>, nb::device::cpu, nb::c_contig>;
 
+// make numpy array from vector
+template <typename T>
+auto vector_to_numpy(std::vector<T>&& original_vec) {
+  auto v = new std::vector<T>(std::move(original_vec));
+  nb::capsule owner(v, [](void* p) noexcept { delete [] static_cast<T*>(p); });
+  return nb::ndarray<nb::numpy, T, nb::shape<-1>, nb::c_contig>(v->data(), {v->size()}, owner);
+}
+
 // make numpy array with given size/shape
 template <typename T>
 auto make_numpy_array(std::initializer_list<size_t> shape, std::initializer_list<int64_t> strides={}) {

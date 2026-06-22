@@ -19,6 +19,7 @@ void remove_sidechains( MiniMol &mol, const bool &keep_oxygen=true ) {
     MPolymer mp;
     for ( int res = 0; res < mold[chn].size(); res++ ) {
       //MMonomer mm;
+      if (!ProteinTools::is_protein(mold[chn][res])) continue;//{
       clipper::String searchstr = "";
       int in = mold[chn][res].lookup( " N  ", clipper::MM::ANY );
       int ia = mold[chn][res].lookup( " CA ", clipper::MM::ANY );
@@ -34,8 +35,8 @@ void remove_sidechains( MiniMol &mol, const bool &keep_oxygen=true ) {
         if ( io >= 0 ) searchstr.append(",O"); //mm.insert( mold[chn][res][io] );
       }
       auto mm = mold[chn][res].select(searchstr);
-      
       if ( mm.size() > 0 ) mp.insert( mm );
+    //}
     }  
     if ( mp.size() > 0 ) mol.insert( mp );
   }

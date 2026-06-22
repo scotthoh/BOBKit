@@ -63,7 +63,7 @@ class Buccaneer:
             hkls_wrk (clipper.HKL_info): Work HKL info object
         """  # noqa: E501
         buccaneer.Ca_prep.set_cpus(self.args.ncpu)
-        if self.args.use_ml_find:
+        if self.args.use_ml_find and self.args.cpu == 1:
             buccaneer.Ca_find.set_cpus(self.args.ncpu+1)
         else:
             buccaneer.Ca_find.set_cpus(self.args.ncpu)
@@ -724,6 +724,11 @@ class Buccaneer:
             mol_mr (clipper.MiniMol): Molecular replacement MiniMol object
             knownstruc (buccaneer.KnownStructure): KnownStructure object
         """  # noqa: E501
+        usefms = False
+        if self.args.seqnc and self.args.ml_sequence_method == "findmysequence":
+            fmshelper = util.FMSlibHelper(xwrk, em=(self.args.experiment_method == "em"), device="cpu", nseqs=100, verbose=True, correlation_mode=self.args.correl)
+            usefms = True
+        
         seq_wrk = self.get_work_sequence()
         mol_wrk_in = mol_wrk.clone()
         cafind, osaka = self.prepare_ca_find(
@@ -830,6 +835,8 @@ class Buccaneer:
                     )
                     if not osaka.check_is_seqprob_set():
                         print("SEQPROB not set!")
+                if usefms:
+                    fmshelper.predict(mol_wrk)
                 buccaneer.Ca_sequence.set_use_ml_sequence_probability(
                     self.use_ml_seq, self.args.sequence_method == "hybrid"
                 )

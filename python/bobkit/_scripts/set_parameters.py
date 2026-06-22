@@ -78,6 +78,15 @@ class BucArgParse:
         """Parse input arguments."""
         _GROUP = parser.add_argument_group("required arguments")
         _GROUP.add_argument(
+            "--experiment-method",
+            type=str,
+            dest="experiment_method",
+            help="Experiment method, xray or em. Default to \'xray\'",
+            metavar="X",
+            default="xray",
+            required=False,
+        )
+        _GROUP.add_argument(
             "--mtzin",
             type=str,
             dest="mtzin",
@@ -413,6 +422,13 @@ class BucArgParse:
                   "mlinput is to use machine learning outputs. hybrid is a mixture of both.")
         )
         _GROUP.add_argument(
+            "--ml-sequence-method",
+            dest="ml_sequence_method",
+            choices=["findmysequence", "mtstacknet"],
+            metavar="findmysequence | mtstacknet",
+            help=("Specify machine learning sequencing method used")
+        )
+        _GROUP.add_argument(
             "--apply-shiftback-mlfind",
             dest="shiftback",
             action="store_true",
@@ -739,6 +755,7 @@ class BuccaneerParams:
     pdbin_mr: str
     pdbin_seq: str
     aa_instance_directory: str
+    experiment_method: str
     # columns
     title: str
     ipcol_ref_fo: str  # "FP.F_sigF.F,FP.F_sigF.sigF"
@@ -776,6 +793,7 @@ class BuccaneerParams:
     semet: bool  # further options
     use_ml_find: bool
     sequence_method: str
+    ml_sequence_method: str
     cluster_method: str
     shiftback: bool
     optemp: bool  # false
@@ -818,6 +836,7 @@ class BuccaneerParams:
         aa_instance_directory: str = "NONE",
         use_ml_find: bool = False,
         sequence_method: str = "default",
+        ml_sequence_method: str = "NONE",
         cluster_method: str = "kmeans",
         shifback: bool = False,
         outfile_name: str = "buccaneer_build.pdb",
@@ -826,6 +845,7 @@ class BuccaneerParams:
         write_cif: bool = True,
         sequence_multiplier: List[int] = [1],
         profile: bool = False,
+        experiment_method: str = "xray",
         verbose: int = 0,
     ):
         self.mtzin = mtzin
@@ -836,6 +856,8 @@ class BuccaneerParams:
         self.aa_instance_directory = aa_instance_directory
         self.use_ml_find = use_ml_find
         self.sequence_method = sequence_method
+        self.ml_sequence_method = ml_sequence_method
+        self.experiment_method = experiment_method
         self.cluster_method = cluster_method
         self.shiftback = shifback
         self.verbose = verbose
@@ -885,11 +907,13 @@ class BuccaneerParams:
         self.aa_instance_directory = args.aa_instance_directory
         self.use_ml_find = args.use_ml_find
         self.sequence_method = args.sequence_method
+        self.ml_sequence_method = args.ml_sequence_method
         self.cluster_method = args.cluster_method
         self.shiftback = args.shiftback
         self.verbose = args.verbose
         self.title = args.title
         self.ipseq_wrk = args.seqin
+        self.experiment_method = args.experiment_method
         self.set_reference_data(args.pdbin_ref, args.mtzin_ref)
         self.set_ncpu(args.nthreads)
         self.set_ncyc(args.cycles)

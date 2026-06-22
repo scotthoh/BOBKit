@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind >=2.4", "typing-extensions >=4.0; python_version <= '3.11'", "scipy>=1.13", "gemmi==0.7.3", "scikit-learn>=1.6"]
+requires = ["scikit-build-core", "nanobind==2.12", "typing-extensions >=4.0; python_version <= '3.11'", "scipy>=1.13", "gemmi==0.7.3", "scikit-learn>=1.6"]
 build-backend = "scikit_build_core.build"
 
 # edit from here
@@ -22,7 +22,7 @@ classifiers = [
 "Programming Language :: C++",
 "Programming Language :: Python :: 3",
 ]
-dependencies = ["numpy", "scipy>=1.13", "scikit-learn>=1.6"]
+dependencies = ["numpy", "scipy>=1.13", "scikit-learn>=1.6", "gemmi==0.7.3"]
 dynamic = ["version"]
 
 [project.urls]
@@ -76,3 +76,6 @@ regex = "#define BOBKIT_VERSION \"(?P<value>[0-9dev.-]+)\""
 #minversion = "6.0"
 #addopts = ["-ra", "-q"]
 #testpaths = ["tests"]
+
+[tool.black]
+target-version = ["py311"]

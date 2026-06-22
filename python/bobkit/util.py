@@ -1,9 +1,13 @@
 from __future__ import annotations
 from typing import List as _List
+from typing import Union as _Union
 from bobkit._util import *
 import scipy.spatial as _spatial
 import itertools as _IT
-import sys
+from sys import stdout
+from warnings import warn
+from importlib import resources
+from scipy.interpolate import UnivariateSpline
 
 __all__ = [
     "read_structure",
@@ -32,6 +36,7 @@ from bobkit.clipper import (
     MAtom as _MAtom,
     Xmap_base as _Xmap_base,
     Xmap_float as _Xmap_float,
+    Xmap_double as _Xmap_double,
     Xmap_int as _Xmap_int,
     Vec3_double as _Vec3_double,
     Property_int as _Property_int,
@@ -46,7 +51,7 @@ from bobkit.clipper import (
     Spacegroup as _Spacegroup,
     Coord_frac as _Coord_frac,
     Resolution as _Resolution,
-    NX_operator as _NX_operator
+    NX_operator as _NX_operator,
 )
 
 import numpy as _np
@@ -58,10 +63,22 @@ from typing import Sequence as _Sequence, Union as _Union, Literal as _Literal
 from os import path as _path
 from dataclasses import dataclass as _dataclass, field as _field
 import re as _re
-#from multiprocessing import Process as _Process
-#from multiprocessing.managers import BaseManager as _BaseManager
+
+# from multiprocessing import Process as _Process
+# from multiprocessing.managers import BaseManager as _BaseManager
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
+# check if findmysequence is installed
+try:
+    import fmslib
+    from fmslib import nn_models as _fmslib_nn_models
+    _HAS_FMSLIB = True
+except ImportError:
+    _HAS_FMSLIB = False
+
+if _HAS_FMSLIB:
+    import torch as _torch
+
 _ProteinTools()
 
 AA_TO_CH_DICT = {
@@ -151,6 +168,29 @@ BUC_TO_MLI_DICT = {
     12: 16,     # MSE
 }
 
+BUC_TO_FMS_DICT = {
+    0: 10,   # ALA - CYS
+    1: 15,   # ARG - GLN
+    2: 13,   # ASN - ILE
+    3: 16,   # ASP - SER
+    4: 0,    # CYS - VAL
+    5: 1,    # GLN - LYS
+    6: 17,   # GLU - TRP
+    7: 8,    # GLY - PRO
+    8: 12,   # HIS - GLY
+    9: 2,    # ILE - THR
+    10: 14,  # LEU - ALA
+    11: 5,   # LYS - PHE
+    12: 19,  # MET - HIS
+    13: 11,  # PHE - ASN
+    14: 7,   # PRO - LEU
+    15: 3,   # SER - ARG
+    16: 9,   # THR - ASP
+    17: 6,   # TRP - GLU
+    18: 18,  # TYR - TYR
+    19: 4,   # VAL - MET
+ }
+
 
 @_dataclass
 class MapParameters:
@@ -230,7 +270,7 @@ class MLOutputFilenames:
     cutout_model: str = "cutout.pdb"
 
 
-class HelperMTStackNetOsaka:
+class MTStackNetOsakaHelper:
     """Helper class with methods and static methods to process the outputs from
     single shot CNN to predict amino acid instance and sequence from map
     segmentation by Osaka group.
@@ -241,6 +281,7 @@ class HelperMTStackNetOsaka:
         workcell: _Union[_Sequence[float], _np.ndarray] = None,
         ncpu: int = 1,
         kmeans_ninit: int = 6,
+        sequence_reliability: float = 0.95,
         verbose: bool = False,
     ):
         """Initialise object
@@ -250,6 +291,7 @@ class HelperMTStackNetOsaka:
             filenames (MLOutputFilenames, optional): Input and output filenames from MTStackNet
             workcell (Union[Sequence[float], _np.ndarray], optional): Work cell parameters. Defaults to None.
             kmeans_ninit: (int, optional): Number of times K-means algorithm is run with different centroid seeds, 6 seems to be stable. Defaults to 6.
+            sequence_reliability: (float, optional): Reliability of sequence provided. Defaults to 0.95
             verbose: (bool, optional): Flag to turn on/off debugging printouts. Defaults to False.
 
         Raises:
@@ -259,6 +301,7 @@ class HelperMTStackNetOsaka:
         self.map_params = MapParameters()
         self.filenames = filenames
         self.verbose = verbose
+        self.seqrel = sequence_reliability
         if workcell is not None:
             tmp = _np.asarray(workcell, dtype=float)
             if tmp.shape != (6,):
@@ -282,7 +325,7 @@ class HelperMTStackNetOsaka:
         """
         if debug:
             print(f"DEBUG>> {msg}")
-            sys.stdout.flush()
+            stdout.flush()
 
     def _debug_list(self, msg: str, data: _Union[_Sequence, _np.ndarray], debug: bool):
         """Prints debug message with data
@@ -296,7 +339,7 @@ class HelperMTStackNetOsaka:
             for v in data:
                 print(f"{v}, ", end="")
             print("\n")
-            sys.stdout.flush()
+            stdout.flush()
 
     def __call__(self, mol: _Minimol, correlation_mode: bool = False, single_atom: bool = False):  # , llktargets: LLK_TargetList):  # noqa: E501
         """Apply sequence probabilities from MTStackNet output to model properties
@@ -413,7 +456,7 @@ class HelperMTStackNetOsaka:
         return CH_TO_AA_DICT[HelperMTStackNetOsaka.buc_aa2mlindex(ml_aa_ind)]
 
     @staticmethod
-    def get_probability_values(cg: _Coord_grid, seq_arrays: _np.ndarray, correlation_mode: bool = False):
+    def get_probability_values(cg: _Coord_grid, seq_arrays: _np.ndarray, correlation_mode: bool = False, sequence_reliability: float = 0.95):
         """Get probability values of all sequence from predicted sequence array.
         For compatibility with Buccaneer's sequencing scores, a list of negative probability values (correlation mode) or
         1.-probability values (non-correlation mode) is returned as ordered in AA_TO_CH_DICT.
@@ -426,19 +469,25 @@ class HelperMTStackNetOsaka:
             probvals: A list of probability values as ordered in AA_TO_CH_DICT
         """  # noqa: E501
         # pad the 0. scores a bit in correlation mode
+        # laplace smoothing, if not log(0.) = Kaboom
+        epsilon = 1e-6
+        # create copy because we are modifying
+        probs = _np.array(seq_arrays[:-1, cg.u, cg.v, cg.w])
+        probs[[5, 9, 10]] /= 2.0
         if correlation_mode:
-            probvals = -(seq_arrays[:-1, cg.u, cg.v, cg.w] + 0.1)
-        else:
-            probvals = 1. - seq_arrays[:-1, cg.u, cg.v, cg.w]
-        probvals[5] /= 2.0
-        probvals[9] /= 2.0
-        probvals[10] /= 2.0
+            probs = -(2 * (probs*sequence_reliability) - 1)
+        else: #llk
+            probs = -_np.log(probs + epsilon)
+            #probvals = 1. - seq_arrays[:-1, cg.u, cg.v, cg.w]
+        #probvals[5] /= 2.0
+        #probvals[9] /= 2.0
+        #probvals[10] /= 2.0
         buc_indices = [BUC_TO_MLI_DICT[i] for i in BUC_TO_MLI_DICT.keys()]
         #print('###')
         #print(buc_indices)
         #print(probvals)
         #print(probvals[buc_indices])
-        return probvals[buc_indices]
+        return probs[buc_indices]
 
     @staticmethod
     def get_probability_value(ind: int, cg: _Coord_grid, seq_array: _np.ndarray, correlation_mode: bool = False):  # noqa: E501
@@ -656,7 +705,9 @@ class HelperMTStackNetOsaka:
                 #cgb = cgb.unit(_Grid_sampling(self.map_params.grid[0],
                 #                            self.map_params.grid[1],
                 #                            self.map_params.grid[2]))
-                scores = self.get_probability_values(nxm_cg, self.__sequence_array, correlation_mode)
+                scores = self.get_probability_values(nxm_cg, self.__sequence_array, correlation_mode, self.seqrel)
+                if self.verbose:
+                    print(f"{scores}\n")
                 #scores += self.get_probability_values(cgb, self.__sequence_array, correlation_mode)
                 #scores /= 2
                 # for t in range(0, ntyp):
@@ -795,15 +846,16 @@ class HelperMTStackNetOsaka:
 
         density = _np.load(f"{self.datapath}/{self.filenames.density_array}")
         if any(p1 != p2 for p1, p2 in zip(fixed_pos, [0, 1, 2])):
-            density = _np.swapaxes(density, axispos[0], fixed_pos[0])  # fmt: skip  # noqa: E501
-            density = _np.swapaxes(density, axispos[1], fixed_pos[1])  # fmt: skip  # noqa: E501
+            density = _np.swapaxes(density, axispos[0], fixed_pos[0])  # fmt: skip, noqa: E501
+            density = _np.swapaxes(density, axispos[1], fixed_pos[1])  # fmt: skip, noqa: E501
         xyz = _np.mgrid[
-                    0 : density.shape[0],  # fmt: skip  # noqa: E203
-                    0 : density.shape[1],  # fmt: skip  # noqa: E203
-                    0 : density.shape[2],  # fmt: skip  # noqa: E203
+                    0 : density.shape[0],  # fmt: skip, noqa: E203
+                    0 : density.shape[1],  # fmt: skip, noqa: E203
+                    0 : density.shape[2],  # fmt: skip, noqa: E203
               ].astype(_np.int64)
 
-        vol_points = (xyz[:, density > 0].T).astype(_np.int64)
+        vol_points = _np.column_stack(_np.where(density > 0)).astype(_np.int64)
+        #vol_points = (xyz[:, density > 0].T).astype(_np.int64)
         vol_indices = _np.ravel_multi_index(xyz, density.shape)[density > 0]
         self.map_xmap_to_nxmap_grid(vol_points, vol_indices, rtop)  # noqa: E501
         #print("check xwrk_int", self.xwrk_int.grid_asu, self.xwrk_int.grid_sampling)
@@ -919,10 +971,10 @@ class HelperMTStackNetOsaka:
         #    gmap = _gemmi.read_ccp4_map(mapin_path)
         #    if mp.fix_axis_positions:
         #        axis_pos = _np.array(gmap.axis_positions())
-        #        offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
-        #        offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
-        #        density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
-        #        density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
+        #        offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip, noqa: E501
+        #        offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip, noqa: E501
+        #        density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip, noqa: E501
+        #        density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip, noqa: E501
         #        gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
         #else:
         #    # swap the x and z axes from the ML npy output
@@ -932,15 +984,15 @@ class HelperMTStackNetOsaka:
         #        density = _np.swapaxes(density, 0, 2)
         #if fix_origin:
         #    xyz = _np.mgrid[
-        #        mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
-        #        mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
-        #        mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
+        #        mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
+        #        mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
+        #        mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
         #    ].astype(_np.float64)
         #else:
         xyz = _np.mgrid[
-            mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip  # noqa: E203
-            mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip  # noqa: E203
-            mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip  # noqa: E203
+            mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip, noqa: E203
+            mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip, noqa: E203
+            mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip, noqa: E203
         ].astype(_np.float64)
 
         self._debug(f"xyz shape : {xyz.shape}", self.verbose)
@@ -1019,10 +1071,10 @@ class HelperMTStackNetOsaka:
             gmap = _gemmi.read_ccp4_map(mapin_path)
             if mp.fix_axis_positions:
                 axis_pos = _np.array(gmap.axis_positions())
-                offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
-                offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
-                density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip  # noqa: E501
-                density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip  # noqa: E501
+                offsets = _np.swapaxes(offsets, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip, noqa: E501
+                offsets = _np.swapaxes(offsets, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip, noqa: E501
+                density = _np.swapaxes(density, axis_pos[0], _np.where(axis_pos == 0)[0][0])  # fmt: skip, noqa: E501
+                density = _np.swapaxes(density, axis_pos[1], _np.where(axis_pos == 1)[0][0])  # fmt: skip, noqa: E501
                 gmap.setup(float("nan"), _gemmi.MapSetup.ReorderOnly)
         else:
             # swap the x and z axes from the ML npy output
@@ -1032,15 +1084,15 @@ class HelperMTStackNetOsaka:
                 density = _np.swapaxes(density, 0, 2)
         if fix_origin:
             xyz = _np.mgrid[
-                mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
-                mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
-                mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip  # noqa: E203, E501
+                mp.origin[0] : density.shape[0] + (mp.origin[0] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
+                mp.origin[1] : density.shape[1] + (mp.origin[1] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
+                mp.origin[2] : density.shape[2] + (mp.origin[2] + mp.ncorrect),  # fmt: skip, noqa: E203, E501
             ].astype(_np.float64)
         else:
             xyz = _np.mgrid[
-                mp.origin[0] : density.shape[0],  # fmt: skip  # noqa: E203
-                mp.origin[1] : density.shape[1],  # fmt: skip  # noqa: E203
-                mp.origin[2] : density.shape[2],  # fmt: skip  # noqa: E203
+                mp.origin[0] : density.shape[0],  # fmt: skip, noqa: E203
+                mp.origin[1] : density.shape[1],  # fmt: skip, noqa: E203
+                mp.origin[2] : density.shape[2],  # fmt: skip, noqa: E203
             ].astype(_np.float64)
         
         self._debug(f"xyz shape : {xyz.shape}", self.verbose)
@@ -1488,7 +1540,142 @@ class HelperMTStackNetOsaka:
             else:
                 gmap.write_ccp4_map(f"channel_{str(CH_TO_AA_DICT[i])}_pred.ccp4")
 
-#@staticmethod
+
+# deprecation warning
+class _DeprecatedHelperMTStackNetOsaka(MTStackNetOsakaHelper):
+    def __init__(self, *args, **kwargs):
+        warn("HelperMTStackNetOsaka is deprecated and will be removed in "
+             "future release. Please use MTStackNetOsakaHelper instead.",
+             DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+# backward compatibility with HelperMTStackNetOsaka
+HelperMTStackNetOsaka = MTStackNetOsakaHelper
+
+if _HAS_FMSLIB:
+    class FMSlibHelper:
+        """Helper class with methods and static methods to process the outputs from
+        FindMySequence NN model to predict amino acid sequence from using neural network.
+        """
+        def __init__(self, xmap: _Union[_Xmap_float, _Xmap_double], em=True, device='cpu', nseqs: int = 100, verbose=False, correlation_mode:bool = False): #, mol: _MiniMol):
+            self.device = _torch.device(device)
+            self.xmap = xmap
+            self.em_model = em
+            self.verbose = verbose
+            self.correlation_mode = correlation_mode
+            # self.mol = mol
+            if self.em_model:
+                state_dict_fname = str(resources.files(fmslib.__package__).joinpath("data", "nn_gpu_1e4_bs200_naive.dat"))
+            else:
+                state_dict_fname = str(resources.files(fmslib.__package__).joinpath("data", "xtst_5k.dat"))
+                
+            cloud_data = read_structure(str(resources.files(fmslib.__package__).joinpath("data", "cloud.pdb")), enable_user_messages=False).model[0][0]
+            self.template_bb = cloud_data.select("N,CA,C")
+            self.cloud_ph = cloud_data.select("H")
+            # load weigts and model from fmslib
+            self.model = _fmslib_nn_models.naive().to(self.device)
+            self.model.load_state_dict(_torch.load(state_dict_fname, map_location=self.device))
+            self.model.eval()
+            self.fms_indices = [BUC_TO_FMS_DICT[i] for i in BUC_TO_FMS_DICT.keys()]
+            self.nseqs = nseqs
+            #self.template_bb = {"N": self.cloud_data.find('N'), "CA": self.cloud_data.find('CA'), "C": self.cloud_data.find('C')}
+            #c = _MRes()
+            
+        def describe(self, cagrp: _Ca_group):
+            #cagrp = _Ca_group(res)
+            #if cagrp.is_null():
+            #    return None
+            src = [self.template_bb["N"].pos, self.template_bb["CA"].pos, self.template_bb["C"].pos]
+            tgt = [cagrp.coord_n, cagrp.coord_ca, cagrp.coord_c]
+            rtop = _RTop_orth(src, tgt)
+            atms = self.cloud_ph.clone()
+            atms.transform(rtop)
+            atm_xyz = atms.atom_list().get_coords_list()
+            #atm_xyz = []
+            #for a in atms:
+            #    atm_xyz.append(a.pos)
+            # trilinear interpolation, order 1
+            _cloud = self.xmap.interp_values(atm_xyz, 1)
+            std, mean = _cloud.std(), _cloud.mean()
+            if std > 0:
+                _cloud = (_cloud-mean) / std
+            return _cloud
+            # 14 march superpose all the cloud points
+        
+        def predict_old(self, mol: _MiniMol):
+            # batch_data = []
+            for chn in mol.model:
+                for res in chn:
+                    cagrp = _Ca_group(res)
+                    cloud = self.describe(cagrp)
+                    #pred = self.model(_torch.tensor(_np.array([cloud])).float()).exp().detach().numpy().flatten()
+                    pred = self.model(_torch.tensor(_np.array([cloud])).float()).detach().numpy().flatten()
+                    pred[_np.isnan(pred)] = 0.1
+                    _norm = pred.sum()
+                    scores = float(self.nseqs)*pred / _norm
+                    scores_to_buc = scores[self.fms_indices]
+                    seqprob_val = _Ca_sequence.Sequence_data(cagrp, scores_to_buc.tolist())
+                    # write to property         
+                    res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
+
+        def predict(self, mol: _MiniMol):
+            batch_data = []
+            for chn in mol.model:
+                for res in chn:
+                    cagrp = _Ca_group(res)
+                    if not cagrp.is_null():
+                        #print(f"{res}, {cagrp.is_null()}")
+                        batch_data.append((res, cagrp, self.describe(cagrp)))
+            #print(len(batch_data))
+            if not batch_data:
+                return
+            residues, cagrps, clouds = zip(*batch_data)
+            batch_input = _torch.tensor(_np.array(clouds)).float()
+            with _torch.no_grad():
+                # preds = self.model(batch_input).exp().detach().cpu().numpy()
+                preds = self.model(batch_input).detach().cpu().numpy()
+                        
+            preds[_np.isnan(preds)] = 0.1
+            #probs = None
+            if self.correlation_mode:
+                probs = _np.exp(preds)
+                # correlation scores
+                scores = -((2 * probs) - 1)
+                #probs1 = probs
+            else: # llk
+                scores = -preds
+            
+            #norms = preds.sum(axis=1, keepdims=True)
+            #    ln_norms = _torch.log(norms)
+
+            #scores = (float(self.nseqs) * preds) / _norms
+            for i, (res, cagrp) in enumerate(zip(residues, cagrps)):
+                scores_to_buc = scores[i][self.fms_indices]
+                if self.verbose:
+                    for j, s in enumerate(scores_to_buc):
+                        print(f"{s}|{preds[i][j]}|{probs[i][j]}", end=", ")
+                    print("\n")
+                seqprob_val = _Ca_sequence.Sequence_data(cagrp, scores_to_buc.tolist())
+                res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
+            #cloud = self.describe(cagrp)
+            #pred = self.model(_torch.tensor(_np.array([cloud])).float()).exp().detach().numpy().flatten()
+            #pred[_np.isnan(pred)] = 0.1
+            #_norm = pred.sum()
+            #scores = float(self.nseqs)*pred / _norm
+            #scores_to_buc = scores[self.fms_indices]
+            #seqprob_val = _Ca_sequence.Sequence_data(cagrp, scores_to_buc.tolist())
+            #res.set_property("SEQPROB", _Property_sequence_data(seqprob_val))
+            #write to property         
+else:
+    class FMSlibHelper:
+        """Helper class with methods and static methods to process the outputs from
+        FindMySequence library to predict amino acid sequence from using neural network.
+        """
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("FMSlibHelper is unavailable because 'findmysequence' package is not installed.")
+
+# @staticmethod
 def write_out_model_with_seq(mol: _Minimol = None, outfile: str = "model_with_seqprob.pdb"):
     """Write a model file (PDB format) with residue type deduced from probability values
 
@@ -1809,9 +1996,9 @@ def grid_points_in_radius(point: _np.ndarray, density: _np.ndarray, radius: floa
     grmin = _np.floor(point - radius).astype(int)
     grmax = _np.ceil(point + radius).astype(int)
     XYZ = _np.mgrid[
-                    grmin[0] : grmax[0],  # fmt: skip  # noqa: E203
-                    grmin[1] : grmax[1],  # fmt: skip  # noqa: E203
-                    grmin[2] : grmax[2],  # fmt: skip  # noqa: E203
+                    grmin[0] : grmax[0],  # fmt: skip, noqa: E203
+                    grmin[1] : grmax[1],  # fmt: skip, noqa: E203
+                    grmin[2] : grmax[2],  # fmt: skip, noqa: E203
               ].astype(_np.int64)
     mask = ((XYZ[0] - point[0])**2 + (XYZ[1] - point[1])**2 + (XYZ[2] - point[2])**2) <= r2
     points = _np.column_stack((XYZ[0, mask], XYZ[1, mask], XYZ[2, mask]))
@@ -1868,7 +2055,7 @@ def res_to_pos(res: _MRes):
 def update_residue_pos(res: _MRes, pos: _np.ndarray):
     for a in range(0, res.size()):
         res[a].pos = pos[a]
-    
+
 def set_flips():
     rots = []
     rots.append(_RTop_orth(_Mat33_double.identity(), _Vec3_double.zero()))
@@ -1913,7 +2100,64 @@ def build_rotated_aa(aa_coms: _np.ndarray, density_file: str, sequence: list, xm
 
     mol.insert(chn)
     return mol
-        
+
+def calculate_radial_profile(fft_amplitude, radial_dist, num_bins:int = 100):
+    max_freq = radial_dist.max()
+    bin_edges = _np.linspace(0, max_freq, num_bins + 1)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    bin_indices = _np.digitize(radial_dist, bin_edges) - 1
+    profile = _np.zeros(num_bins)
+    for i in range(num_bins):
+        mask = ( bin_indices == 1 )
+        if _np.any(mask):
+            profile[i] = _np.mean(fft_amplitude[mask])
+        else:
+            profile[i] = 1e-6
+    
+    return bin_centers, profile
+
+#def simulate_map(target_map: _NXmap_float, ref_map: _NXmap_base, num_bins: int=200, smoothing:float = 0.1):
+#  """Simulate map from reference map to match resolution from target map
+#
+#  Args:
+#      target_map (_type_): _description_
+#      ref_map (_type_): _description_
+#      sim_map (_type_): _description_
+#      num_bins (int, optional): _description_. Defaults to 200.
+#      smoothing (float, optional): _description_. Defaults to 0.1.
+#  """
+#  voxel_size_tgt = 
+#  voxel_size_ref = 
+#  if ref_map.shape != target_map.shape:
+#      # resample reference map to target
+#  
+#  grid_tgt = target_map.grid_sampling
+#  # compute 3D FFT
+#  tgt_fft = _np.fft.fftn(target_map.array)
+#  ref_fft = _np.fft.fftn(ref_map.array)
+#  tgt_amp = _np.abs(tgt_fft)
+#  ref_amp = _np.abs(ref_fft)
+#  # 3D freq
+#  freq_x = _np.fft_fftfreq(grid_tgt.nu, voxel_size_tgt)
+#  freq_y = _np.fft_fftfreq(grid_tgt.nv, voxel_size_tgt)
+#  freq_z = _np.fft_fftfreq(grid_tgt.nw, voxel_size_tgt)
+#  X, Y, Z = _np.meshgrid(freq_x, freq_y, freq_z, indexing="ij")
+#  radial_distances = _np.sqrt(X**2 + Y**2 + Z**2)
+#
+#  # radial averaged power spectra
+#  bin_centers, tgt_profile = calculate_radial_profile(tgt_amp, radial_distances, num_bins)
+#  _, ref_profile = calculate_radial_profile(ref_amp, radial_distances, num_bins)
+#  # scaling factors
+#  raw_scale_factor = tgt_profile / (ref_profile + 1e-8)
+#  # 
+#  bspline_scaling_func = UnivariateSpline(bin_centers, raw_scale_factors, s=smoothing, k=3)
+#  scale_filter_3d = bspline_scaling_func(radial_distances.ravel()).reshape(target_map.shape)
+#  nyquist_freq = 1.0 / (2.0 * voxel_size_tgt)
+#  scale_filter_3d[radial_distances > nyquist_freq] = 0.0
+#  scale_filter_3d = _np.clip(scale_filter_3d, 0.0, None)
+#  fft_ref_scaled = ref_fft * scale_filter_3d
+#  sim_map = _np.real(_np.fft.ifftn(fft_ref_scaled))
+#  # noise simulate?
 
 
 # del _Ca_group, _Cell, _Grid_sampling, _Coord_orth, _Coord_map

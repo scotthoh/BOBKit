@@ -109,6 +109,11 @@ class LLK_map_target {
     }
     int size() const { return repxyz.size(); }  //!< get number of samples
     void set_type( LLK_map_target::TYPE t ) { type_ = t; }
+    //! get LLK_map_target type
+    clipper::String get_type() const { 
+      if ( type_ == LLK_map_target::NORMAL ) return clipper::String("LLK");
+      else                                   return clipper::String("CORREL");
+    }
     clipper::Coord_orth coord_orth( int i ) const { return repxyz[i]; }
     clipper::ftype      target( int i )     const { return reptgt[i]; }
     clipper::ftype      weight( int i )     const { return repwgt[i]; }

@@ -5,6 +5,7 @@
 // The University of York
 
 #include "c_atom_list.h"
+#include "arrays.h"
 #include <nanobind/operators.h>
 #include <nanobind/stl/bind_vector.h>
 #include <nanobind/stl/vector.h>
@@ -134,6 +135,49 @@ void add_atomlist( nb::module_ &m ) {
         GemmiAtom_list ga(mdl.all());
         return new Atom_list(ga);
         //std::cout << mdl.chains.size() << std::endl;
+      })
+      .def( "get_coords_list", [](const Atom_list &self) {
+        size_t n = self.size();
+        std::vector<Coord_orth> out;
+        out.resize(n);
+        for (size_t i = 0; i < n; ++i) {
+          out[i] = self[i].coord_orth();
+        }
+        return out;
+      })
+      .def( "get_coords_frac_list", [](const Atom_list &self, const Cell &cell) {
+        size_t n = self.size();
+        std::vector<Coord_frac> out;
+        out.resize(n);
+        for (size_t i = 0; i < n; ++i) {
+          out[i] = self[i].coord_orth().coord_frac(cell);
+        }
+        return out;
+      })
+      .def( "coords_orth_as_array", [](const Atom_list &self) {
+        //std::vector<Coord_orth> out;
+        size_t n = self.size();
+        auto out = make_numpy_array<double>({n, 3});
+        double *ptr = out.data();
+        for (size_t i = 0; i < n; ++i) {
+            auto co = self[i].coord_orth();
+            ptr[3*i+0] = co.x();
+            ptr[3*i+1] = co.y();
+            ptr[3*i+2] = co.z();
+        }
+        return out;
+      } )
+      .def( "coords_frac_as_array", [](const Atom_list &self, const Cell &cell) {
+        size_t n = self.size();
+        auto out = make_numpy_array<double>({n, 3});
+        double *ptr = out.data();
+        for (size_t i =0; i< n; ++i) {
+            auto cf = self[i].coord_orth().coord_frac(cell);
+            ptr[3*i+0] = cf.u();
+            ptr[3*i+1] = cf.v();
+            ptr[3*i+2] = cf.w();
+        }
+        return out;
       })
       .def( "__getstate__", [](const Atom_list &a) {
         return nb::make_tuple(static_cast<const std::vector<Atom>&>(a));
