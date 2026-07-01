@@ -33,7 +33,7 @@ message(STATUS "BOBKit version ${PROJECT_VERSION}")
 # Use -fPIC even if statically compiled
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-option(BUILD_SHARED_LIBS "Build shared library" ON)
+option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(SHOW_COMPILE_TIME "Show compile time" OFF)
 option(USE_PYTHON "Build Python bindings" ON)
 option(EXTRA_WARNINGS "Set extra warning flags" OFF)
@@ -55,6 +55,7 @@ endif()
 # Common installation directories, CMake helpers
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(FetchContent)
 if(DEFINED ENV{VIRTUAL_ENV})
   message(STATUS "VIRTUAL ENV PATH = $ENV{VIRTUAL_ENV}")
   set(VENV_INSTALL_DIR $ENV{VIRTUAL_ENV})
@@ -122,7 +123,11 @@ if (BUILD_SHARED_LIBS)
 endif()
 
 if(USE_PYTHON)
-find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
+if ( NOT DEFINED SKBUILD )
+  find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development)
+else()  
+  find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development.Module)
+endif()
 if (EXISTS "${CMAKE_HOME_DIRECTORY}/nanobind") #pybind11")
   message(STATUS "Using ${CMAKE_HOME_DIRECTORY}/nanobind (internal copy).")
   add_subdirectory(nanobind)
@@ -132,7 +137,7 @@ else()
     COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
     OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nb_cmake_dir)
   list(APPEND CMAKE_PREFIX_PATH "${nb_cmake_dir}")
-  find_package(nanobind 2.4.0 CONFIG REQUIRED)
+  find_package(nanobind CONFIG REQUIRED)
   message(STATUS "Found nanobind ${nanobind_VERSION}: ${NB_DIR}")
   ## use pybind11-config (if available) to determine pybind11_DIR
   #execute_process(COMMAND pybind11-config --cmakedir OUTPUT_VARIABLE pybind11_DIR)
@@ -182,6 +187,43 @@ else()
   set(lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
   set(fftwconf_args "")
 endif()
+
+# install gemmi use fetchcontent for operating at configure time
+FetchContent_Declare(
+  gemmi
+  GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
+  GIT_TAG v0.7.3
+)
+FetchContent_MakeAvailable(gemmi)
+
+#set(GEMMI_INCLUDE_DIR "${gemmi_source_SOURCE_DIR}/include")
+#execute_process(
+#  COMMAND ${Python_EXECUTABLE} -c "import os, gemmi; print([os.path.join(gemmi.__path__[0], f) for f in os.listdir(gemmi.__path__[0]) if f.endswith(('.so', '.pyd', '.dylib', '.dll'))][0])"
+#  OUTPUT_VARIABLE GEMMI_SHARED_LIB
+#  OUTPUT_STRIP_TRAILING_WHITESPACE
+#  RESULT_VARIABLE GEMMI_LOCATE_STATUS
+#)
+#
+#if(NOT GEMMI_LOCATE_STATUS EQUAL 0 OR "${GEMMI_SHARED_LIB}" STREQUAL "")
+#  message(FATAL_ERROR "Could not find the compiled gemmi binary library. Is 'gemmi' installed via pip?")
+#endif()
+
+#if(APPLE)
+#file(GLOB GEMMI_SRC_FILES "${gemmi_source_SOURCE_DIR}/src/*.cpp")
+##add_library(gemmi::gemicpp INTERFACE IMPORTED GLOBAL)
+#set_target_properties(gemmi::cpp PROPERTIES
+#  INTERFACE_INCLUDE_DIRECTORIES "${GEMMI_INCLUDE_DIR}"
+#  #IMPORTED_LOCATION "${GEMMI_SHARED_LIB}"
+#  INTERFACE_SOURCES "${GEMMI_SRC_FILES}"
+#)
+#else()
+#add_library(gemmi::cpp SHARED IMPORTED GLOBAL)
+#set_target_properties(gemmi::cpp PROPERTIES
+#  IMPORTED_LOCATION "${GEMMI_SHARED_LIB}"
+#  INTERFACE_INCLUDE_DIRECTORIES "${GEMMI_INCLUDE_DIR}"
+#)
+#endif()
+
 set(lib_fftw_name ${lib_prefix}fftw3f${lib_suffix})
 if(BUILD_OWN_FFTW3)
 message(STATUS "Setting up to install FFTW3...")
@@ -200,14 +242,14 @@ ExternalProject_add(project_fftw
                     URL https://fftw.org/pub/fftw/fftw-3.3.4.tar.gz
                     #PREFIX ${CMAKE_CURRENT_BINARY_DIR}/fftw
                     BUILD_IN_SOURCE false
-                    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${VENV_INSTALL_DIR} --enable-float 
+                    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${VENV_INSTALL_DIR} --enable-static --disable-shared --enable-float 
                     --disable-fortran ${fftwconf_args} "CFLAGS=-fPIC"
                     #--prefix=${CMAKE_CURRENT_BINARY_DIR}/fftw/install --enable-float 
                     )
 if (BUILD_SHARED_LIBS)
 add_library(fftw3::fftw3 SHARED IMPORTED)
 else()
-add_library(fftw3::fftw3 STATIC IMPORTED)
+add_library(fftw3::fftw3 STATIC IMPORTED GLOBAL)
 endif()
 #set_target_properties(fftw PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/fftw/install/lib/${lib_fftw_name})
 set(FFTW3_INCDIR "${VENV_INSTALL_DIR}/include")
@@ -246,47 +288,48 @@ add_library(fftw3::fftw3 ALIAS PkgConfig::FFTW)
 #                      #INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS})
 endif() # if(BUILD_OWN_FFTW3)
 
-# install gemmi
-set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
-set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
-set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
 
-set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
 
-ExternalProject_add(project_gemmi
-                    PREFIX ${gemmi_dep_path}
-                    SOURCE_DIR ${gemmi_src_path}
-                    BINARY_DIR ${gemmi_bin_path}
-                    GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
-                    GIT_TAG v0.7.3
-                    #GIT_TAG v0.6.7
-                    UPDATE_COMMAND ""
-                    BUILD_IN_SOURCE false
-                    #PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
-                    #"${gemmi_src_path}/CMakeLists.txt"
-                    BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
-                    INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} #--prefix=${VENV_INSTALL_DIR}
-                    INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
-                    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
-                    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENV_INSTALL_DIR} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DBUILD_GEMMI_PROGRAM=OFF -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=OFF -DPython_EXECUTABLE=${Python_EXECUTABLE})
-
-if(BUILD_SHARED_LIBS)
-add_library(gemmi::gemmi_cpp SHARED IMPORTED)
-else()
-add_library(gemmi::gemmi_cpp STATIC IMPORTED)
-endif()
-set(GEMMI_INCDIR "${VENV_INSTALL_DIR}/include")
-set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
-
-if (WIN32 AND BUILD_SHARED_LIBS)
-  set_target_properties(gemmi::gemmi_cpp PROPERTIES
-                      IMPORTED_LOCATION "${VENV_INSTALL_DIR}/bin/${lib_gemmi_name}"
-                      IMPORTED_IMPLIB "${GEMMI_LIBDIR}/gemmi_cpp.lib")
-else()
-  set_target_properties(gemmi::gemmi_cpp PROPERTIES
-                      IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name})
-endif()
-add_dependencies(gemmi::gemmi_cpp project_gemmi)
+#set(gemmi_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/gemmi")
+#set(gemmi_src_path "${gemmi_dep_path}/src/gemmi")
+#set(gemmi_bin_path "${gemmi_dep_path}/src/gemmi_ex-build/")
+#
+#set(lib_gemmi_name ${lib_prefix}gemmi_cpp${lib_suffix})
+#
+#ExternalProject_add(project_gemmi
+#                    PREFIX ${gemmi_dep_path}
+#                    SOURCE_DIR ${gemmi_src_path}
+#                    BINARY_DIR ${gemmi_bin_path}
+#                    GIT_REPOSITORY https://github.com/project-gemmi/gemmi.git
+#                    GIT_TAG v0.7.3
+#                    #GIT_TAG v0.6.7
+#                    UPDATE_COMMAND ""
+#                    BUILD_IN_SOURCE false
+#                    #PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/gemmi/CMakeLists.txt" 
+#                    #"${gemmi_src_path}/CMakeLists.txt"
+#                    BUILD_COMMAND ${CMAKE_COMMAND} --build ${gemmi_bin_path}
+#                    INSTALL_COMMAND ${CMAKE_COMMAND} --install ${gemmi_bin_path} #--prefix=${VENV_INSTALL_DIR}
+#                    INSTALL_DIR ${VENV_INSTALL_DIR} #${CMAKE_CURRENT_BINARY_DIR}/fftw/install
+#                    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${lib_gemmi_name}
+#                    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENV_INSTALL_DIR} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DBUILD_GEMMI_PROGRAM=OFF -DUSE_PYTHON=ON -DSTANDALONE_PYTHON_MODULE=OFF -DPython_EXECUTABLE=${Python_EXECUTABLE})
+#
+#if(BUILD_SHARED_LIBS)
+#add_library(gemmi::gemmi_cpp SHARED IMPORTED)
+#else()
+#add_library(gemmi::gemmi_cpp STATIC IMPORTED)
+#endif()
+#set(GEMMI_INCDIR "${VENV_INSTALL_DIR}/include")
+#set(GEMMI_LIBDIR "${VENV_INSTALL_DIR}/lib")
+#
+#if (WIN32 AND BUILD_SHARED_LIBS)
+#  set_target_properties(gemmi::gemmi_cpp PROPERTIES
+#                      IMPORTED_LOCATION "${VENV_INSTALL_DIR}/bin/${lib_gemmi_name}"
+#                      IMPORTED_IMPLIB "${GEMMI_LIBDIR}/gemmi_cpp.lib")
+#else()
+#  set_target_properties(gemmi::gemmi_cpp PROPERTIES
+#                      IMPORTED_LOCATION ${GEMMI_LIBDIR}/${lib_gemmi_name})
+#endif()
+#add_dependencies(gemmi::gemmi_cpp project_gemmi)
 
 # install parts of clipper
 set(clipper_dep_path "${CMAKE_CURRENT_BINARY_DIR}/_deps/clipper")
@@ -319,33 +362,28 @@ ExternalProject_add(project_clipper
                     <INSTALL_DIR>/lib/${lib_clippercif} <INSTALL_DIR>/lib/${lib_clipperminimol}
                     <INSTALL_DIR>/lib/${lib_clippercontrib} <INSTALL_DIR>/lib/${lib_clippergemmi}
                     CMAKE_ARGS -DFFTW_LIBPATH=${FFTW3_LIBDIR}/${lib_fftw_name} -DFFTW_INCPATH=${FFTW3_INCDIR} 
-                    -DGEMMI_INCPATH=${GEMMI_INCDIR} -DGEMMI_LIBPATH=${GEMMI_LIBDIR}/${lib_gemmi_name} 
-                    -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DREL_RPATH=${rpath_rel})
-if(BUILD_SHARED_LIBS)
-add_library(clipper::core SHARED IMPORTED)
-add_library(clipper::contrib SHARED IMPORTED)
-add_library(clipper::gemmi SHARED IMPORTED)
-add_library(clipper::minimol SHARED IMPORTED)
-add_library(clipper::cif SHARED IMPORTED)
-else()
-add_library(clipper::core STATIC IMPORTED)
-add_library(clipper::contrib STATIC IMPORTED)
-add_library(clipper::gemmi STATIC IMPORTED)
-add_library(clipper::minimol STATIC IMPORTED)
-add_library(clipper::cif STATIC IMPORTED)
-endif()
+                    -DGEMMI_INCPATH=${gemmi_SOURCE_DIR}/include -DGEMMI_LIBPATH=${gemmi_SOURCE_DIR}/src 
+                    -DBUILD_SHARED_LIBS=OFF -DREL_RPATH=${rpath_rel})
+#if(BUILD_SHARED_LIBS)
+#add_library(clipper::core SHARED IMPORTED)
+#add_library(clipper::contrib SHARED IMPORTED)
+#add_library(clipper::gemmi SHARED IMPORTED)
+#add_library(clipper::minimol SHARED IMPORTED)
+#add_library(clipper::cif SHARED IMPORTED)
+#else()
+add_library(clipper::core STATIC IMPORTED GLOBAL)
+add_library(clipper::contrib STATIC IMPORTED GLOBAL)
+add_library(clipper::gemmi STATIC IMPORTED GLOBAL)
+add_library(clipper::minimol STATIC IMPORTED GLOBAL)
+add_library(clipper::cif STATIC IMPORTED GLOBAL)
+#endif()
 if (BUILD_OWN_FFTW3)
-  add_dependencies(project_clipper project_gemmi project_fftw )
-else()
-  add_dependencies(project_clipper project_gemmi)
+  add_dependencies(project_clipper project_fftw )
+#else()
+#  add_dependencies(project_clipper )
 endif()
 set(CLIPPER_INCDIR "${VENV_INSTALL_DIR}/include")
 set(CLIPPER_LIBDIR "${VENV_INSTALL_DIR}/lib")
-add_dependencies(clipper::core project_clipper) # project_fftw)
-add_dependencies(clipper::contrib project_clipper) # project_fftw)
-add_dependencies(clipper::gemmi project_clipper project_gemmi)
-add_dependencies(clipper::minimol project_clipper project_gemmi)
-add_dependencies(clipper::cif project_clipper project_gemmi)
 
 if (WIN32 AND BUILD_SHARED_LIBS)
   set_target_properties(clipper::core PROPERTIES IMPORTED_LOCATION ${VENV_INSTALL_DIR}/bin/${lib_clippercore} IMPORTED_IMPLIB ${CLIPPER_LIBDIR}/clipper-core.lib)
@@ -360,31 +398,30 @@ else()
   set_target_properties(clipper::minimol PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clipperminimol})
   set_target_properties(clipper::cif PROPERTIES IMPORTED_LOCATION ${CLIPPER_LIBDIR}/${lib_clippercif})
 endif()
+add_dependencies(clipper::core project_clipper) # project_fftw)
+add_dependencies(clipper::contrib project_clipper) # project_fftw)
+add_dependencies(clipper::gemmi project_clipper)
+add_dependencies(clipper::minimol project_clipper)
+add_dependencies(clipper::cif project_clipper)
 
 file(GLOB BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.cpp")
 file(GLOB BUCCANEER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/*.h")
 # remove cbuccaneer.cpp and csequins.cpp, not compiling these
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/cbuccaneer.cpp")
 list(REMOVE_ITEM BUCCANEER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer/csequins.cpp")
-if(BUILD_SHARED_LIBS)
-  add_library(buccaneer_lib SHARED ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
-  set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "${origin}") #/${rpath_rel}")
-else()
-add_library(buccaneer_lib STATIC ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
-endif()
-add_library(buccaneer::buccaneer_lib ALIAS buccaneer_lib)
-set_target_properties(buccaneer_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(buccaneer_lib project_gemmi project_clipper)
-find_package(Threads REQUIRED)
-target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 
-target_link_directories(buccaneer_lib PRIVATE
-                      ${VENV_INSTALL_DIR}/lib
-                      ${clipper_bin_path}
-                      ${gemmi_bin_path}
-                      ${FFTW3_LIBDIR})
-                      
-target_link_libraries(buccaneer_lib PRIVATE
+file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
+list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_map_io.cpp")
+list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_container.cpp")
+# compile both python bindings and buccaneer src together into one
+nanobind_add_module(buc_py NOMINSIZE ${PY_SRC} ${BUCCANEER_SRC})
+add_dependencies(buc_py project_clipper)
+target_include_directories(buc_py PUBLIC $<TARGET_PROPERTY:gemmi::gemmi_cpp,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(buc_py PUBLIC ${CLIPPER_INCDIR} ${FFTW3_INCDIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include/buccaneer)
+file(GLOB GEMMI_NATIVE_SRC "${gemmi_SOURCE_DIR}/src/*.cpp")
+target_sources(buc_py PRIVATE ${GEMMI_NATIVE_SRC})
+link_libraries("-Wl,-undefined,dynamic_lookup")
+target_link_libraries(buc_py PRIVATE
                       clipper::cif
                       clipper::minimol
                       clipper::contrib
@@ -393,47 +430,75 @@ target_link_libraries(buccaneer_lib PRIVATE
                       fftw3::fftw3
                       gemmi::gemmi_cpp)
 if (Threads_FOUND)
-  target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
+  target_link_libraries(buc_py PRIVATE Threads::Threads)
 endif()
-message(STATUS "VENV_INSTALL_DIR is ${VENV_INSTALL_DIR}")
-install(TARGETS buccaneer_lib LIBRARY DESTINATION "${VENV_INSTALL_DIR}/lib")
-file(GLOB PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/*.cpp")
-list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_map_io.cpp")
-list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_container.cpp")
+
+#if(BUILD_SHARED_LIBS)
+#  add_library(buccaneer_lib SHARED ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
+#  set_target_properties(buccaneer_lib PROPERTIES INSTALL_RPATH "${origin}") #/${rpath_rel}")
+#else()
+#add_library(buccaneer_lib STATIC ${BUCCANEER_SRC} ${BUCCANEER_HEADERS})
+#endif()
+#add_library(buccaneer::buccaneer_lib ALIAS buccaneer_lib)
+#set_target_properties(buccaneer_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+#add_dependencies(buccaneer_lib project_gemmi project_clipper)
+#find_package(Threads REQUIRED)
+#target_include_directories(buccaneer_lib PUBLIC ${VENV_INSTALL_DIR}/include ${CMAKE_SOURCE_DIR}/include)
+#
+#target_link_directories(buccaneer_lib PRIVATE
+#                      ${VENV_INSTALL_DIR}/lib
+#                      ${clipper_bin_path}
+#                      ${gemmi_bin_path}
+#                      ${FFTW3_LIBDIR})
+#                      
+#target_link_libraries(buccaneer_lib PRIVATE
+#                      clipper::cif
+#                      clipper::minimol
+#                      clipper::contrib
+#                      clipper::gemmi
+#                      clipper::core
+#                      fftw3::fftw3
+#                      gemmi::gemmi_cpp)
+#if (Threads_FOUND)
+#  target_link_libraries(buccaneer_lib PRIVATE Threads::Threads)
+#endif()
+#message(STATUS "VENV_INSTALL_DIR is ${VENV_INSTALL_DIR}")
+#install(TARGETS buccaneer_lib LIBRARY DESTINATION "${VENV_INSTALL_DIR}/lib")
+
 #list(REMOVE_ITEM PY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/python/c_gemmi.cpp")
 
 
 # nanobind module
-if(USE_PYTHON)
-nanobind_add_module(buc_py ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
-add_dependencies(buc_py project_gemmi project_clipper buccaneer_lib)
-
-target_include_directories(buc_py PUBLIC
-                           ${CLIPPER_INCDIR}
-                           ${GEMMI_INCDIR}
-                           ${FFTW3_INCDIR}
-                           ${CMAKE_SOURCE_DIR}/include
-                          )
-
-#target_link_directories(buc_py PRIVATE
-#                        ${VENV_INSTALL_DIR}/lib
-#                        ${FFTW3_LIBDIR}
-#                        ${clipper_bin_path}
-#                        ${gemmi_bin_path})
+#if(USE_PYTHON)
+#nanobind_add_module(buc_py ${PY_SRC})# $<TARGET_OBJECTS:buccaneer_lib>) #${BUCCANEER_SRC})# ${BUCCANEER_HEADERS})
+#add_dependencies(buc_py project_gemmi project_clipper buccaneer_lib)
 #
-target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib 
-clipper::cif
-clipper::contrib
-clipper::minimol
-clipper::gemmi
-clipper::core
-fftw3::fftw3
-gemmi::gemmi_cpp)
-#endif() # STANDALONE_PYTHON_MODULE
-
-if (Threads_FOUND)
-  target_link_libraries(buc_py PRIVATE Threads::Threads)
-endif()
+#target_include_directories(buc_py PUBLIC
+#                           ${CLIPPER_INCDIR}
+#                           ${GEMMI_INCDIR}
+#                           ${FFTW3_INCDIR}
+#                           ${CMAKE_SOURCE_DIR}/include
+#                          )
+#
+##target_link_directories(buc_py PRIVATE
+##                        ${VENV_INSTALL_DIR}/lib
+##                        ${FFTW3_LIBDIR}
+##                        ${clipper_bin_path}
+##                        ${gemmi_bin_path})
+##
+#target_link_libraries(buc_py PRIVATE buccaneer::buccaneer_lib 
+#clipper::cif
+#clipper::contrib
+#clipper::minimol
+#clipper::gemmi
+#clipper::core
+#fftw3::fftw3
+#gemmi::gemmi_cpp)
+##endif() # STANDALONE_PYTHON_MODULE
+#
+#if (Threads_FOUND)
+#  target_link_libraries(buc_py PRIVATE Threads::Threads)
+#endif()
 # install
 set_property(TARGET buc_py PROPERTY OUTPUT_NAME bobkit_ext)
 if (CMAKE_CONFIGURATION_TYPES)
@@ -463,11 +528,11 @@ add_custom_command(TARGET buc_py PRE_BUILD
   BYPRODUCTS ${py_dir}/bobkit/_scripts
 )
 
-if (BUILD_SHARED_LIBS)
-  set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
-  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${clipper_bin_path}")
-  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${gemmi_bin_path}")
-endif()
+#if (BUILD_SHARED_LIBS)
+#  set_target_properties(buc_py PROPERTIES INSTALL_RPATH "${origin}/${rpath_rel}")
+#  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${clipper_bin_path}")
+#  set_property(TARGET buc_py APPEND PROPERTY BUILD_RPATH "${gemmi_bin_path}")
+#endif()
 
 if (GENERATE_STUBS AND CMAKE_CROSSCOMPILING)
   message(WARNING "Stubs cannot be generated while cross-compiling - skipping.")
@@ -493,7 +558,7 @@ elseif(GENERATE_STUBS)
         MODULE bobkit
         PYTHON_PATH ${py_dir}
         MARKER_FILE ${py_dir}/bobkit/py.typed
-        DEPENDS buc_py project_clipper project_gemmi
+        DEPENDS buc_py project_clipper #project_gemmi
         OUTPUT ${py_dir}/bobkit/__init__.pyi
       )
     endif()
@@ -533,7 +598,7 @@ if (GENERATE_STUBS AND NOT CMAKE_CROSSCOMPILIING)
                 DESTINATION "${Python_SITEARCH}/bobkit" COMPONENT py)
 endif()
 
-endif()
+#endif()
 #this is for convenience to delete fftw
 #set(INSTALL_SHAREDIR ${FFTW_INSTALL_PATH}/share/fftw3)
 #install(CODE "string(REPLACE \";\" \"\\n\" MY_CMAKE_INSTALL_MANIFEST_CONTENT \"\$\{CMAKE_INSTALL_MANIFEST_FILES\}\")\n\

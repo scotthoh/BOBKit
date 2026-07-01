@@ -13,6 +13,7 @@
 #include <nanobind/operators.h>
 #include <nanobind/stl/vector.h>
 #include <chrono>
+#include <nanobind/stl/unique_ptr.h>
 
 // #include <nanobind/stl/stl_bind.h>
 
@@ -521,11 +522,23 @@ template <class T> void declare_xmap( nb::module_ &m, const std::string &name ) 
           },
           nb::arg( "target" ), "Export Xmap to gemmi.Ccp4Map." );
   if constexpr (std::is_floating_point_v<T>) {
-    xmap.def("skeletonise", []( const XMClass& self ) {
-        auto xsk1 = std::make_unique<clipper::Xmap<int>>(self.spacegroup(), self.cell(), self.grid_sampling());
-        clipper::Skeleton_fast<int, T>(*xsk1, self);
-        return xsk1;
-      });
+    xmap.def("skeletonise", [](const XMClass& self ) {
+        Xmap<int> xskl(self.spacegroup(), self.cell(), self.grid_sampling());
+        // set up xskl to be skeletonised
+        clipper::Xmap<float>::Map_reference_index ix;
+        for ( ix = xskl.first(); !ix.last(); ix.next() ) xskl[ix] = 1;
+        clipper::Skeleton_fast<int, T>(xskl, self);
+        return xskl;
+      })
+    .def("skeletonise_mask", [](const XMClass& self, const Xmap<int> xmask ) {
+       Xmap<int> xskl(self.spacegroup(), self.cell(), self.grid_sampling());
+       clipper::Xmap<float>::Map_reference_index ix;
+       for ( ix = xskl.first(); !ix.last(); ix.next() ) {
+        if(xmask[ix] == 1) xskl[ix] = 1;
+       }
+       clipper::Skeleton_fast<int, T>(xskl, self);
+       return xskl;
+    });
   }
   // interpolators
   apply_xmap_interpolation_methods<XMClass, T>( xmap );

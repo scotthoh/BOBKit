@@ -24,6 +24,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 build*/
+*.whl
+*.pat
+python/test_stubs/
+
+# venv
+py311env/
+bobenv/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

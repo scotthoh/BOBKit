@@ -1991,8 +1991,19 @@ def score_orientation(res, xmap: _Xmap_float, rtop: _RTop_orth):
         scores += xmap.interp_cubic_orth(_Coord_orth(*p))
     return scores
 
-def grid_points_in_radius(point: _np.ndarray, density: _np.ndarray, radius: float = 6.0):
-    r2 = radius * radius
+def grid_points_in_radius(point: _np.ndarray, density: _np.ndarray, radius: float = 6.0, spacing = [1.0,1.0,1.0]):
+    """return grid points within radius of point in grid
+  
+    Args:
+        point (_np.ndarray): Point in grid. coordinate grid
+        density (_np.ndarray): Density array
+        radius (float, optional): Grid coordinate radius. Defaults to 6.0.
+  
+    Returns:
+        _type_: _description_
+    """
+    rad = radius * (_np.sqrt(3)/_np.sqrt(_np.sum(spacing**2)))
+    r2 = rad * rad
     grmin = _np.floor(point - radius).astype(int)
     grmax = _np.ceil(point + radius).astype(int)
     XYZ = _np.mgrid[
